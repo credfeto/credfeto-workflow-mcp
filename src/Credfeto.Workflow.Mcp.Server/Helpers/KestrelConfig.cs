@@ -26,8 +26,6 @@ public static class KestrelConfig
 
     private static void ConfigureKestrelOptions(KestrelServerOptions options, string certPath)
     {
-        options.DisableStringReuse = false;
-        options.AllowSynchronousIO = false;
         options.AddServerHeader = false;
 
         if (File.Exists(certPath))
