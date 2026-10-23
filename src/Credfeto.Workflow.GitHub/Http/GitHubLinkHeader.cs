@@ -37,8 +37,20 @@ public static partial class GitHubLinkHeader
     // different ApiBaseUrl; following that absolute URL would bypass the configured host and send the
     // caller's token to it. The Link host is only compared, never requested: on the configured host the
     // path already carries any base path (e.g. GHE /api/v3/), so it stays rooted; on any other host the
-    // path is made relative so it resolves under the configured base path.
+    // path is made relative so it resolves under the configured base path. Whatever the route, a result that
+    // would not resolve under the configured host and base path is rejected here.
     private static string ToRelativeUri(string url, Uri? baseAddress)
+    {
+        string relativeUri = RewriteOntoBaseAddress(url: url, baseAddress: baseAddress);
+
+        return baseAddress is null || ResolvesUnderBasePath(relativeUri: relativeUri, baseAddress: baseAddress)
+            ? relativeUri
+            : throw new GitHubInvalidResponseException(
+                "GitHub returned a next page link outside the configured GitHub API host and base path"
+            );
+    }
+
+    private static string RewriteOntoBaseAddress(string url, Uri? baseAddress)
     {
         Uri? absolute = ParseAbsoluteLink(url);
 
@@ -50,6 +62,18 @@ public static partial class GitHubLinkHeader
         return UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress)
             ? absolute.PathAndQuery
             : RelativeToBasePath(pathAndQuery: absolute.PathAndQuery, basePath: baseAddress?.AbsolutePath ?? "/");
+    }
+
+    // A link that resolves elsewhere (a same-host path outside the base path, a dot-segment relative link)
+    // is upstream content, so it is an invalid response rather than the request-building failure the client
+    // raises for a caller-supplied URI
+    private static bool ResolvesUnderBasePath(string relativeUri, Uri baseAddress)
+    {
+        return UriHosts.TryResolveUnderBasePath(
+            baseAddress: baseAddress,
+            relative: new(uriString: relativeUri, uriKind: UriKind.Relative),
+            out _
+        );
     }
 
     // The link is upstream content, so a malformed one is an invalid response rather than a request-building

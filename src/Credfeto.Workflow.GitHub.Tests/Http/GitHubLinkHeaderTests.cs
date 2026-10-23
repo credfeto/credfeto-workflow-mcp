@@ -80,21 +80,50 @@ public sealed class GitHubLinkHeaderTests : TestBase
     [Theory]
     [InlineData(
         "<ftp://evil.example/items?page=2>; rel=\"next\"",
+        GitHubServices.ApiBaseUrl,
         "GitHub returned a next page link that is not an HTTP(S) URI"
     )]
     [InlineData(
         "<//elsewhere.example/items?page=2>; rel=\"next\"",
+        GitHubServices.ApiBaseUrl,
         "GitHub returned a next page link that is not an HTTP(S) URI"
     )]
-    [InlineData("<http://[>; rel=\"next\"", "GitHub returned a next page link that is not a valid URI")]
-    [InlineData("<http://exa mple/items>; rel=\"next\"", "GitHub returned a next page link that is not a valid URI")]
-    [InlineData("<http://>; rel=\"next\"", "GitHub returned a next page link that is not a valid URI")]
-    public static void MalformedNextLinkIsInvalidResponse(string link, string expectedMessage)
+    [InlineData(
+        "<http://[>; rel=\"next\"",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a next page link that is not a valid URI"
+    )]
+    [InlineData(
+        "<http://exa mple/items>; rel=\"next\"",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a next page link that is not a valid URI"
+    )]
+    [InlineData(
+        "<http://>; rel=\"next\"",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a next page link that is not a valid URI"
+    )]
+    [InlineData(
+        "<https://ghe.example/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<../repositories/9/issues?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<https://ghe.example//elsewhere.example/items?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    public static void MalformedNextLinkIsInvalidResponse(string link, string baseAddress, string expectedMessage)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
 
         GitHubInvalidResponseException exception = Assert.Throws<GitHubInvalidResponseException>(() =>
-            GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: new Uri(GitHubServices.ApiBaseUrl))
+            GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: new Uri(baseAddress))
         );
 
         Assert.Equal(expected: expectedMessage, actual: exception.Message);
