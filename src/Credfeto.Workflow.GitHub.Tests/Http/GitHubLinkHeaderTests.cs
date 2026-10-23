@@ -133,6 +133,16 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "https://proxy.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]
+    [InlineData(
+        "<https://ghe.example/a:b/x?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<https://ghe.example/repos:x/items?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
     public static void MalformedNextLinkIsInvalidResponse(string link, string baseAddress, string expectedMessage)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);

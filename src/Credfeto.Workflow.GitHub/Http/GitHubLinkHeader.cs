@@ -66,14 +66,13 @@ public static partial class GitHubLinkHeader
 
     // A link that resolves elsewhere (a same-host path outside the base path, a dot-segment relative link)
     // is upstream content, so it is an invalid response rather than the request-building failure the client
-    // raises for a caller-supplied URI
+    // raises for a caller-supplied URI. A path stripped from another host can fail to parse as a relative
+    // reference (a first segment containing ':' reads as a scheme or drive letter), so it cannot be mapped
+    // onto the base path either
     private static bool ResolvesUnderBasePath(string relativeUri, Uri baseAddress)
     {
-        return UriHosts.TryResolveUnderBasePath(
-            baseAddress: baseAddress,
-            relative: new(uriString: relativeUri, uriKind: UriKind.Relative),
-            out _
-        );
+        return Uri.TryCreate(uriString: relativeUri, uriKind: UriKind.Relative, out Uri? relative)
+            && UriHosts.TryResolveUnderBasePath(baseAddress: baseAddress, relative: relative, out _);
     }
 
     // The link is upstream content, so a malformed one is an invalid response rather than a request-building
