@@ -4,6 +4,7 @@ using Credfeto.Workflow.GitHub.Configuration;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Xunit;
 
@@ -32,5 +33,18 @@ public sealed class ServerStartupTests : TestBase
         GitHubOptions options = app.Services.GetRequiredService<IOptions<GitHubOptions>>().Value;
 
         Assert.Equal(expected: new Uri("https://ghe.example.com/api/v3/"), actual: options.ApiBaseUrl);
+    }
+
+    [Fact]
+    public static async Task BuildAppEnablesDebugLoggingWhenConfiguredAsync()
+    {
+        await using WebApplication app = ServerStartup.BuildApp([
+            $"--contentRoot={AppContext.BaseDirectory}",
+            "--Logging:LogLevel:Default=Debug",
+        ]);
+
+        ILogger logger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Credfeto.Workflow.Test");
+
+        Assert.True(condition: logger.IsEnabled(LogLevel.Debug), userMessage: "Debug should be enabled");
     }
 }

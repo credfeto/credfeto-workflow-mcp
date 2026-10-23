@@ -18,4 +18,12 @@ public sealed class LoggingConfigTests : TestBase
             userMessage: "Information should be enabled"
         );
     }
+
+    [Fact]
+    public void CreateLoggerEnablesVerbose()
+    {
+        using Logger logger = LoggingConfig.CreateConfiguration().CreateLogger();
+
+        Assert.True(condition: logger.IsEnabled(LogEventLevel.Verbose), userMessage: "Verbose should be enabled");
+    }
 }
