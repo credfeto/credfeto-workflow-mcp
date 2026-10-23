@@ -51,15 +51,11 @@ public sealed class GitHubLinkHeaderTests : TestBase
     )]
     [InlineData("<https://api.github.com/items?page=2>; rel=prev; rel=next", GitHubServices.ApiBaseUrl, null)]
     [InlineData("<items?page=2>; rel=\"next\"", GitHubServices.ApiBaseUrl, "items?page=2")]
-    [InlineData(
-        "<https://github-proxy.example/items?page=2>; rel=\"next\"",
-        GitHubServices.ApiBaseUrl,
-        "/items?page=2"
-    )]
+    [InlineData("<https://github-proxy.example/items?page=2>; rel=\"next\"", GitHubServices.ApiBaseUrl, "items?page=2")]
     [InlineData(
         "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\"",
         "https://ghe.example/api/v3/",
-        "/api/v3/repositories/9/issues?page=2"
+        "repositories/9/issues?page=2"
     )]
     [InlineData(
         "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\"",
@@ -89,12 +85,12 @@ public sealed class GitHubLinkHeaderTests : TestBase
     [InlineData(
         "</api/v3/repositories/9/issues?page=2>; rel=\"next\"",
         "https://ghe.example/api/v3/",
-        "/api/v3/repositories/9/issues?page=2"
+        "repositories/9/issues?page=2"
     )]
     [InlineData(
         "</repositories/9/issues?page=2>; rel=\"next\"",
         GitHubServices.ApiBaseUrl,
-        "/repositories/9/issues?page=2"
+        "repositories/9/issues?page=2"
     )]
     public static void NextLinkIsRewrittenRelativeToBaseAddress(string? link, string? baseAddress, string? expected)
     {

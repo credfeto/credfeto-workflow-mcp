@@ -37,65 +37,56 @@ public static partial class GitHubLinkHeader
 
     // GitHub advertises its own public host in Link even when the request went through a proxy at a
     // different ApiBaseUrl; following that absolute URL would bypass the configured host and send the
-    // caller's token to it. The Link host is only compared, never requested: on the configured host the
-    // path already carries any base path (e.g. GHE /api/v3/), so it stays rooted; on any other host the
-    // path is made relative so it resolves under the configured base path. Whatever the route, a result that
-    // would not resolve under the configured host and base path is rejected here.
+    // caller's token to it, so the Link host is only compared, never requested. Every link takes one route:
+    // a link on another host is mapped under the configured base path, the result is resolved against the
+    // URI of the request that returned it (RFC 8288 section 3.2, RFC 3986 section 5), so issues?page=2
+    // returned for repos/o/r/issues names repos/o/r/issues?page=2, and it must then lie under the configured
+    // host and base path. It is handed back relative to the base path, as the client expects; anything that
+    // resolves elsewhere (a dot-segment climb, a rooted path outside the base path) is upstream content, so it
+    // is an invalid response rather than the request-building failure the client raises for a caller URI
     private static string ToRelativeUri(string url, Uri requestUri, Uri? baseAddress)
-    {
-        string relativeUri = RewriteOntoBaseAddress(url: url, requestUri: requestUri, baseAddress: baseAddress);
-
-        return baseAddress is null || ResolvesUnderBasePath(relativeUri: relativeUri, baseAddress: baseAddress)
-            ? relativeUri
-            : throw OutsideBasePath();
-    }
-
-    private static string RewriteOntoBaseAddress(string url, Uri requestUri, Uri? baseAddress)
     {
         Uri? absolute = ParseAbsoluteLink(url);
 
-        if (absolute is null)
+        if (baseAddress is null)
         {
-            return IsRootedPath(url) || baseAddress is null
-                ? url
-                : ResolveAgainstRequest(url: url, requestUri: requestUri, baseAddress: baseAddress);
+            return absolute is null ? url : absolute.PathAndQuery[1..];
         }
 
-        return UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress)
-            ? absolute.PathAndQuery
-            : RelativeToBasePath(pathAndQuery: absolute.PathAndQuery, basePath: baseAddress?.AbsolutePath ?? "/");
+        return
+            ToReference(url: url, absolute: absolute, baseAddress: baseAddress) is { } reference
+            && Uri.TryCreate(baseUri: requestUri, relativeUri: reference, out Uri? resolved)
+            && UriHosts.IsUnderBasePath(link: resolved, baseAddress: baseAddress)
+            ? resolved.PathAndQuery[baseAddress.AbsolutePath.Length..]
+            : throw OutsideBasePath();
     }
 
-    // RFC 8288 section 3.2 resolves a relative link target against the URI of the request that returned it
-    // (RFC 3986 section 5), not against the API base address, so issues?page=2 returned for repos/o/r/issues
-    // names repos/o/r/issues?page=2. The result is handed back relative to the configured base path, as the
-    // client expects; a dot-segment link that climbs out of the base path is rejected rather than remapped
-    private static string ResolveAgainstRequest(string url, Uri requestUri, Uri baseAddress)
+    // A link on another host keeps only its path, mapped under the configured base path. A path stripped from
+    // another host can fail to parse as a relative reference (a first segment containing ':' reads as a scheme
+    // or drive letter), so it cannot be mapped onto the base path and is rejected
+    private static Uri? ToReference(string url, Uri? absolute, Uri baseAddress)
     {
-        string basePath = baseAddress.AbsolutePath;
+        if (absolute is null)
+        {
+            return new(uriString: url, uriKind: UriKind.Relative);
+        }
 
-        return
-            Uri.TryCreate(baseUri: requestUri, relativeUri: url, out Uri? resolved)
-            && UriHosts.IsSameServer(link: resolved, baseAddress: baseAddress)
-            && resolved.AbsolutePath.StartsWith(value: basePath, comparisonType: StringComparison.Ordinal)
-            ? resolved.PathAndQuery[basePath.Length..]
-            : throw OutsideBasePath();
+        if (UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress))
+        {
+            return absolute;
+        }
+
+        string pathUnderBase = RelativeToBasePath(
+            pathAndQuery: absolute.PathAndQuery,
+            basePath: baseAddress.AbsolutePath
+        );
+
+        return Uri.TryCreate(baseUri: baseAddress, relativeUri: pathUnderBase, out Uri? mapped) ? mapped : null;
     }
 
     private static GitHubInvalidResponseException OutsideBasePath()
     {
         return new("GitHub returned a next page link outside the configured GitHub API host and base path");
-    }
-
-    // A link that resolves elsewhere (a same-host path outside the base path, a rooted path outside it)
-    // is upstream content, so it is an invalid response rather than the request-building failure the client
-    // raises for a caller-supplied URI. A path stripped from another host can fail to parse as a relative
-    // reference (a first segment containing ':' reads as a scheme or drive letter), so it cannot be mapped
-    // onto the base path either
-    private static bool ResolvesUnderBasePath(string relativeUri, Uri baseAddress)
-    {
-        return Uri.TryCreate(uriString: relativeUri, uriKind: UriKind.Relative, out Uri? relative)
-            && UriHosts.TryResolveUnderBasePath(baseAddress: baseAddress, relative: relative, out _);
     }
 
     // The link is upstream content, so a malformed one is an invalid response rather than a request-building

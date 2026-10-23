@@ -24,10 +24,12 @@ internal static class UriHosts
     public static bool TryResolveUnderBasePath(Uri baseAddress, Uri relative, [NotNullWhen(true)] out Uri? resolved)
     {
         return Uri.TryCreate(baseUri: baseAddress, relativeUri: relative, out resolved)
-            && IsSameServer(link: resolved, baseAddress: baseAddress)
-            && resolved.AbsolutePath.StartsWith(
-                value: baseAddress.AbsolutePath,
-                comparisonType: StringComparison.Ordinal
-            );
+            && IsUnderBasePath(link: resolved, baseAddress: baseAddress);
+    }
+
+    public static bool IsUnderBasePath(Uri link, Uri baseAddress)
+    {
+        return IsSameServer(link: link, baseAddress: baseAddress)
+            && link.AbsolutePath.StartsWith(value: baseAddress.AbsolutePath, comparisonType: StringComparison.Ordinal);
     }
 }
