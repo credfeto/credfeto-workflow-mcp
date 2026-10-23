@@ -35,20 +35,31 @@ public sealed class ServerRunnerTests : TestBase
         await using StringWriter errorWriter = new();
 
         int exitCode = await ServerRunner.RunAsync(
-            appFactory: static () => throw new InvalidOperationException("Startup failed for test"),
+            appFactory: static () =>
+                throw new InvalidOperationException(
+                    message: "Startup failed for test",
+                    innerException: new FormatException("Root cause for test")
+                ),
             errorWriter: errorWriter,
             cancellationToken: this.CancellationToken()
         );
 
+        string output = errorWriter.ToString();
+
         Assert.Equal(expected: EXIT_FAILURE, actual: exitCode);
-        Assert.Contains(
-            expectedSubstring: "Fatal error during startup:",
-            actualString: errorWriter.ToString(),
+        Assert.StartsWith(
+            expectedStartString: "Fatal error:",
+            actualString: output,
             comparisonType: StringComparison.Ordinal
         );
         Assert.Contains(
             expectedSubstring: "Startup failed for test",
-            actualString: errorWriter.ToString(),
+            actualString: output,
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.Contains(
+            expectedSubstring: "System.FormatException: Root cause for test",
+            actualString: output,
             comparisonType: StringComparison.Ordinal
         );
     }
