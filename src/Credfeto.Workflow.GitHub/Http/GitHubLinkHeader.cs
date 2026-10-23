@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
 using System.Text.RegularExpressions;
+using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 
 namespace Credfeto.Workflow.GitHub.Http;
 
@@ -39,11 +40,9 @@ public static partial class GitHubLinkHeader
     // path is made relative so it resolves under the configured base path.
     private static string ToRelativeUri(string url, Uri? baseAddress)
     {
-        // A network-path reference such as //other.host/path parses as an absolute file URI on Unix, so only
-        // http(s) counts as absolute; anything else is returned unchanged for the request guard to reject
-        if (
-            !Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute) || !UriSchemes.IsHttp(absolute)
-        )
+        Uri? absolute = ParseAbsoluteLink(url);
+
+        if (absolute is null)
         {
             return url;
         }
@@ -51,6 +50,26 @@ public static partial class GitHubLinkHeader
         return UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress)
             ? absolute.PathAndQuery
             : RelativeToBasePath(pathAndQuery: absolute.PathAndQuery, basePath: baseAddress?.AbsolutePath ?? "/");
+    }
+
+    // The link is upstream content, so a malformed one is an invalid response rather than a request-building
+    // failure; the fixed messages keep the upstream value out of what callers see. A network-path reference
+    // such as //other.host/path parses as an absolute file URI, so the scheme check rejects it as well
+    private static Uri? ParseAbsoluteLink(string url)
+    {
+        if (Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute))
+        {
+            if (!UriSchemes.IsHttp(absolute))
+            {
+                throw new GitHubInvalidResponseException("GitHub returned a next page link that is not an HTTP(S) URI");
+            }
+
+            return absolute;
+        }
+
+        return Uri.TryCreate(uriString: url, uriKind: UriKind.Relative, out _)
+            ? null
+            : throw new GitHubInvalidResponseException("GitHub returned a next page link that is not a valid URI");
     }
 
     // An upstream behind a proxy can carry the same base path as the configured one (GHE /api/v3/ behind a
