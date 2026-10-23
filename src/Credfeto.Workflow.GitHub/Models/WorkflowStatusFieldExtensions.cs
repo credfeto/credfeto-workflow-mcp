@@ -27,9 +27,8 @@ public static class WorkflowStatusFieldExtensions
         {
             0 => null,
             1 => matches[0],
-            _ => throw new AmbiguousStatusOptionException(
-                $"More than one status option on field {statusField.FieldName} matches {name} when case is ignored"
-            ),
+            // The field and option names are upstream content, so the fixed default message is used
+            _ => throw new AmbiguousStatusOptionException(),
         };
     }
 }
