@@ -112,11 +112,13 @@ public sealed class GitHubRestClient : IGitHubRestClient
             cancellationToken: cancellationToken
         );
 
+        // The handler follows redirects (a renamed or transferred repository) and updates the request it sends,
+        // so a relative next link is resolved against the URI that actually answered, not the one first asked for
         return new(
             Content: content,
             NextUri: GitHubLinkHeader.FindNextPage(
                 headers: response.Headers,
-                requestUri: requestUri,
+                requestUri: response.RequestMessage?.RequestUri ?? requestUri,
                 baseAddress: httpClient.BaseAddress
             )
         );
