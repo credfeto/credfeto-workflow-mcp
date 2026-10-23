@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 
 namespace Credfeto.Workflow.GitHub.Tests.Helpers;
@@ -26,6 +27,17 @@ internal static class Responses
         return new(HttpStatusCode.OK)
         {
             Content = new StringContent(content: html, encoding: Encoding.UTF8, mediaType: "text/html"),
+        };
+    }
+
+    public static HttpResponseMessage WithContentType(string body, string contentType)
+    {
+        return new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(content: body, encoding: Encoding.UTF8)
+            {
+                Headers = { ContentType = MediaTypeHeaderValue.Parse(contentType) },
+            },
         };
     }
 

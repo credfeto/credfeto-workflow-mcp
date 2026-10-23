@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Net.Http;
-using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
@@ -120,17 +120,24 @@ public sealed class GitHubRestClient : IGitHubRestClient
     }
 
     // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
-    // kept only as the inner exception for server-side diagnostics
+    // kept only as the inner exception for server-side diagnostics. The raw stream is read rather than using
+    // ReadFromJsonAsync, which honours the Content-Type charset and throws InvalidOperationException (escaping
+    // this wrapping) when the upstream sends an unknown one
     private static async ValueTask<TContent> ReadContentAsync<TContent>(
         HttpContent content,
         JsonTypeInfo<TContent> typeInfo,
         CancellationToken cancellationToken
     )
     {
+        await using Stream stream = await content.ReadAsStreamAsync(cancellationToken);
+
         try
         {
-            return await content.ReadFromJsonAsync(jsonTypeInfo: typeInfo, cancellationToken: cancellationToken)
-                ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
+            return await JsonSerializer.DeserializeAsync(
+                    utf8Json: stream,
+                    jsonTypeInfo: typeInfo,
+                    cancellationToken: cancellationToken
+                ) ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
         }
         catch (JsonException exception)
         {

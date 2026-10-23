@@ -123,12 +123,15 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     [Theory]
-    [InlineData(false, "<html><body>Bad gateway</body></html>")]
-    [InlineData(true, "<html><body>Bad gateway</body></html>")]
-    [InlineData(false, """{"id":"not a number","name":"first"}""")]
-    public async Task UnreadableBodyIsInvalidResponseAsync(bool asHtml, string body)
+    [InlineData("application/json", "<html><body>Bad gateway</body></html>")]
+    [InlineData("text/html", "<html><body>Bad gateway</body></html>")]
+    [InlineData("application/json", """{"id":"not a number","name":"first"}""")]
+    [InlineData("application/json; charset=bogus", "<html><body>Bad gateway</body></html>")]
+    public async Task UnreadableBodyIsInvalidResponseAsync(string contentType, string body)
     {
-        using RecordingHttpMessageHandler upstream = new(_ => asHtml ? Responses.Html(body) : Responses.Json(body));
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.WithContentType(body: body, contentType: contentType)
+        );
 
         GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
             this.CreateClient(upstream)
