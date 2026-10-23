@@ -1,4 +1,5 @@
 using System;
+using Credfeto.Workflow.GitHub.Http;
 using Microsoft.Extensions.Options;
 
 namespace Credfeto.Workflow.GitHub.Configuration;
@@ -19,7 +20,7 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
             return ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must be an absolute URL.");
         }
 
-        if (!IsHttp(apiBaseUrl))
+        if (!UriSchemes.IsHttp(apiBaseUrl))
         {
             return ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must use the http or https scheme.");
         }
@@ -28,12 +29,6 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
         return IsDirectoryUrl(apiBaseUrl)
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must end in '/' and have no query or fragment.");
-    }
-
-    private static bool IsHttp(Uri apiBaseUrl)
-    {
-        return StringComparer.OrdinalIgnoreCase.Equals(x: apiBaseUrl.Scheme, y: Uri.UriSchemeHttps)
-            || StringComparer.OrdinalIgnoreCase.Equals(x: apiBaseUrl.Scheme, y: Uri.UriSchemeHttp);
     }
 
     private static bool IsDirectoryUrl(Uri apiBaseUrl)

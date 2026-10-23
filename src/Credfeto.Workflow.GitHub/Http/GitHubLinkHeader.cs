@@ -41,7 +41,9 @@ public static partial class GitHubLinkHeader
     {
         // A network-path reference such as //other.host/path parses as an absolute file URI on Unix, so only
         // http(s) counts as absolute; anything else is returned unchanged for the request guard to reject
-        if (!Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute) || !IsHttp(absolute))
+        if (
+            !Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute) || !UriSchemes.IsHttp(absolute)
+        )
         {
             return url;
         }
@@ -49,12 +51,6 @@ public static partial class GitHubLinkHeader
         return IsSameServer(link: absolute, baseAddress: baseAddress)
             ? absolute.PathAndQuery
             : absolute.PathAndQuery[1..];
-    }
-
-    private static bool IsHttp(Uri uri)
-    {
-        return StringComparer.Ordinal.Equals(x: uri.Scheme, y: Uri.UriSchemeHttps)
-            || StringComparer.Ordinal.Equals(x: uri.Scheme, y: Uri.UriSchemeHttp);
     }
 
     internal static bool IsSameServer(Uri link, Uri? baseAddress)
