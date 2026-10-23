@@ -151,10 +151,45 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     [Theory]
+    [InlineData("https://ghe.example/api/v3/", "repos/owner/repo", "https://ghe.example/api/v3/repos/owner/repo")]
+    [InlineData(
+        "https://ghe.example/api/v3/",
+        "/api/v3/repos/owner/repo",
+        "https://ghe.example/api/v3/repos/owner/repo"
+    )]
+    [InlineData("https://ghe.example/api/v3/", "../v3/repos/owner/repo", "https://ghe.example/api/v3/repos/owner/repo")]
+    public async Task UriUnderConfiguredBasePathIsRequestedAsync(
+        string baseAddress,
+        string relativeUri,
+        string expectedUri
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":1,"name":"first"}"""));
+
+        await this.CreateClient(upstream: upstream, baseAddress: baseAddress)
+            .GetAsync(
+                relativeUri: relativeUri,
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: new Uri(expectedUri), actual: request.RequestUri);
+    }
+
+    [Theory]
     [InlineData(GitHubServices.ApiBaseUrl, "https://elsewhere.example/repos/owner/repo")]
     [InlineData(GitHubServices.ApiBaseUrl, "//elsewhere.example/repos/owner/repo")]
     [InlineData(null, "repos/owner/repo")]
-    public async Task UriOffConfiguredHostOrWithoutBaseAddressIsRejectedAsync(string? baseAddress, string relativeUri)
+    [InlineData("https://ghe.example/api/v3/", "/repos/owner/repo")]
+    [InlineData("https://ghe.example/api/v3/", "../repos/owner/repo")]
+    [InlineData("https://ghe.example/api/v3/", "../../repos/owner/repo")]
+    [InlineData("https://ghe.example/api/v3/", "../v3x/repos/owner/repo")]
+    [InlineData("https://ghe.example/api/v3/", "..")]
+    public async Task UriOffConfiguredHostOrBasePathOrWithoutBaseAddressIsRejectedAsync(
+        string? baseAddress,
+        string relativeUri
+    )
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
 
@@ -198,6 +233,34 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
             expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues"),
             actual: request.RequestUri
         );
+    }
+
+    // On the configured host the next link keeps its rooted path, so one outside the base path must not be followed
+    [Fact]
+    public async Task SameHostNextLinkOutsideBasePathIsNotFollowedAsync()
+    {
+        const string baseAddress = "https://ghe.example/api/v3/";
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Json(
+                    json: """[{"id":1,"name":"first"}]""",
+                    nextLink: "<https://ghe.example/repositories/9/issues?page=2>; rel=\"next\""
+                )
+                : Responses.Json("[]")
+        );
+
+        await Assert.ThrowsAsync<UriFormatException>(() =>
+            this.CreateClient(upstream: upstream, baseAddress: baseAddress)
+                .GetAllPagesAsync(
+                    relativeUri: "repos/owner/repo/issues",
+                    pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: new Uri(baseAddress + "repos/owner/repo/issues"), actual: request.RequestUri);
     }
 
     [Fact]
