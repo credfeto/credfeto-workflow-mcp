@@ -367,6 +367,35 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Equal(expected: 2, actual: upstream.Requests.Count);
     }
 
+    // Bounded: from the second request on there is no next link, so a regression ends rather than looping
+    [Theory]
+    [InlineData("./items?page=1", "items?page=1")]
+    [InlineData("items?page=%31", "items?page=1")]
+    public async Task GetAllPagesRejectsANextLinkBackToTheFirstPageWrittenDifferentlyAsync(
+        string relativeUri,
+        string nextLink
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(index =>
+            index == 0
+                ? Responses.Json(json: """[{"id":1,"name":"first"}]""", nextLink: $"<{nextLink}>; rel=\"next\"")
+                : Responses.Json("[]")
+        );
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.CreateClient(upstream)
+                .GetAllPagesAsync(
+                    relativeUri: relativeUri,
+                    pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl + "items?page=1"), actual: request.RequestUri);
+    }
+
     // Bounded: past the cap there is no next link, so a regression ends rather than looping
     [Fact]
     public async Task GetAllPagesStopsAtThePageCapAsync()
