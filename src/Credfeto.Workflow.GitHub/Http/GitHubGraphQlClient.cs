@@ -44,7 +44,8 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         request.Content = await BuildRequestContentAsync(
             query: query,
             variables: variables,
-            variablesTypeInfo: variablesTypeInfo
+            variablesTypeInfo: variablesTypeInfo,
+            cancellationToken: cancellationToken
         );
 
         using HttpResponseMessage response = await httpClient.SendAsync(
@@ -70,7 +71,8 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
     private static async ValueTask<ReadOnlyMemoryContent> BuildRequestContentAsync<TVariables>(
         string query,
         TVariables variables,
-        JsonTypeInfo<TVariables> variablesTypeInfo
+        JsonTypeInfo<TVariables> variablesTypeInfo,
+        CancellationToken cancellationToken
     )
     {
         ArrayBufferWriter<byte> buffer = new();
@@ -82,6 +84,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
             writer.WritePropertyName("variables");
             JsonSerializer.Serialize(writer: writer, value: variables, jsonTypeInfo: variablesTypeInfo);
             writer.WriteEndObject();
+            await writer.FlushAsync(cancellationToken);
         }
 
         ReadOnlyMemoryContent content = new(buffer.WrittenMemory);
