@@ -8,7 +8,6 @@ using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
 using Credfeto.Workflow.GitHub.Tests.Models;
-using NSubstitute;
 using Xunit;
 
 namespace Credfeto.Workflow.GitHub.Tests.Http;
@@ -166,11 +165,7 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     public async Task ClientWithoutBaseAddressIsRejectedAsync()
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
-        IHttpClientFactory factory = GetSubstitute<IHttpClientFactory>();
-        factory
-            .CreateClient(GitHubSetup.HttpClientName)
-            .Returns(_ => new HttpClient(handler: upstream, disposeHandler: false));
-        GitHubRestClient client = new(httpClientFactory: factory, logger: this.GetTypedLogger<GitHubRestClient>());
+        GitHubRestClient client = this.CreateClient(upstream: upstream, baseAddress: null);
 
         await Assert.ThrowsAsync<UriFormatException>(() =>
             client
@@ -255,12 +250,7 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         );
     }
 
-    private GitHubRestClient CreateClient(HttpMessageHandler upstream)
-    {
-        return this.CreateClient(upstream: upstream, baseAddress: GitHubServices.ApiBaseUrl);
-    }
-
-    private GitHubRestClient CreateClient(HttpMessageHandler upstream, string baseAddress)
+    private GitHubRestClient CreateClient(HttpMessageHandler upstream, string? baseAddress = GitHubServices.ApiBaseUrl)
     {
         return new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: baseAddress),
