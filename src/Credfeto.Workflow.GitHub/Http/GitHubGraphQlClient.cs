@@ -68,12 +68,38 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         }
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-        using JsonDocument document = await JsonDocument.ParseAsync(
-            utf8Json: stream,
+
+        return await ReadResponseAsync(
+            stream: stream,
+            dataTypeInfo: dataTypeInfo,
             cancellationToken: cancellationToken
         );
+    }
 
-        return ReadData(root: document.RootElement, dataTypeInfo: dataTypeInfo);
+    // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
+    // kept only as the inner exception for server-side diagnostics
+    private static async ValueTask<TData> ReadResponseAsync<TData>(
+        Stream stream,
+        JsonTypeInfo<TData> dataTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            using JsonDocument document = await JsonDocument.ParseAsync(
+                utf8Json: stream,
+                cancellationToken: cancellationToken
+            );
+
+            return ReadData(root: document.RootElement, dataTypeInfo: dataTypeInfo);
+        }
+        catch (JsonException exception)
+        {
+            throw new GitHubInvalidResponseException(
+                message: "GitHub GraphQL response body could not be read as JSON",
+                innerException: exception
+            );
+        }
     }
 
     // Kept relative so HttpClient resolves it against BaseAddress and it can only reach the configured host
