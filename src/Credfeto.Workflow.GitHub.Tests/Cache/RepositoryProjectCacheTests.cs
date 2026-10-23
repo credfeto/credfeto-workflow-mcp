@@ -7,7 +7,9 @@ using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Models;
+using Credfeto.Workflow.GitHub.Tests.Helpers;
 using FunFair.Test.Common;
+using Microsoft.AspNetCore.Http;
 using Xunit;
 
 namespace Credfeto.Workflow.GitHub.Tests.Cache;
@@ -16,12 +18,20 @@ public sealed class RepositoryProjectCacheTests : TestBase
 {
     private const string REPOSITORY = "credfeto/credfeto-workflow-mcp";
     private const string OTHER_REPOSITORY = "credfeto/other";
+    private const string OTHER_CALLER_TOKEN = "other-caller-token-value";
 
     private static readonly WorkflowProject Project = new(ProjectNodeId: "PVT_project", Number: 7, Owner: "credfeto");
 
     private static readonly string[] StatusOptionLookups = ["In Progress", "in progress", "Done", "DONE", "Backlog"];
 
-    private readonly RepositoryProjectCache _cache = new();
+    private readonly HttpContextAccessor _httpContextAccessor = new() { HttpContext = CallerContext.WithBearerToken() };
+
+    private readonly RepositoryProjectCache _cache;
+
+    public RepositoryProjectCacheTests()
+    {
+        this._cache = new(this._httpContextAccessor);
+    }
 
     [Fact]
     public void UnknownRepositoryHasNothingCached()
@@ -101,6 +111,59 @@ public sealed class RepositoryProjectCacheTests : TestBase
     }
 
     [Fact]
+    public void EntriesAreInvisibleToADifferentCaller()
+    {
+        this._cache.SetProject(repository: REPOSITORY, project: Project);
+        this._cache.SetItemId(repository: REPOSITORY, kind: WorkItemKind.ISSUE, number: 1, itemId: "PVTI_one");
+
+        this.ActAs(OTHER_CALLER_TOKEN);
+
+        Assert.Null(this._cache.GetProject(REPOSITORY));
+        Assert.Null(this.GetItemId(kind: WorkItemKind.ISSUE, number: 1));
+    }
+
+    [Fact]
+    public void SameTokenOnALaterRequestHitsTheCache()
+    {
+        this._cache.SetProject(repository: REPOSITORY, project: Project);
+
+        this.ActAs(CallerContext.Token);
+
+        Assert.Equal(expected: Project, actual: this._cache.GetProject(REPOSITORY));
+    }
+
+    [Fact]
+    public void InvalidateDropsOnlyTheCurrentCallersEntry()
+    {
+        this._cache.SetProject(repository: REPOSITORY, project: Project);
+        this.ActAs(OTHER_CALLER_TOKEN);
+        this._cache.SetProject(repository: REPOSITORY, project: Project);
+
+        this._cache.Invalidate(REPOSITORY);
+
+        Assert.Null(this._cache.GetProject(REPOSITORY));
+        this.ActAs(CallerContext.Token);
+        Assert.Equal(expected: Project, actual: this._cache.GetProject(REPOSITORY));
+    }
+
+    [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(true, "Basic dXNlcjpwYXNz")]
+    [InlineData(true, "Bearer ")]
+    public void MissingCallerTokenIsRejected(bool hasHttpContext, string? authorization)
+    {
+        this._cache.SetProject(repository: REPOSITORY, project: Project);
+        this._httpContextAccessor.HttpContext = hasHttpContext ? CallerContext.WithAuthorization(authorization) : null;
+
+        Assert.Throws<CallerTokenMissingException>(() => this._cache.GetProject(REPOSITORY));
+        Assert.Throws<CallerTokenMissingException>(() =>
+            this._cache.SetProject(repository: REPOSITORY, project: Project)
+        );
+        Assert.Throws<CallerTokenMissingException>(() => this._cache.Invalidate(REPOSITORY));
+    }
+
+    [Fact]
     public async Task ConcurrentUpdatesAreAllKeptAsync()
     {
         const int itemCount = 200;
@@ -127,6 +190,11 @@ public sealed class RepositoryProjectCacheTests : TestBase
             action: number =>
                 Assert.Equal(expected: ItemId(number), actual: this.GetItemId(kind: WorkItemKind.ISSUE, number: number))
         );
+    }
+
+    private void ActAs(string token)
+    {
+        this._httpContextAccessor.HttpContext = CallerContext.WithAuthorization("Bearer " + token);
     }
 
     private string? GetItemId(WorkItemKind kind, int number)
