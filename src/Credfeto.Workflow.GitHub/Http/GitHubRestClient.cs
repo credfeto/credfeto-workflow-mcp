@@ -82,9 +82,8 @@ public sealed class GitHubRestClient : IGitHubRestClient
                 )
             );
 
-            // The handler follows redirects (a renamed or transferred repository) and updates the request it
-            // sends, so a relative next link is resolved against the URI that actually answered, not the one
-            // first asked for. The link comes back already checked and is requested exactly as checked
+            // A relative next link is resolved against the absolute URI that actually answered, not the relative
+            // one first asked for. The link comes back already checked and is requested exactly as checked
             requestUri = GitHubLinkHeader.FindNextPage(
                 headers: response.Headers,
                 requestUri: response.RequestMessage?.RequestUri ?? requestUri,

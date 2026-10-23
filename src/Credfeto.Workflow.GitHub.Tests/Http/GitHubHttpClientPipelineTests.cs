@@ -53,6 +53,25 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         );
     }
 
+    [Fact]
+    public async Task PrimaryHandlerDoesNotFollowRedirectsAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        HttpMessageHandler handler = serviceProvider
+            .GetRequiredService<IHttpMessageHandlerFactory>()
+            .CreateHandler(GitHubSetup.HttpClientName);
+
+        while (handler is DelegatingHandler delegatingHandler)
+        {
+            Assert.NotNull(delegatingHandler.InnerHandler);
+            handler = delegatingHandler.InnerHandler;
+        }
+
+        SocketsHttpHandler primary = Assert.IsType<SocketsHttpHandler>(handler);
+        Assert.False(condition: primary.AllowAutoRedirect, userMessage: "Redirects must not be followed");
+    }
+
     [Theory]
     [InlineData("POST", 1)]
     [InlineData("GET", STANDARD_RETRY_ATTEMPTS + 1)]
