@@ -23,9 +23,9 @@ public sealed class KestrelConfigTests : LoggingFolderCleanupTestBase
     {
         string certPath = Path.Combine(path1: this.TempFolder, path2: "missing.pfx");
 
-        KestrelServerOptions options = await ResolveKestrelOptionsAsync(certPath);
+        await using WebApplication app = BuildApp(certPath);
 
-        AssertServerOptions(options);
+        AssertServerOptions(ResolveKestrelOptions(app));
     }
 
     [Fact]
@@ -38,20 +38,23 @@ public sealed class KestrelConfigTests : LoggingFolderCleanupTestBase
             cancellationToken: this.CancellationToken()
         );
 
-        KestrelServerOptions options = await ResolveKestrelOptionsAsync(certPath);
+        await using WebApplication app = BuildApp(certPath);
 
-        AssertServerOptions(options);
+        AssertServerOptions(ResolveKestrelOptions(app));
     }
 
-    private static async ValueTask<KestrelServerOptions> ResolveKestrelOptionsAsync(string certPath)
+    private static WebApplication BuildApp(string certPath)
     {
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Configuration.Sources.Clear();
 
         _ = builder.WebHost.ConfigureKestrel(certPath: certPath);
 
-        await using WebApplication app = builder.Build();
+        return builder.Build();
+    }
 
+    private static KestrelServerOptions ResolveKestrelOptions(WebApplication app)
+    {
         return app.Services.GetRequiredService<IOptions<KestrelServerOptions>>().Value;
     }
 
