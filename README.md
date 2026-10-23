@@ -102,14 +102,14 @@ curl https://<host>:8081/ping
 
 ### Configuration
 
-Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, and environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`).
+Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`), and command-line arguments (use `:` as the section separator, for example `--GitHub:ApiBaseUrl=https://ghe.example.com/api/v3/`).
 Later sources override earlier ones.
 
-| Setting                                 | Type   | Default                   | Description                                                                                                                                                    |
-|-----------------------------------------|--------|---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `Logging:LogLevel:Default`              | string | `Information`             | Minimum log level for all categories.                                                                                                                          |
-| `Logging:LogLevel:Microsoft.AspNetCore` | string | `Warning`                 | Minimum log level for ASP.NET Core categories.                                                                                                                 |
-| `GitHub:ApiBaseUrl`                     | URL    | `https://api.github.com/` | GitHub API base URL (environment variable `GitHub__ApiBaseUrl`). Must be an absolute `http` or `https` URL ending in `/`; the server will not start otherwise. |
+| Setting                                 | Type   | Default                   | Description                                                                                                                                                                                                       |
+|-----------------------------------------|--------|---------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Logging:LogLevel:Default`              | string | `Information`             | Minimum log level for all categories.                                                                                                                                                                             |
+| `Logging:LogLevel:Microsoft.AspNetCore` | string | `Warning`                 | Minimum log level for ASP.NET Core categories.                                                                                                                                                                    |
+| `GitHub:ApiBaseUrl`                     | URL    | `https://api.github.com/` | GitHub API base URL (environment variable `GitHub__ApiBaseUrl`, command-line argument `--GitHub:ApiBaseUrl=<url>`). Must be an absolute `http` or `https` URL ending in `/`; the server will not start otherwise. |
 
 ## Documentation
 

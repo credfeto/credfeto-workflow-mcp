@@ -12,14 +12,16 @@ public static class ServerStartup
 {
     public static WebApplication BuildApp(IReadOnlyList<string> args)
     {
-        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder([.. args]);
+        string[] commandLine = [.. args];
+        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder(commandLine);
 
         builder.Configuration.Sources.Clear();
         _ = builder
             .Configuration.SetBasePath(builder.Environment.ContentRootPath)
             .AddJsonFile(path: "appsettings.json", optional: false, reloadOnChange: false)
             .AddJsonFile(path: "appsettings-local.json", optional: true, reloadOnChange: false)
-            .AddEnvironmentVariables();
+            .AddEnvironmentVariables()
+            .AddCommandLine(commandLine);
 
         ConfigureLogging(builder);
 
