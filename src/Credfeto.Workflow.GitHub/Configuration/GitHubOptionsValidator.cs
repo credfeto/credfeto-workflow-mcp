@@ -25,16 +25,16 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
             return ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must use the http or https scheme.");
         }
 
-        // Relative request URIs only keep the base path when the base address ends in '/'
+        // Relative request URIs only keep the base path when it ends in '/'; a host-only URL has the path '/'
         return IsDirectoryUrl(apiBaseUrl)
             ? ValidateOptionsResult.Success
-            : ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must end in '/' and have no query or fragment.");
+            : ValidateOptionsResult.Fail("GitHub:ApiBaseUrl path must end in '/' and have no query or fragment.");
     }
 
     private static bool IsDirectoryUrl(Uri apiBaseUrl)
     {
         return string.IsNullOrEmpty(apiBaseUrl.Query)
             && string.IsNullOrEmpty(apiBaseUrl.Fragment)
-            && apiBaseUrl.OriginalString[^1] == '/';
+            && apiBaseUrl.AbsolutePath is [.., '/'];
     }
 }
