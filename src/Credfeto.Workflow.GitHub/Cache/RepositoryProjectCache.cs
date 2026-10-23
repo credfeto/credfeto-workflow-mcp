@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -14,6 +15,10 @@ namespace Credfeto.Workflow.GitHub.Cache;
 
 public sealed class RepositoryProjectCache : IRepositoryProjectCache
 {
+    // HttpContext.Items is reset per request, so the hash is computed once per request and never leaks to the next
+    private static readonly object CallerTokenHashItemKey = new();
+
+    private readonly Lock _callerTokenHashLock = new();
     private readonly IHttpContextAccessor _httpContextAccessor;
 
     // Swapped atomically via ImmutableInterlocked so readers never observe a partially updated entry.
@@ -97,12 +102,27 @@ public sealed class RepositoryProjectCache : IRepositoryProjectCache
 
     private string CallerTokenHash()
     {
-        HttpContext? httpContext = this._httpContextAccessor.HttpContext;
-
         // Never fall back to a shared bucket: an anonymous entry would be served to every caller without a token
-        string token =
-            (httpContext is null ? null : CallerBearerToken.FromRequest(httpContext.Request))
-            ?? throw new CallerTokenMissingException();
+        HttpContext httpContext = this._httpContextAccessor.HttpContext ?? throw new CallerTokenMissingException();
+
+        // HttpContext.Items is a plain dictionary and one request may touch the cache from several threads
+        lock (this._callerTokenHashLock)
+        {
+            if (httpContext.Items[CallerTokenHashItemKey] is string hash)
+            {
+                return hash;
+            }
+
+            string computed = HashCallerToken(httpContext);
+            httpContext.Items[CallerTokenHashItemKey] = computed;
+
+            return computed;
+        }
+    }
+
+    private static string HashCallerToken(HttpContext httpContext)
+    {
+        string token = CallerBearerToken.FromRequest(httpContext.Request) ?? throw new CallerTokenMissingException();
 
         // A one-way hash so the raw token is never retained by the process-wide cache
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
