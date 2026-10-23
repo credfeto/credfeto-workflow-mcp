@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Authorization;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Http;
 using Xunit;
@@ -39,6 +40,7 @@ public sealed class CallerTokenRequirementTests : TestBase
         );
 
         Assert.Equal(expected: expectedNextCalled, actual: nextCalled);
+        Assert.Equal(expected: expectedNextCalled, actual: CallerIdentity.Of(context) is not null);
         Assert.Equal(expected: expectedStatusCode, actual: context.Response.StatusCode);
         Assert.Equal(expected: expectedChallenge, actual: context.Response.Headers.WWWAuthenticate.ToString());
     }

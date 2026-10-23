@@ -133,22 +133,6 @@ public sealed class RepositoryProjectCacheTests : TestBase
     }
 
     [Fact]
-    public void CallerKeyIsWorkedOutOncePerRequest()
-    {
-        this._cache.SetProject(repository: REPOSITORY, project: Project);
-
-        // Changing the header mid-request must not move the request to another caller's bucket
-        HttpContext httpContext = AssertReallyNotNull(this._httpContextAccessor.HttpContext);
-        httpContext.Request.Headers.Authorization = "Bearer " + OTHER_CALLER_TOKEN;
-
-        Assert.Equal(expected: Project, actual: this._cache.GetProject(REPOSITORY));
-
-        this.ActAs(OTHER_CALLER_TOKEN);
-
-        Assert.Null(this._cache.GetProject(REPOSITORY));
-    }
-
-    [Fact]
     public void InvalidateDropsOnlyTheCurrentCallersEntry()
     {
         this._cache.SetProject(repository: REPOSITORY, project: Project);
