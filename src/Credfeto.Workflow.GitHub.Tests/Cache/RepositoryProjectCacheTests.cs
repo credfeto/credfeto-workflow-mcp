@@ -4,7 +4,9 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Cache;
+using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
+using Credfeto.Workflow.GitHub.Models;
 using FunFair.Test.Common;
 using Xunit;
 
@@ -16,6 +18,8 @@ public sealed class RepositoryProjectCacheTests : TestBase
     private const string OTHER_REPOSITORY = "credfeto/other";
 
     private static readonly WorkflowProject Project = new(ProjectNodeId: "PVT_project", Number: 7, Owner: "credfeto");
+
+    private static readonly string[] StatusOptionLookups = ["In Progress", "in progress", "Done", "DONE", "Backlog"];
 
     private readonly RepositoryProjectCache _cache = new();
 
@@ -37,24 +41,27 @@ public sealed class RepositoryProjectCacheTests : TestBase
     }
 
     [Fact]
-    public void StatusFieldOptionsAreLookedUpCaseInsensitively()
+    public void CachedStatusFieldKeepsOptionsDifferingOnlyByCaseAndResolvesLikeTheOriginal()
     {
         Dictionary<string, string> options = new(StringComparer.Ordinal)
         {
             ["In Progress"] = "OPT_progress",
             ["Done"] = "OPT_done",
+            ["DONE"] = "OPT_done_upper",
         };
+        WorkflowStatusField original = new(FieldId: "PVTSSF_status", FieldName: "Status", OptionIds: options);
 
-        this._cache.SetStatusField(
-            repository: REPOSITORY,
-            statusField: new WorkflowStatusField(FieldId: "PVTSSF_status", FieldName: "Status", OptionIds: options)
+        this._cache.SetStatusField(repository: REPOSITORY, statusField: original);
+
+        WorkflowStatusField cached = AssertReallyNotNull(this._cache.GetStatusField(REPOSITORY));
+        Assert.Equal(expected: "PVTSSF_status", actual: cached.FieldId);
+        Assert.Equal(expected: "Status", actual: cached.FieldName);
+        Assert.Equal(expected: options.Count, actual: cached.OptionIds.Count);
+        Assert.All(
+            collection: StatusOptionLookups,
+            action: name => Assert.Equal(expected: original.FindOptionId(name), actual: cached.FindOptionId(name))
         );
-
-        WorkflowStatusField statusField = AssertReallyNotNull(this._cache.GetStatusField(REPOSITORY));
-        Assert.Equal(expected: "PVTSSF_status", actual: statusField.FieldId);
-        Assert.Equal(expected: "Status", actual: statusField.FieldName);
-        Assert.Equal(expected: "OPT_progress", actual: statusField.OptionIds["in progress"]);
-        Assert.Equal(expected: "OPT_done", actual: statusField.OptionIds["DONE"]);
+        Assert.Throws<AmbiguousStatusOptionException>(() => cached.FindOptionId("done"));
     }
 
     [Fact]

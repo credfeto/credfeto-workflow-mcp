@@ -32,12 +32,13 @@ public sealed class RepositoryProjectCache : IRepositoryProjectCache
 
     public void SetStatusField(string repository, WorkflowStatusField statusField)
     {
-        WorkflowStatusField caseInsensitive = statusField with
+        // Ordinal keeps option names that differ only by case distinct; WorkflowStatusFieldExtensions.FindOptionId resolves case
+        WorkflowStatusField snapshot = statusField with
         {
-            OptionIds = statusField.OptionIds.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase),
+            OptionIds = statusField.OptionIds.ToFrozenDictionary(StringComparer.Ordinal),
         };
 
-        this.Update(repository: repository, update: entry => entry with { StatusField = caseInsensitive });
+        this.Update(repository: repository, update: entry => entry with { StatusField = snapshot });
     }
 
     public string? GetItemId(string repository, WorkItemKind kind, int number)
