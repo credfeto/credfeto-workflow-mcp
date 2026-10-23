@@ -48,7 +48,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
 
         using HttpRequestMessage request = new(
             method: HttpMethod.Post,
-            requestUri: ResolveGraphQlUri(httpClient.BaseAddress)
+            requestUri: ResolveGraphQlUri(GitHubBaseAddress.From(httpClient))
         );
         request.Content = await BuildRequestContentAsync(
             query: query,
@@ -104,14 +104,12 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
     }
 
     // Kept relative so HttpClient resolves it against BaseAddress and it can only reach the configured host
-    private static Uri ResolveGraphQlUri(Uri? baseAddress)
+    private static Uri ResolveGraphQlUri(Uri baseAddress)
     {
-        return
-            baseAddress is not null
-            && baseAddress.AbsolutePath.EndsWith(
-                value: ENTERPRISE_REST_PATH_SUFFIX,
-                comparisonType: StringComparison.Ordinal
-            )
+        return baseAddress.AbsolutePath.EndsWith(
+            value: ENTERPRISE_REST_PATH_SUFFIX,
+            comparisonType: StringComparison.Ordinal
+        )
             ? EnterpriseGraphQlUri
             : GraphQlUri;
     }

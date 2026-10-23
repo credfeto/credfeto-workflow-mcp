@@ -5,10 +5,9 @@ namespace Credfeto.Workflow.GitHub.Http;
 
 internal static class UriHosts
 {
-    public static bool IsSameServer(Uri link, Uri? baseAddress)
+    public static bool IsSameServer(Uri link, Uri baseAddress)
     {
-        return baseAddress is not null
-            && Uri.Compare(
+        return Uri.Compare(
                 uri1: link,
                 uri2: baseAddress,
                 partsToCompare: UriComponents.SchemeAndServer,

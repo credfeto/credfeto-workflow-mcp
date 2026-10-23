@@ -12,7 +12,7 @@ public static partial class GitHubLinkHeader
     private const string NEXT_RELATION = "next";
     private const int MATCH_TIMEOUT_MILLISECONDS = 1000;
 
-    public static string? FindNextPage(HttpResponseHeaders headers, Uri requestUri, Uri? baseAddress)
+    public static Uri? FindNextPage(HttpResponseHeaders headers, Uri requestUri, Uri baseAddress)
     {
         if (!headers.TryGetValues(name: "Link", out IEnumerable<string>? linkValues))
         {
@@ -23,7 +23,7 @@ public static partial class GitHubLinkHeader
             .SelectMany(static linkValue => LinkPattern().Matches(linkValue))
             .Where(static match => IsNextRelation(match.Groups["rel"].Value))
             .Select(match =>
-                ToRelativeUri(url: match.Groups["url"].Value, requestUri: requestUri, baseAddress: baseAddress)
+                ResolveNextPage(url: match.Groups["url"].Value, requestUri: requestUri, baseAddress: baseAddress)
             )
             .FirstOrDefault();
     }
@@ -41,23 +41,16 @@ public static partial class GitHubLinkHeader
     // a link on another host is mapped under the configured base path, the result is resolved against the
     // URI of the request that returned it (RFC 8288 section 3.2, RFC 3986 section 5), so issues?page=2
     // returned for repos/o/r/issues names repos/o/r/issues?page=2, and it must then lie under the configured
-    // host and base path. It is handed back relative to the base path, as the client expects; anything that
-    // resolves elsewhere (a dot-segment climb, a rooted path outside the base path) is upstream content, so it
-    // is an invalid response rather than the request-building failure the client raises for a caller URI
-    private static string ToRelativeUri(string url, Uri requestUri, Uri? baseAddress)
+    // host and base path. The checked absolute URI is handed back to be requested exactly as checked; anything
+    // that resolves elsewhere (a dot-segment climb, a rooted path outside the base path) is upstream content, so
+    // it is an invalid response rather than the request-building failure the client raises for a caller URI
+    private static Uri ResolveNextPage(string url, Uri requestUri, Uri baseAddress)
     {
-        Uri? absolute = ParseAbsoluteLink(url);
-
-        if (baseAddress is null)
-        {
-            return absolute is null ? url : absolute.PathAndQuery[1..];
-        }
-
         return
-            ToReference(url: url, absolute: absolute, baseAddress: baseAddress) is { } reference
+            ToReference(url: url, absolute: ParseAbsoluteLink(url), baseAddress: baseAddress) is { } reference
             && Uri.TryCreate(baseUri: requestUri, relativeUri: reference, out Uri? resolved)
             && UriHosts.IsUnderBasePath(link: resolved, baseAddress: baseAddress)
-            ? resolved.PathAndQuery[baseAddress.AbsolutePath.Length..]
+            ? resolved
             : throw OutsideBasePath();
     }
 
