@@ -91,7 +91,7 @@ docker run --detach --name workflow-mcp \
   credfeto/workflow-mcp:local
 ```
 
-`GitHub__ApiBaseUrl` is optional and defaults to `https://api.github.com/`; any other [configuration](#configuration) setting can be passed the same way.
+`GitHub__ApiBaseUrl` is optional and defaults to `https://api.github.com/`; any other [configuration][configuration] setting can be passed the same way.
 The image does not include `libmsquic`, so the container serves HTTP/1.1 and HTTP/2 only; HTTP/3 is not available.
 Check the container's health and that the server answers over HTTPS (add `--insecure` to `curl` for a self-signed certificate):
 
@@ -133,6 +133,7 @@ This project is licensed under the [MIT Licence][licence].
 
 [api-http]: docs/api.http
 [changelog]: CHANGELOG.md
+[configuration]: #configuration
 [contributing]: CONTRIBUTING.md
 [dockerfile]: Dockerfile
 [docs]: docs/
