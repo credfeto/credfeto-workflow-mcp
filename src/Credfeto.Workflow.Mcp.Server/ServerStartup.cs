@@ -27,8 +27,11 @@ public static class ServerStartup
 
         _ = builder.AddWorkflowServices();
 
-        WebApplication app = builder.Build();
+        return builder.Build().MapWorkflowEndpoints();
+    }
 
+    public static WebApplication MapWorkflowEndpoints(this WebApplication app)
+    {
         app.MapPingEndpoints();
         app.MapMcpEndpoint();
 

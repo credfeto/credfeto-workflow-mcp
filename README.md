@@ -32,16 +32,22 @@ curl http://127.0.0.1:8080/ping
 
 ### Endpoints
 
-| Endpoint    | Description                                                                                           |
-|-------------|-------------------------------------------------------------------------------------------------------|
-| `GET /ping` | Anonymous health check. Returns `{"value":"pong"}`.                                                   |
-| `POST /mcp` | MCP Streamable HTTP endpoint (stateless). Requests must accept `application/json, text/event-stream`. |
+| Endpoint    | Description                                                                                                                                               |
+|-------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `GET /ping` | Anonymous health check. Returns `{"value":"pong"}`.                                                                                                       |
+| `POST /mcp` | MCP Streamable HTTP endpoint (stateless). Requires `Authorization: Bearer <token>` (401 otherwise) and must accept `application/json, text/event-stream`. |
+
+### Authentication
+
+Every `/mcp` request must send a GitHub token as `Authorization: Bearer <token>`; a request without one is rejected with `401 Unauthorized` before any tool runs.
+The server does not validate or store the token: it forwards it on each GitHub API call made for that request, and GitHub rejects tokens that are invalid or lack access.
+The server never makes an unauthenticated GitHub call; with no caller token the call fails instead.
 
 ### MCP tools
 
-| Tool   | Description                                                   |
-|--------|---------------------------------------------------------------|
-| `ping` | Returns `{"value":"pong"}`, the same payload as `GET /ping`.  |
+| Tool   | Description                                                  |
+|--------|--------------------------------------------------------------|
+| `ping` | Returns `{"value":"pong"}`, the same payload as `GET /ping`. |
 
 ### Listening ports
 
@@ -59,14 +65,15 @@ Running the executable as `Credfeto.Workflow.Mcp.Server --health-check http://12
 Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, and environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`).
 Later sources override earlier ones.
 
-| Setting                                 | Type   | Default       | Description                                    |
-|-----------------------------------------|--------|---------------|------------------------------------------------|
-| `Logging:LogLevel:Default`              | string | `Information` | Minimum log level for all categories.          |
-| `Logging:LogLevel:Microsoft.AspNetCore` | string | `Warning`     | Minimum log level for ASP.NET Core categories. |
+| Setting                                 | Type   | Default                   | Description                                                                                                                                                    |
+|-----------------------------------------|--------|---------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `Logging:LogLevel:Default`              | string | `Information`             | Minimum log level for all categories.                                                                                                                          |
+| `Logging:LogLevel:Microsoft.AspNetCore` | string | `Warning`                 | Minimum log level for ASP.NET Core categories.                                                                                                                 |
+| `GitHub:ApiBaseUrl`                     | URL    | `https://api.github.com/` | GitHub API base URL (environment variable `GitHub__ApiBaseUrl`). Must be an absolute `http` or `https` URL ending in `/`; the server will not start otherwise. |
 
 ## Documentation
 
-See the [docs][docs] folder, including the `.http` request files for the [HTTP API][api-http] and the [MCP endpoint][mcp-http].
+See the [docs][docs] folder, including the `.http` request files for the [HTTP API][api-http], the [MCP endpoint][mcp-http] and the [GitHub API calls][github-http] the server makes.
 
 ## Changelog
 
@@ -88,6 +95,7 @@ This project is licensed under the [MIT Licence][licence].
 [changelog]: CHANGELOG.md
 [contributing]: CONTRIBUTING.md
 [docs]: docs/
+[github-http]: docs/github.http
 [licence]: LICENSE
 [mcp-http]: docs/mcp.http
 [pre-release-img]: https://github.com/credfeto/credfeto-workflow-mcp/actions/workflows/build-and-publish-pre-release.yml/badge.svg

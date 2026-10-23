@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Credfeto.Workflow.Data.Models/Credfeto.Workflow.Data.Models.csproj" />
+    <ProjectReference Include="../Credfeto.Workflow.GitHub/Credfeto.Workflow.GitHub.csproj" />
     <ProjectReference Include="../Credfeto.Workflow.Mcp/Credfeto.Workflow.Mcp.csproj" />
   </ItemGroup>
   <ItemGroup>

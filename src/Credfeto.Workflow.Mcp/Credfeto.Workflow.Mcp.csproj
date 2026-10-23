@@ -37,6 +37,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../Credfeto.Workflow.Data.Models/Credfeto.Workflow.Data.Models.csproj" />
+    <ProjectReference Include="../Credfeto.Workflow.GitHub/Credfeto.Workflow.GitHub.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.3.0" IncludeAssets="compile;runtime" />

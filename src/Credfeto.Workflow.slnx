@@ -6,7 +6,13 @@
   </Folder>
   <Folder Name="/Docs/">
     <File Path="../docs/api.http" />
+    <File Path="../docs/github.http" />
     <File Path="../docs/mcp.http" />
+  </Folder>
+  <Folder Name="/GitHub/">
+    <Project Path="Credfeto.Workflow.GitHub.Interfaces/Credfeto.Workflow.GitHub.Interfaces.csproj" />
+    <Project Path="Credfeto.Workflow.GitHub.Tests/Credfeto.Workflow.GitHub.Tests.csproj" />
+    <Project Path="Credfeto.Workflow.GitHub/Credfeto.Workflow.GitHub.csproj" />
   </Folder>
   <Folder Name="/MCP/">
     <Project Path="Credfeto.Workflow.Mcp.Tests/Credfeto.Workflow.Mcp.Tests.csproj" />
