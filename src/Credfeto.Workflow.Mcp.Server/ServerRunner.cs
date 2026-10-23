@@ -26,8 +26,8 @@ public static class ServerRunner
         }
         catch (Exception exception)
         {
-            string message =
-                $"Fatal error during startup:{Environment.NewLine}{exception.Message}{Environment.NewLine}{exception.StackTrace}";
+            // ToString() rather than Message so inner exceptions (the usual root cause) and their stack traces survive
+            string message = $"Fatal error:{Environment.NewLine}{exception}";
 
             await errorWriter.WriteLineAsync(buffer: message.AsMemory(), cancellationToken: cancellationToken);
 
