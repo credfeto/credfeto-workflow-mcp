@@ -82,9 +82,87 @@ public sealed class GitHubLinkHeaderTests : TestBase
             expected: expected,
             actual: GitHubLinkHeader.FindNextPage(
                 headers: response.Headers,
+                requestUri: FirstPageUnder(baseAddress ?? GitHubServices.ApiBaseUrl),
                 baseAddress: baseAddress is null ? null : new Uri(baseAddress)
             )
         );
+    }
+
+    [Theory]
+    [InlineData(
+        "<issues?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "repos/o/r/issues?page=2"
+    )]
+    [InlineData(
+        "<?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "repos/o/r/issues?page=2"
+    )]
+    [InlineData(
+        "<../issues?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "repos/o/issues?page=2"
+    )]
+    [InlineData(
+        "<files?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/pulls/7/files?page=1",
+        "https://ghe.example/api/v3/",
+        "repos/o/r/pulls/7/files?page=2"
+    )]
+    [InlineData(
+        "<issues?page=2>; rel=\"next\"",
+        "https://github-proxy.example/repos/o/r/issues",
+        null,
+        "issues?page=2"
+    )]
+    public static void RelativeNextLinkIsResolvedAgainstRequestUri(
+        string link,
+        string requestUri,
+        string? baseAddress,
+        string expected
+    )
+    {
+        using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
+
+        Assert.Equal(
+            expected: expected,
+            actual: GitHubLinkHeader.FindNextPage(
+                headers: response.Headers,
+                requestUri: new Uri(requestUri),
+                baseAddress: baseAddress is null ? null : new Uri(baseAddress)
+            )
+        );
+    }
+
+    [Theory]
+    [InlineData("<../../../../users?page=2>; rel=\"next\"", "https://ghe.example/api/v3/repos/o/r/issues")]
+    [InlineData("<../../../../../issues?page=2>; rel=\"next\"", "https://ghe.example/api/v3/repos/o/r/issues")]
+    [InlineData("<issues?page=2>; rel=\"next\"", "https://other.example/api/v3/repos/o/r/issues")]
+    public static void RelativeNextLinkEscapingBasePathFromRequestUriIsInvalidResponse(string link, string requestUri)
+    {
+        using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
+
+        GitHubInvalidResponseException exception = Assert.Throws<GitHubInvalidResponseException>(() =>
+            GitHubLinkHeader.FindNextPage(
+                headers: response.Headers,
+                requestUri: new Uri(requestUri),
+                baseAddress: new Uri("https://ghe.example/api/v3/")
+            )
+        );
+
+        Assert.Equal(
+            expected: "GitHub returned a next page link outside the configured GitHub API host and base path",
+            actual: exception.Message
+        );
+    }
+
+    private static Uri FirstPageUnder(string baseAddress)
+    {
+        return new(baseUri: new Uri(baseAddress), relativeUri: "items?page=1");
     }
 
     [Theory]
@@ -148,7 +226,11 @@ public sealed class GitHubLinkHeaderTests : TestBase
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
 
         GitHubInvalidResponseException exception = Assert.Throws<GitHubInvalidResponseException>(() =>
-            GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: new Uri(baseAddress))
+            GitHubLinkHeader.FindNextPage(
+                headers: response.Headers,
+                requestUri: FirstPageUnder(baseAddress),
+                baseAddress: new Uri(baseAddress)
+            )
         );
 
         Assert.Equal(expected: expectedMessage, actual: exception.Message);

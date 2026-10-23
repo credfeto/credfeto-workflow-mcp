@@ -91,10 +91,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
     {
         HttpClient httpClient = this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
 
-        using HttpRequestMessage request = new(
-            method: HttpMethod.Get,
-            requestUri: ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: relativeUri)
-        );
+        Uri requestUri = ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: relativeUri);
+
+        using HttpRequestMessage request = new(method: HttpMethod.Get, requestUri: requestUri);
 
         using HttpResponseMessage response = await httpClient.SendAsync(
             request: request,
@@ -115,7 +114,11 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
         return new(
             Content: content,
-            NextUri: GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: httpClient.BaseAddress)
+            NextUri: GitHubLinkHeader.FindNextPage(
+                headers: response.Headers,
+                requestUri: requestUri,
+                baseAddress: httpClient.BaseAddress
+            )
         );
     }
 
