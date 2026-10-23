@@ -34,6 +34,7 @@ public static class GitHubSetup
             .AddSingleton<IGitHubGraphQlClient, GitHubGraphQlClient>()
             .AddTransient<CallerTokenForwardingHandler>()
             .AddHttpClient(name: HttpClientName, configureClient: ConfigureHttpClient)
+            .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
             .RedactLoggedHeaders(static _ => true)
             .AddHttpMessageHandler<CallerTokenForwardingHandler>()
             .AddStandardResilienceHandler(ConfigureResilience)
@@ -47,6 +48,13 @@ public static class GitHubSetup
     {
         options.Retry.DisableForUnsafeHttpMethods();
         options.CircuitBreaker.ShouldHandle = static _ => PredicateResult.False();
+    }
+
+    // A redirect followed by the primary handler would run below CallerTokenForwardingHandler and could reach any
+    // host the Location names without the configured host and base path check, so a 3xx is surfaced as a failure
+    private static HttpMessageHandler CreatePrimaryHandler()
+    {
+        return new SocketsHttpHandler { AllowAutoRedirect = false };
     }
 
     private static void ConfigureHttpClient(IServiceProvider serviceProvider, HttpClient client)
