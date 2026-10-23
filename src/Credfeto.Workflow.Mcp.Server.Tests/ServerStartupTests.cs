@@ -1,7 +1,10 @@
 using System;
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Configuration;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Credfeto.Workflow.Mcp.Server.Tests;
@@ -16,5 +19,18 @@ public sealed class ServerStartupTests : TestBase
         await using WebApplication app = ServerStartup.BuildApp([$"--contentRoot={AppContext.BaseDirectory}"]);
 
         Assert.NotEmpty(EndpointLookup.FindEndpoints(app: app, pattern: pattern));
+    }
+
+    [Fact]
+    public static async Task BuildAppHonoursCommandLineConfigurationOverrideAsync()
+    {
+        await using WebApplication app = ServerStartup.BuildApp([
+            $"--contentRoot={AppContext.BaseDirectory}",
+            "--GitHub:ApiBaseUrl=https://ghe.example.com/api/v3/",
+        ]);
+
+        GitHubOptions options = app.Services.GetRequiredService<IOptions<GitHubOptions>>().Value;
+
+        Assert.Equal(expected: new Uri("https://ghe.example.com/api/v3/"), actual: options.ApiBaseUrl);
     }
 }
