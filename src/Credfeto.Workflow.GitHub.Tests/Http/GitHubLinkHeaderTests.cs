@@ -28,6 +28,28 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "user/repos?affiliation=owner,collaborator&page=3"
     )]
     [InlineData("<https://api.github.com/items?page=2>; rel=\"last NEXT\"", GitHubServices.ApiBaseUrl, "items?page=2")]
+    [InlineData("<https://api.github.com/items?page=2>; rel=next", GitHubServices.ApiBaseUrl, "items?page=2")]
+    [InlineData("<https://api.github.com/items?page=2>; REL=Next", GitHubServices.ApiBaseUrl, "items?page=2")]
+    [InlineData("<https://api.github.com/items?page=2>;rel=next", GitHubServices.ApiBaseUrl, "items?page=2")]
+    [InlineData("<https://api.github.com/items?page=2> ; rel = \"next\"", GitHubServices.ApiBaseUrl, "items?page=2")]
+    [InlineData(
+        "<https://api.github.com/items?page=1>; rel=prev, <https://api.github.com/items?page=3>; rel=next",
+        GitHubServices.ApiBaseUrl,
+        "items?page=3"
+    )]
+    [InlineData(
+        "<https://api.github.com/items?page=2>; type=\"text/html\"; rel=next; title=page",
+        GitHubServices.ApiBaseUrl,
+        "items?page=2"
+    )]
+    [InlineData("<https://api.github.com/items?page=2>; foorel=\"next\"", GitHubServices.ApiBaseUrl, null)]
+    [InlineData("<https://api.github.com/items?page=2>; foorel=next", GitHubServices.ApiBaseUrl, null)]
+    [InlineData(
+        "<https://api.github.com/items?page=2>; title=\"a; rel=next\"; rel=prev",
+        GitHubServices.ApiBaseUrl,
+        null
+    )]
+    [InlineData("<https://api.github.com/items?page=2>; rel=prev; rel=next", GitHubServices.ApiBaseUrl, null)]
     [InlineData("<items?page=2>; rel=\"next\"", GitHubServices.ApiBaseUrl, "items?page=2")]
     [InlineData(
         "<https://github-proxy.example/items?page=2>; rel=\"next\"",
