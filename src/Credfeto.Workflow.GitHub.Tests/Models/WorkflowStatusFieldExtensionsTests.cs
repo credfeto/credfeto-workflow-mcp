@@ -49,10 +49,9 @@ public sealed class WorkflowStatusFieldExtensionsTests : TestBase
             this._statusField.FindOptionId("done")
         );
 
-        Assert.Contains(
-            expectedSubstring: "done",
-            actualString: exception.Message,
-            comparisonType: StringComparison.Ordinal
+        Assert.Equal(
+            expected: "More than one project status option matches the requested name when case is ignored",
+            actual: exception.Message
         );
     }
 }
