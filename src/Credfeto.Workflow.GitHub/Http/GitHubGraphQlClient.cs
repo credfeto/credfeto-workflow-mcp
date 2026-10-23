@@ -57,7 +57,8 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
             cancellationToken: cancellationToken
         );
 
-        using HttpResponseMessage response = await httpClient.SendAsync(
+        using HttpResponseMessage response = await GitHubHttpSender.SendAsync(
+            httpClient: httpClient,
             request: request,
             cancellationToken: cancellationToken
         );

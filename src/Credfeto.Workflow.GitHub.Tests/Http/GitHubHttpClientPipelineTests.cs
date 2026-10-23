@@ -1,6 +1,8 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
@@ -19,6 +21,9 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 
     // Comfortably above the standard circuit breaker's default minimum throughput of 100 requests
     private const int REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT = 150;
+
+    // One more than the standard rate limiter's default of 1000 concurrent permits with no queue
+    private const int REQUESTS_BEYOND_DEFAULT_PERMIT_LIMIT = 1001;
 
     private static readonly Uri UserUri = new(uriString: "user", uriKind: UriKind.Relative);
 
@@ -113,6 +118,28 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
     }
 
     [Fact]
+    public async Task ConcurrentRequestsBeyondTheDefaultPermitLimitAreNotRejectedAsync()
+    {
+        using GatedHttpMessageHandler upstream = new(REQUESTS_BEYOND_DEFAULT_PERMIT_LIMIT);
+        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
+        serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
+
+        using HttpClient client = CreateClient(serviceProvider);
+        CancellationToken cancellationToken = this.CancellationToken();
+
+        HttpStatusCode[] statusCodes = await Task.WhenAll(
+            Enumerable
+                .Range(start: 0, count: REQUESTS_BEYOND_DEFAULT_PERMIT_LIMIT)
+                .Select(_ => GetStatusCodeAsync(client: client, cancellationToken: cancellationToken))
+        );
+
+        Assert.All(
+            collection: statusCodes,
+            action: static statusCode => Assert.Equal(expected: HttpStatusCode.OK, actual: statusCode)
+        );
+    }
+
+    [Fact]
     public async Task CallerTokenIsForwardedThroughThePipelineAsync()
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.OK));
@@ -150,6 +177,16 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         using HttpRequestMessage request = new(method: method, requestUri: UserUri);
 
         return await client.SendAsync(request: request, cancellationToken: this.CancellationToken());
+    }
+
+    private static async Task<HttpStatusCode> GetStatusCodeAsync(HttpClient client, CancellationToken cancellationToken)
+    {
+        using HttpResponseMessage response = await client.GetAsync(
+            requestUri: UserUri,
+            cancellationToken: cancellationToken
+        );
+
+        return response.StatusCode;
     }
 
     private static HttpClient CreateClient(ServiceProvider serviceProvider)

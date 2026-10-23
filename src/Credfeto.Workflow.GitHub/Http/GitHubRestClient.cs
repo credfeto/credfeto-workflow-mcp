@@ -124,7 +124,8 @@ public sealed class GitHubRestClient : IGitHubRestClient
     {
         using HttpRequestMessage request = new(method: HttpMethod.Get, requestUri: requestUri);
 
-        HttpResponseMessage response = await httpClient.SendAsync(
+        HttpResponseMessage response = await GitHubHttpSender.SendAsync(
+            httpClient: httpClient,
             request: request,
             cancellationToken: cancellationToken
         );
