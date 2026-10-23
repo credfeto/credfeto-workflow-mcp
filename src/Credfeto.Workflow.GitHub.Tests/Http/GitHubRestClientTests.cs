@@ -112,14 +112,15 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     [Theory]
-    [InlineData("https://elsewhere.example/repos/owner/repo")]
-    [InlineData("//elsewhere.example/repos/owner/repo")]
-    public async Task UriOffConfiguredHostIsRejectedAsync(string relativeUri)
+    [InlineData(GitHubServices.ApiBaseUrl, "https://elsewhere.example/repos/owner/repo")]
+    [InlineData(GitHubServices.ApiBaseUrl, "//elsewhere.example/repos/owner/repo")]
+    [InlineData(null, "repos/owner/repo")]
+    public async Task UriOffConfiguredHostOrWithoutBaseAddressIsRejectedAsync(string? baseAddress, string relativeUri)
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
 
         await Assert.ThrowsAsync<UriFormatException>(() =>
-            this.CreateClient(upstream)
+            this.CreateClient(upstream: upstream, baseAddress: baseAddress)
                 .GetAsync(
                     relativeUri: relativeUri,
                     responseTypeInfo: TestJsonContext.Default.TestItem,
@@ -159,25 +160,6 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
             expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues"),
             actual: request.RequestUri
         );
-    }
-
-    [Fact]
-    public async Task ClientWithoutBaseAddressIsRejectedAsync()
-    {
-        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
-        GitHubRestClient client = this.CreateClient(upstream: upstream, baseAddress: null);
-
-        await Assert.ThrowsAsync<UriFormatException>(() =>
-            client
-                .GetAsync(
-                    relativeUri: "repos/owner/repo",
-                    responseTypeInfo: TestJsonContext.Default.TestItem,
-                    cancellationToken: this.CancellationToken()
-                )
-                .AsTask()
-        );
-
-        Assert.Empty(upstream.Requests);
     }
 
     [Fact]

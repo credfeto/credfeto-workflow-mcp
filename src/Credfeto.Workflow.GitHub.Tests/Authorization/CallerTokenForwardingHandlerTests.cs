@@ -31,27 +31,17 @@ public sealed class CallerTokenForwardingHandlerTests : TestBase
     }
 
     [Theory]
-    [InlineData(null)]
-    [InlineData("Basic dXNlcjpwYXNz")]
-    [InlineData("Bearer ")]
-    public async Task MissingOrNonBearerCallerTokenIsNeverSentUpstreamAsync(string? authorization)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(true, "Basic dXNlcjpwYXNz")]
+    [InlineData(true, "Bearer ")]
+    public async Task MissingOrNonBearerCallerTokenIsNeverSentUpstreamAsync(bool hasHttpContext, string? authorization)
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.OK));
+        HttpContext? httpContext = hasHttpContext ? CallerContext.WithAuthorization(authorization) : null;
 
         await Assert.ThrowsAsync<CallerTokenMissingException>(() =>
-            this.SendAsync(httpContext: CallerContext.WithAuthorization(authorization), upstream: upstream)
-        );
-
-        Assert.Empty(upstream.Requests);
-    }
-
-    [Fact]
-    public async Task NoHttpContextIsNeverSentUpstreamAsync()
-    {
-        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.OK));
-
-        await Assert.ThrowsAsync<CallerTokenMissingException>(() =>
-            this.SendAsync(httpContext: null, upstream: upstream)
+            this.SendAsync(httpContext: httpContext, upstream: upstream)
         );
 
         Assert.Empty(upstream.Requests);

@@ -50,30 +50,19 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         );
     }
 
-    [Fact]
-    public async Task PostIsNeverRetriedAsync()
+    [Theory]
+    [InlineData("POST", 1)]
+    [InlineData("GET", STANDARD_RETRY_ATTEMPTS + 1)]
+    public async Task OnlyGetIsRetriedOnTransientFailureAsync(string method, int expectedRequests)
     {
         using RecordingHttpMessageHandler upstream = new(static _ =>
             Responses.Status(HttpStatusCode.ServiceUnavailable)
         );
 
-        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Post, upstream: upstream);
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Parse(method), upstream: upstream);
 
         Assert.Equal(expected: HttpStatusCode.ServiceUnavailable, actual: response.StatusCode);
-        Assert.Single(upstream.Requests);
-    }
-
-    [Fact]
-    public async Task GetIsRetriedOnTransientFailureAsync()
-    {
-        using RecordingHttpMessageHandler upstream = new(static _ =>
-            Responses.Status(HttpStatusCode.ServiceUnavailable)
-        );
-
-        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
-
-        Assert.Equal(expected: HttpStatusCode.ServiceUnavailable, actual: response.StatusCode);
-        Assert.Equal(expected: STANDARD_RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+        Assert.Equal(expected: expectedRequests, actual: upstream.Requests.Count);
     }
 
     [Fact]

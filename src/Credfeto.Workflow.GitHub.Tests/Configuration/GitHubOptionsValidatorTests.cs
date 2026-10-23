@@ -28,21 +28,17 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [InlineData("https://github.example/api/v3")]
     [InlineData("https://api.github.com/?page=/")]
     [InlineData("https://api.github.com/#fragment/")]
-    public void InvalidApiBaseUrlFails(string apiBaseUrl)
+    [InlineData(null)]
+    public void InvalidApiBaseUrlFails(string? apiBaseUrl)
     {
         ValidateOptionsResult result = this.Validate(
-            new Uri(uriString: apiBaseUrl, uriKind: UriKind.RelativeOrAbsolute)
+            apiBaseUrl is null ? null : new Uri(uriString: apiBaseUrl, uriKind: UriKind.RelativeOrAbsolute)
         );
 
-        Assert.True(condition: result.Failed, userMessage: "Validation should fail for " + apiBaseUrl);
-    }
-
-    [Fact]
-    public void MissingApiBaseUrlFails()
-    {
-        ValidateOptionsResult result = this.Validate(null);
-
-        Assert.True(condition: result.Failed, userMessage: "Validation should fail when ApiBaseUrl is missing");
+        Assert.True(
+            condition: result.Failed,
+            userMessage: "Validation should fail for " + (apiBaseUrl ?? "a missing ApiBaseUrl")
+        );
     }
 
     private ValidateOptionsResult Validate(Uri? apiBaseUrl)
