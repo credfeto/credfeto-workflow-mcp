@@ -34,16 +34,22 @@ public sealed class GitHubRestClient : IGitHubRestClient
     )
     {
         HttpClient httpClient = this.CreateHttpClient();
+        Uri requestUri = ResolveOnConfiguredHost(
+            baseAddress: GitHubBaseAddress.From(httpClient),
+            relativeUri: relativeUri
+        );
 
-        GitHubPage<TResponse> page = await this.GetPageAsync(
+        using HttpResponseMessage response = await this.SendAsync(
             httpClient: httpClient,
-            relativeUri: relativeUri,
-            requestUri: ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: relativeUri),
-            typeInfo: responseTypeInfo,
+            requestUri: requestUri,
             cancellationToken: cancellationToken
         );
 
-        return page.Content;
+        return await ReadContentAsync(
+            content: response.Content,
+            typeInfo: responseTypeInfo,
+            cancellationToken: cancellationToken
+        );
     }
 
     public async ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TItem>(
@@ -53,26 +59,37 @@ public sealed class GitHubRestClient : IGitHubRestClient
     )
     {
         HttpClient httpClient = this.CreateHttpClient();
+        Uri baseAddress = GitHubBaseAddress.From(httpClient);
         List<TItem> items = [];
         HashSet<Uri> fetched = [];
-        string? nextUri = relativeUri;
+        Uri? requestUri = ResolveOnConfiguredHost(baseAddress: baseAddress, relativeUri: relativeUri);
 
-        while (nextUri is not null)
+        while (requestUri is not null)
         {
-            Uri requestUri = ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: nextUri);
-
             EnsurePageMayBeFetched(fetched: fetched, requestUri: requestUri);
 
-            GitHubPage<TItem[]> page = await this.GetPageAsync(
+            using HttpResponseMessage response = await this.SendAsync(
                 httpClient: httpClient,
-                relativeUri: nextUri,
                 requestUri: requestUri,
-                typeInfo: pageTypeInfo,
                 cancellationToken: cancellationToken
             );
 
-            items.AddRange(page.Content);
-            nextUri = page.NextUri;
+            items.AddRange(
+                await ReadContentAsync(
+                    content: response.Content,
+                    typeInfo: pageTypeInfo,
+                    cancellationToken: cancellationToken
+                )
+            );
+
+            // The handler follows redirects (a renamed or transferred repository) and updates the request it
+            // sends, so a relative next link is resolved against the URI that actually answered, not the one
+            // first asked for. The link comes back already checked and is requested exactly as checked
+            requestUri = GitHubLinkHeader.FindNextPage(
+                headers: response.Headers,
+                requestUri: response.RequestMessage?.RequestUri ?? requestUri,
+                baseAddress: baseAddress
+            );
         }
 
         return items;
@@ -80,7 +97,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
     // The next link comes from the upstream, so a repeated or endless chain must fail rather than loop forever.
     // Pages are keyed on the resolved request URI, so the same page reached through a differently written
-    // relative reference is still recognised as a repeat
+    // reference is still recognised as a repeat
     private static void EnsurePageMayBeFetched(HashSet<Uri> fetched, Uri requestUri)
     {
         if (fetched.Count == MaxPages)
@@ -99,43 +116,31 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
     }
 
-    private async ValueTask<GitHubPage<TContent>> GetPageAsync<TContent>(
+    // The caller owns and disposes the returned successful response; a failed one is disposed here
+    private async ValueTask<HttpResponseMessage> SendAsync(
         HttpClient httpClient,
-        string relativeUri,
         Uri requestUri,
-        JsonTypeInfo<TContent> typeInfo,
         CancellationToken cancellationToken
     )
     {
         using HttpRequestMessage request = new(method: HttpMethod.Get, requestUri: requestUri);
 
-        using HttpResponseMessage response = await httpClient.SendAsync(
+        HttpResponseMessage response = await httpClient.SendAsync(
             request: request,
             cancellationToken: cancellationToken
         );
 
-        if (!response.IsSuccessStatusCode)
+        if (response.IsSuccessStatusCode)
         {
-            this._logger.LogRequestFailed(path: relativeUri, statusCode: (int)response.StatusCode);
-            throw GitHubHttpFailure.FromResponse(response);
+            return response;
         }
 
-        TContent content = await ReadContentAsync(
-            content: response.Content,
-            typeInfo: typeInfo,
-            cancellationToken: cancellationToken
-        );
+        using (response)
+        {
+            this._logger.LogRequestFailed(path: requestUri.PathAndQuery, statusCode: (int)response.StatusCode);
 
-        // The handler follows redirects (a renamed or transferred repository) and updates the request it sends,
-        // so a relative next link is resolved against the URI that actually answered, not the one first asked for
-        return new(
-            Content: content,
-            NextUri: GitHubLinkHeader.FindNextPage(
-                headers: response.Headers,
-                requestUri: response.RequestMessage?.RequestUri ?? requestUri,
-                baseAddress: httpClient.BaseAddress
-            )
-        );
+            throw GitHubHttpFailure.FromResponse(response);
+        }
     }
 
     // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
@@ -169,18 +174,16 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
     // UriKind.Relative alone accepts references that resolve to a different host or outside the base path;
     // resolving here and checking the result keeps the caller's token on the configured API
-    private static Uri ResolveOnConfiguredHost(Uri? baseAddress, string relativeUri)
+    private static Uri ResolveOnConfiguredHost(Uri baseAddress, string relativeUri)
     {
-        Uri relative = new(uriString: relativeUri, uriKind: UriKind.Relative);
-
-        if (
-            baseAddress is null
-            || !UriHosts.TryResolveUnderBasePath(baseAddress: baseAddress, relative: relative, out Uri? resolved)
+        return UriHosts.TryResolveUnderBasePath(
+            baseAddress: baseAddress,
+            relative: new(uriString: relativeUri, uriKind: UriKind.Relative),
+            out Uri? resolved
         )
-        {
-            throw new UriFormatException("Request URI must resolve under the configured GitHub API host and base path");
-        }
-
-        return resolved;
+            ? resolved
+            : throw new UriFormatException(
+                "Request URI must resolve under the configured GitHub API host and base path"
+            );
     }
 }

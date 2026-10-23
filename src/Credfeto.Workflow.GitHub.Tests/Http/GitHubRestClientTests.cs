@@ -65,6 +65,16 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         "https://ghe.example/api/v3/repos/owner/repo/issues?page=2"
     )]
     [InlineData("https://ghe.example/api/v3/", "?page=2", "https://ghe.example/api/v3/repos/owner/repo/issues?page=2")]
+    [InlineData(
+        "https://proxy.example/api/v3/",
+        "https://proxy.example/api/v3//repos/o/r/issues?page=2",
+        "https://proxy.example/api/v3//repos/o/r/issues?page=2"
+    )]
+    [InlineData(
+        "https://github-proxy.example/",
+        "https://github-proxy.example///x?page=2",
+        "https://github-proxy.example///x?page=2"
+    )]
     public async Task GetAllPagesFollowsNextLinkUnderConfiguredBaseAddressAsync(
         string baseAddress,
         string nextLink,
@@ -88,9 +98,11 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
             expected: [new TestItem(Id: 1, Name: "first"), new TestItem(Id: 2, Name: "second")],
             actual: items
         );
-        Assert.Equal(
-            expected: [new Uri(baseAddress + "repos/owner/repo/issues"), new Uri(expectedSecondPage)],
-            actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
+        // Compared as text so that a rewrite such as collapsing an empty path segment is caught
+        Assert.Equal<string?>(
+            expected: [baseAddress + "repos/owner/repo/issues", expectedSecondPage],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri?.AbsoluteUri)],
+            comparer: StringComparer.Ordinal
         );
     }
 
@@ -245,16 +257,12 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     [Theory]
     [InlineData(GitHubServices.ApiBaseUrl, "https://elsewhere.example/repos/owner/repo")]
     [InlineData(GitHubServices.ApiBaseUrl, "//elsewhere.example/repos/owner/repo")]
-    [InlineData(null, "repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "/repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "../repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "../../repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "../v3x/repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "..")]
-    public async Task UriOffConfiguredHostOrBasePathOrWithoutBaseAddressIsRejectedAsync(
-        string? baseAddress,
-        string relativeUri
-    )
+    public async Task UriOffConfiguredHostOrBasePathIsRejectedAsync(string baseAddress, string relativeUri)
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
 
@@ -269,6 +277,46 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         );
 
         Assert.Empty(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task ClientWithoutBaseAddressIsRejectedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            this.CreateClient(upstream: upstream, baseAddress: null)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Empty(upstream.Requests);
+    }
+
+    // A single-resource GET has no use for a next link, so one it could not follow must not fail the request
+    [Theory]
+    [InlineData("<http://[>; rel=\"next\"")]
+    [InlineData("<ftp://elsewhere.example/repos/owner/repo?page=2>; rel=\"next\"")]
+    [InlineData("<https://ghe.example/a:b/x?page=2>; rel=\"next\"")]
+    public async Task GetIgnoresAnUnusableNextLinkAsync(string nextLink)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.Json(json: """{"id":1,"name":"first"}""", nextLink: nextLink)
+        );
+
+        TestItem item = await this.CreateClient(upstream)
+            .GetAsync(
+                relativeUri: "repos/owner/repo",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: new TestItem(Id: 1, Name: "first"), actual: item);
+        Assert.Single(upstream.Requests);
     }
 
     // Only the first page advertises the link, so a regression that follows it fails rather than paginating forever
