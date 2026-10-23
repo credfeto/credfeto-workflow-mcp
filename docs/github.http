@@ -11,6 +11,8 @@ X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
 ### GraphQL: the authenticated user's login (always POST; never retried)
+# On GitHub Enterprise Server (apiBaseUrl = https://<host>/api/v3) GraphQL is the sibling
+# https://<host>/api/graphql, not {{apiBaseUrl}}/graphql.
 POST {{apiBaseUrl}}/graphql
 Authorization: Bearer {{token}}
 Accept: application/vnd.github+json

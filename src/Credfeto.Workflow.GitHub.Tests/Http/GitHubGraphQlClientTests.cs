@@ -15,20 +15,22 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
 {
     private const string QUERY = "query($owner: String!, $number: Int!) { viewer { login } }";
 
-    [Fact]
-    public async Task ExecutePostsQueryAndVariablesToGraphQlEndpointAsync()
+    [Theory]
+    [InlineData(GitHubServices.ApiBaseUrl, GitHubServices.ApiBaseUrl + "graphql")]
+    [InlineData("https://ghe.example/api/v3/", "https://ghe.example/api/graphql")]
+    public async Task ExecutePostsQueryAndVariablesToGraphQlEndpointAsync(string baseAddress, string expectedUri)
     {
         using RecordingHttpMessageHandler upstream = new(static _ =>
             Responses.Json("""{"data":{"login":"octocat"}}""")
         );
 
-        TestData data = await this.ExecuteAsync(upstream);
+        TestData data = await this.ExecuteAsync(upstream: upstream, baseAddress: baseAddress);
 
         Assert.Equal(expected: new TestData("octocat"), actual: data);
 
         RecordedRequest request = Assert.Single(upstream.Requests);
         Assert.Equal(expected: HttpMethod.Post, actual: request.Method);
-        Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl + "graphql"), actual: request.RequestUri);
+        Assert.Equal(expected: new Uri(expectedUri), actual: request.RequestUri);
 
         using JsonDocument body = JsonDocument.Parse(request.Body ?? string.Empty);
         Assert.Equal(expected: QUERY, actual: body.RootElement.GetProperty("query").GetString());
@@ -98,10 +100,13 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         Assert.Equal(expected: HttpStatusCode.BadGateway, actual: exception.StatusCode);
     }
 
-    private ValueTask<TestData> ExecuteAsync(HttpMessageHandler upstream)
+    private ValueTask<TestData> ExecuteAsync(
+        HttpMessageHandler upstream,
+        string baseAddress = GitHubServices.ApiBaseUrl
+    )
     {
         GitHubGraphQlClient client = new(
-            httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            httpClientFactory: MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: baseAddress),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 

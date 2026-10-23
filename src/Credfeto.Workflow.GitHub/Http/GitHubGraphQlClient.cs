@@ -19,7 +19,12 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
 {
     private const string UNKNOWN_ERROR = "unknown error";
 
+    private const string ENTERPRISE_REST_PATH_SUFFIX = "/api/v3/";
+
     private static readonly Uri GraphQlUri = new(uriString: "graphql", uriKind: UriKind.Relative);
+
+    // GitHub Enterprise Server serves REST under /api/v3/ but GraphQL at the sibling /api/graphql
+    private static readonly Uri EnterpriseGraphQlUri = new(uriString: "../graphql", uriKind: UriKind.Relative);
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GitHubGraphQlClient> _logger;
@@ -40,7 +45,10 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
     {
         HttpClient httpClient = this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
 
-        using HttpRequestMessage request = new(method: HttpMethod.Post, requestUri: GraphQlUri);
+        using HttpRequestMessage request = new(
+            method: HttpMethod.Post,
+            requestUri: ResolveGraphQlUri(httpClient.BaseAddress)
+        );
         request.Content = await BuildRequestContentAsync(
             query: query,
             variables: variables,
@@ -66,6 +74,19 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         );
 
         return ReadData(root: document.RootElement, dataTypeInfo: dataTypeInfo);
+    }
+
+    // Kept relative so HttpClient resolves it against BaseAddress and it can only reach the configured host
+    private static Uri ResolveGraphQlUri(Uri? baseAddress)
+    {
+        return
+            baseAddress is not null
+            && baseAddress.AbsolutePath.EndsWith(
+                value: ENTERPRISE_REST_PATH_SUFFIX,
+                comparisonType: StringComparison.Ordinal
+            )
+            ? EnterpriseGraphQlUri
+            : GraphQlUri;
     }
 
     private static async ValueTask<ReadOnlyMemoryContent> BuildRequestContentAsync<TVariables>(
