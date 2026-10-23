@@ -15,6 +15,9 @@ namespace Credfeto.Workflow.GitHub.Http;
 
 public sealed class GitHubRestClient : IGitHubRestClient
 {
+    // GitHub returns at most 100 items per page, so this allows 100,000 items before giving up
+    public const int MaxPages = 1000;
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GitHubRestClient> _logger;
 
@@ -46,10 +49,13 @@ public sealed class GitHubRestClient : IGitHubRestClient
     )
     {
         List<TItem> items = [];
+        HashSet<string> fetched = [with(StringComparer.Ordinal)];
         string? nextUri = relativeUri;
 
         while (nextUri is not null)
         {
+            EnsurePageMayBeFetched(fetched: fetched, nextUri: nextUri);
+
             GitHubPage<TItem[]> page = await this.GetPageAsync(
                 relativeUri: nextUri,
                 typeInfo: pageTypeInfo,
@@ -61,6 +67,20 @@ public sealed class GitHubRestClient : IGitHubRestClient
         }
 
         return items;
+    }
+
+    // The next link comes from the upstream, so a repeated or endless chain must fail rather than loop forever
+    private static void EnsurePageMayBeFetched(HashSet<string> fetched, string nextUri)
+    {
+        if (fetched.Count == MaxPages)
+        {
+            throw new GitHubInvalidResponseException($"GitHub pagination exceeded {MaxPages} pages");
+        }
+
+        if (!fetched.Add(nextUri))
+        {
+            throw new GitHubInvalidResponseException("GitHub pagination repeated a page that was already fetched");
+        }
     }
 
     private async ValueTask<GitHubPage<TContent>> GetPageAsync<TContent>(

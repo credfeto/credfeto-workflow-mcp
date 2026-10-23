@@ -185,6 +185,76 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Empty(upstream.Requests);
     }
 
+    [Fact]
+    public async Task GetAllPagesFollowsEveryNextLinkUntilTheLastPageAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index switch
+            {
+                0 => ItemPage(id: 1, nextPage: 2),
+                1 => ItemPage(id: 2, nextPage: 3),
+                _ => Responses.Json("""[{"id":3,"name":"item"}]"""),
+            }
+        );
+
+        IReadOnlyList<TestItem> items = await this.GetAllIssuesAsync(upstream);
+
+        Assert.Equal(
+            expected:
+            [
+                new TestItem(Id: 1, Name: "item"),
+                new TestItem(Id: 2, Name: "item"),
+                new TestItem(Id: 3, Name: "item"),
+            ],
+            actual: items
+        );
+        Assert.Equal(expected: 3, actual: upstream.Requests.Count);
+    }
+
+    // Bounded: from the third request on there is no next link, so a regression ends rather than looping
+    [Fact]
+    public async Task GetAllPagesRejectsARepeatedNextLinkAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index < 2 ? ItemPage(id: index, nextPage: 2) : Responses.Json("[]")
+        );
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() => this.GetAllIssuesAsync(upstream));
+
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+    }
+
+    // Bounded: past the cap there is no next link, so a regression ends rather than looping
+    [Fact]
+    public async Task GetAllPagesStopsAtThePageCapAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index <= GitHubRestClient.MaxPages ? ItemPage(id: index, nextPage: index + 2) : Responses.Json("[]")
+        );
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() => this.GetAllIssuesAsync(upstream));
+
+        Assert.Equal(expected: GitHubRestClient.MaxPages, actual: upstream.Requests.Count);
+    }
+
+    private async Task<IReadOnlyList<TestItem>> GetAllIssuesAsync(HttpMessageHandler upstream)
+    {
+        return await this.CreateClient(upstream)
+            .GetAllPagesAsync(
+                relativeUri: "repos/owner/repo/issues",
+                pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                cancellationToken: this.CancellationToken()
+            );
+    }
+
+    private static HttpResponseMessage ItemPage(int id, int nextPage)
+    {
+        return Responses.Json(
+            json: $$"""[{"id":{{id}},"name":"item"}]""",
+            nextLink: $"<{GitHubServices.ApiBaseUrl}repos/owner/repo/issues?page={nextPage}>; rel=\"next\""
+        );
+    }
+
     private GitHubRestClient CreateClient(HttpMessageHandler upstream)
     {
         return this.CreateClient(upstream: upstream, baseAddress: GitHubServices.ApiBaseUrl);
