@@ -50,7 +50,17 @@ public static partial class GitHubLinkHeader
 
         return UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress)
             ? absolute.PathAndQuery
-            : absolute.PathAndQuery[1..];
+            : RelativeToBasePath(pathAndQuery: absolute.PathAndQuery, basePath: baseAddress?.AbsolutePath ?? "/");
+    }
+
+    // An upstream behind a proxy can carry the same base path as the configured one (GHE /api/v3/ behind a
+    // proxy at /api/v3/); keeping it would double it once resolved. The options validator guarantees the base
+    // path ends in '/', so the prefix match is segment-aligned, and a root base path strips only the leading '/'.
+    private static string RelativeToBasePath(string pathAndQuery, string basePath)
+    {
+        return pathAndQuery.StartsWith(value: basePath, comparisonType: StringComparison.Ordinal)
+            ? pathAndQuery[basePath.Length..]
+            : pathAndQuery[1..];
     }
 
     [GeneratedRegex(
