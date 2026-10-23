@@ -131,7 +131,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         if (
             baseAddress is null
             || !Uri.TryCreate(baseUri: baseAddress, relativeUri: relative, out Uri? resolved)
-            || !GitHubLinkHeader.IsSameServer(link: resolved, baseAddress: baseAddress)
+            || !UriHosts.IsSameServer(link: resolved, baseAddress: baseAddress)
         )
         {
             throw new UriFormatException("Request URI must resolve to the configured GitHub API host");

@@ -48,21 +48,9 @@ public static partial class GitHubLinkHeader
             return url;
         }
 
-        return IsSameServer(link: absolute, baseAddress: baseAddress)
+        return UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress)
             ? absolute.PathAndQuery
             : absolute.PathAndQuery[1..];
-    }
-
-    internal static bool IsSameServer(Uri link, Uri? baseAddress)
-    {
-        return baseAddress is not null
-            && Uri.Compare(
-                uri1: link,
-                uri2: baseAddress,
-                partsToCompare: UriComponents.SchemeAndServer,
-                compareFormat: UriFormat.Unescaped,
-                comparisonType: StringComparison.OrdinalIgnoreCase
-            ) == 0;
     }
 
     [GeneratedRegex(
