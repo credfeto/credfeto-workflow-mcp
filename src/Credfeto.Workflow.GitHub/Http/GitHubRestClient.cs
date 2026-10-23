@@ -33,8 +33,12 @@ public sealed class GitHubRestClient : IGitHubRestClient
         CancellationToken cancellationToken
     )
     {
+        HttpClient httpClient = this.CreateHttpClient();
+
         GitHubPage<TResponse> page = await this.GetPageAsync(
+            httpClient: httpClient,
             relativeUri: relativeUri,
+            requestUri: ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: relativeUri),
             typeInfo: responseTypeInfo,
             cancellationToken: cancellationToken
         );
@@ -48,16 +52,21 @@ public sealed class GitHubRestClient : IGitHubRestClient
         CancellationToken cancellationToken
     )
     {
+        HttpClient httpClient = this.CreateHttpClient();
         List<TItem> items = [];
-        HashSet<string> fetched = [with(StringComparer.Ordinal)];
+        HashSet<Uri> fetched = [];
         string? nextUri = relativeUri;
 
         while (nextUri is not null)
         {
-            EnsurePageMayBeFetched(fetched: fetched, nextUri: nextUri);
+            Uri requestUri = ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: nextUri);
+
+            EnsurePageMayBeFetched(fetched: fetched, requestUri: requestUri);
 
             GitHubPage<TItem[]> page = await this.GetPageAsync(
+                httpClient: httpClient,
                 relativeUri: nextUri,
+                requestUri: requestUri,
                 typeInfo: pageTypeInfo,
                 cancellationToken: cancellationToken
             );
@@ -69,30 +78,35 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return items;
     }
 
-    // The next link comes from the upstream, so a repeated or endless chain must fail rather than loop forever
-    private static void EnsurePageMayBeFetched(HashSet<string> fetched, string nextUri)
+    // The next link comes from the upstream, so a repeated or endless chain must fail rather than loop forever.
+    // Pages are keyed on the resolved request URI, so the same page reached through a differently written
+    // relative reference is still recognised as a repeat
+    private static void EnsurePageMayBeFetched(HashSet<Uri> fetched, Uri requestUri)
     {
         if (fetched.Count == MaxPages)
         {
             throw new GitHubInvalidResponseException($"GitHub pagination exceeded {MaxPages} pages");
         }
 
-        if (!fetched.Add(nextUri))
+        if (!fetched.Add(requestUri))
         {
             throw new GitHubInvalidResponseException("GitHub pagination repeated a page that was already fetched");
         }
     }
 
+    private HttpClient CreateHttpClient()
+    {
+        return this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
+    }
+
     private async ValueTask<GitHubPage<TContent>> GetPageAsync<TContent>(
+        HttpClient httpClient,
         string relativeUri,
+        Uri requestUri,
         JsonTypeInfo<TContent> typeInfo,
         CancellationToken cancellationToken
     )
     {
-        HttpClient httpClient = this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
-
-        Uri requestUri = ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: relativeUri);
-
         using HttpRequestMessage request = new(method: HttpMethod.Get, requestUri: requestUri);
 
         using HttpResponseMessage response = await httpClient.SendAsync(
