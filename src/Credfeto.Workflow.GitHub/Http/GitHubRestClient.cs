@@ -1,8 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
-using System.Text.Json;
+using System.Net.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
@@ -107,14 +106,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
             throw GitHubHttpFailure.FromResponse(response);
         }
 
-        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
         TContent content =
-            await JsonSerializer.DeserializeAsync(
-                utf8Json: stream,
-                jsonTypeInfo: typeInfo,
-                cancellationToken: cancellationToken
-            ) ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
+            await response.Content.ReadFromJsonAsync(jsonTypeInfo: typeInfo, cancellationToken: cancellationToken)
+            ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
 
         return new(
             Content: content,
