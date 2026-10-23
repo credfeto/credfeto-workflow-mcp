@@ -2,18 +2,32 @@ using System;
 using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Security.Cryptography;
+using System.Text;
+using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
+using Microsoft.AspNetCore.Http;
 
 namespace Credfeto.Workflow.GitHub.Cache;
 
 public sealed class RepositoryProjectCache : IRepositoryProjectCache
 {
-    // Swapped atomically via ImmutableInterlocked so readers never observe a partially updated entry
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    // Swapped atomically via ImmutableInterlocked so readers never observe a partially updated entry.
+    // Keys are the caller's token hash followed by the repository, so ids fetched with one caller's token are never
+    // served to another caller; the hash is fixed-length upper-case hex, so ignoring case only affects the repository.
     private ImmutableDictionary<string, RepositoryCacheEntry> _entries = ImmutableDictionary.Create<
         string,
         RepositoryCacheEntry
     >(StringComparer.OrdinalIgnoreCase);
+
+    public RepositoryProjectCache(IHttpContextAccessor httpContextAccessor)
+    {
+        this._httpContextAccessor = httpContextAccessor;
+    }
 
     public WorkflowProject? GetProject(string repository)
     {
@@ -58,21 +72,39 @@ public sealed class RepositoryProjectCache : IRepositoryProjectCache
 
     public void Invalidate(string repository)
     {
-        _ = ImmutableInterlocked.TryRemove(location: ref this._entries, key: repository, value: out _);
+        _ = ImmutableInterlocked.TryRemove(location: ref this._entries, key: this.CacheKey(repository), value: out _);
     }
 
     private RepositoryCacheEntry? Find(string repository)
     {
-        return this._entries.GetValueOrDefault(repository);
+        return this._entries.GetValueOrDefault(this.CacheKey(repository));
     }
 
     private void Update(string repository, Func<RepositoryCacheEntry, RepositoryCacheEntry> update)
     {
         _ = ImmutableInterlocked.AddOrUpdate(
             location: ref this._entries,
-            key: repository,
+            key: this.CacheKey(repository),
             addValueFactory: _ => update(RepositoryCacheEntry.Empty),
             updateValueFactory: (_, existing) => update(existing)
         );
+    }
+
+    private string CacheKey(string repository)
+    {
+        return this.CallerTokenHash() + repository;
+    }
+
+    private string CallerTokenHash()
+    {
+        HttpContext? httpContext = this._httpContextAccessor.HttpContext;
+
+        // Never fall back to a shared bucket: an anonymous entry would be served to every caller without a token
+        string token =
+            (httpContext is null ? null : CallerBearerToken.FromRequest(httpContext.Request))
+            ?? throw new CallerTokenMissingException();
+
+        // A one-way hash so the raw token is never retained by the process-wide cache
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(token)));
     }
 }
