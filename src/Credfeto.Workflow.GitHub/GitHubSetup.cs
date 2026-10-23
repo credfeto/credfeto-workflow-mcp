@@ -9,6 +9,7 @@ using Credfeto.Workflow.GitHub.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Options;
+using Polly;
 
 namespace Credfeto.Workflow.GitHub;
 
@@ -39,10 +40,13 @@ public static class GitHubSetup
             .Services;
     }
 
-    // GraphQL is always POST and a mutation must reach GitHub at most once, so unsafe methods are never retried
+    // GraphQL is always POST and a mutation must reach GitHub at most once, so unsafe methods are never retried.
+    // Every request carries its own caller's token, so one caller's rate limit or 5xx burst must not open a
+    // breaker shared by every caller; the circuit breaker is therefore told to count no outcome as a failure.
     private static void ConfigureResilience(HttpStandardResilienceOptions options)
     {
         options.Retry.DisableForUnsafeHttpMethods();
+        options.CircuitBreaker.ShouldHandle = static _ => PredicateResult.False();
     }
 
     private static void ConfigureHttpClient(IServiceProvider serviceProvider, HttpClient client)

@@ -17,6 +17,9 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 {
     private const int STANDARD_RETRY_ATTEMPTS = 3;
 
+    // Comfortably above the standard circuit breaker's default minimum throughput of 100 requests
+    private const int REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT = 150;
+
     private static readonly Uri UserUri = new(uriString: "user", uriKind: UriKind.Relative);
 
     [Fact]
@@ -63,6 +66,31 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 
         Assert.Equal(expected: HttpStatusCode.ServiceUnavailable, actual: response.StatusCode);
         Assert.Equal(expected: expectedRequests, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RepeatedFailuresDoNotOpenASharedCircuitAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Status(HttpStatusCode.ServiceUnavailable)
+        );
+        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
+        serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
+
+        using HttpClient client = CreateClient(serviceProvider);
+
+        for (int attempt = 0; attempt < REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT; ++attempt)
+        {
+            using HttpRequestMessage request = new(method: HttpMethod.Post, requestUri: UserUri);
+            using HttpResponseMessage response = await client.SendAsync(
+                request: request,
+                cancellationToken: this.CancellationToken()
+            );
+
+            Assert.Equal(expected: HttpStatusCode.ServiceUnavailable, actual: response.StatusCode);
+        }
+
+        Assert.Equal(expected: REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT, actual: upstream.Requests.Count);
     }
 
     [Fact]
