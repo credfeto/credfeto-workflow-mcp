@@ -249,7 +249,7 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
                 : Responses.Json("[]")
         );
 
-        await Assert.ThrowsAsync<UriFormatException>(() =>
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
             this.CreateClient(upstream: upstream, baseAddress: baseAddress)
                 .GetAllPagesAsync(
                     relativeUri: "repos/owner/repo/issues",
