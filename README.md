@@ -60,6 +60,46 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 
 Running the executable as `Credfeto.Workflow.Mcp.Server --health-check http://127.0.0.1:8080/ping` calls the URL and exits with `0` when it succeeds and `1` when it does not, so a container `HEALTHCHECK` can use the server binary itself.
 
+### Running in a container
+
+The [Dockerfile][dockerfile] packages the published native executable into a minimal, non-root .NET `runtime-deps` chiseled image.
+It does not compile the source: publish the server first, copy the `Dockerfile` into the publish output folder and use that folder as the build context.
+Replace `docker` with `podman` if that is the container runner installed; with `podman build`, add `--format docker` or the image loses its `HEALTHCHECK`.
+
+```bash
+cd src/Credfeto.Workflow.Mcp.Server
+dotnet publish --configuration Release -r linux-x64 --self-contained --output ../../server-dist/linux-x64
+cd ../..
+cp Dockerfile server-dist/linux-x64/
+docker build --tag credfeto/workflow-mcp:local server-dist/linux-x64
+```
+
+Use `-r linux-arm64` (and a `server-dist/linux-arm64` folder) to build for 64-bit Arm.
+
+The server only accepts connections from outside the container over HTTPS on port `8081`, and only when a certificate is mounted at `/usr/src/app/server.pfx`.
+Without it, the server still starts and the health check still passes (plain HTTP on `8080` is loopback-only), but `/mcp` cannot be reached from outside the container.
+The certificate must be a PKCS#12 file with no password, readable by the image's `app` user (UID `1654`).
+
+```bash
+docker run --detach --name workflow-mcp \
+  --publish 8081:8081/tcp \
+  --mount type=bind,source=/path/to/server.pfx,target=/usr/src/app/server.pfx,readonly \
+  --env GitHub__ApiBaseUrl=https://api.github.com/ \
+  --read-only --tmpfs /tmp \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  credfeto/workflow-mcp:local
+```
+
+`GitHub__ApiBaseUrl` is optional and defaults to `https://api.github.com/`; any other [configuration](#configuration) setting can be passed the same way.
+The image does not include `libmsquic`, so the container serves HTTP/1.1 and HTTP/2 only; HTTP/3 is not available.
+Check the container's health and that the server answers over HTTPS (add `--insecure` to `curl` for a self-signed certificate):
+
+```bash
+docker inspect --format '{{.State.Health.Status}}' workflow-mcp
+curl https://<host>:8081/ping
+```
+
 ### Configuration
 
 Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, and environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`).
@@ -94,6 +134,7 @@ This project is licensed under the [MIT Licence][licence].
 [api-http]: docs/api.http
 [changelog]: CHANGELOG.md
 [contributing]: CONTRIBUTING.md
+[dockerfile]: Dockerfile
 [docs]: docs/
 [github-http]: docs/github.http
 [licence]: LICENSE
