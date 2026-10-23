@@ -1,7 +1,6 @@
 using System.Text.Json;
 using Credfeto.Workflow.Data.Models.Json;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Credfeto.Workflow.Mcp;
@@ -28,14 +27,6 @@ public static class McpSetup
         // before the MCP handler runs; the token itself is only validated by GitHub.
         // Wrapping each mapped endpoint's delegate (rather than an endpoint filter) keeps the SDK's
         // RequestDelegate endpoints off the reflection-based RequestDelegateFactory path, which AOT cannot use
-        app.MapMcp(MCP_PATH).Finally(RequireCallerToken);
-    }
-
-    private static void RequireCallerToken(EndpointBuilder endpoint)
-    {
-        if (endpoint.RequestDelegate is { } handler)
-        {
-            endpoint.RequestDelegate = context => CallerTokenRequirement.InvokeAsync(context: context, next: handler);
-        }
+        app.MapMcp(MCP_PATH).Finally(CallerTokenRequirement.Apply);
     }
 }
