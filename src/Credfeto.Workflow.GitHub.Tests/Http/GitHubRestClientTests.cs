@@ -259,6 +259,16 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         "https://ghe.example/api/v3/repos/owner/repo"
     )]
     [InlineData("https://ghe.example/api/v3/", "../v3/repos/owner/repo", "https://ghe.example/api/v3/repos/owner/repo")]
+    [InlineData(
+        "https://ghe.example/api/v3/",
+        "repos/owner/my%20repo%2ename",
+        "https://ghe.example/api/v3/repos/owner/my%20repo%2ename"
+    )]
+    [InlineData(
+        "https://ghe.example/api/v3/",
+        "search/issues?q=repo%3Aowner%2Frepo",
+        "https://ghe.example/api/v3/search/issues?q=repo%3Aowner%2Frepo"
+    )]
     public async Task UriUnderConfiguredBasePathIsRequestedAsync(
         string baseAddress,
         string relativeUri,
@@ -286,6 +296,12 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     [InlineData("https://ghe.example/api/v3/", "../../repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "../v3x/repos/owner/repo")]
     [InlineData("https://ghe.example/api/v3/", "..")]
+    [InlineData("https://ghe.example/api/v3/", "%2e%2e/%2e%2e/admin")]
+    [InlineData("https://ghe.example/api/v3/", "%2E%2e/admin")]
+    [InlineData("https://ghe.example/api/v3/", ".%2e/admin")]
+    [InlineData("https://ghe.example/api/v3/", "%2e./admin")]
+    [InlineData("https://ghe.example/api/v3/", "repos%2f..%2f..%2fadmin")]
+    [InlineData("https://ghe.example/api/v3/", "repos%5C..%5C..%5Cadmin")]
     public async Task UriOffConfiguredHostOrBasePathIsRejectedAsync(string baseAddress, string relativeUri)
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
