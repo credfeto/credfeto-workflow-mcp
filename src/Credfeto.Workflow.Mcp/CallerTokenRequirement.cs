@@ -8,7 +8,7 @@ public static class CallerTokenRequirement
 {
     public static Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
-        if (CallerBearerToken.FromRequest(context.Request) is not null)
+        if (CallerIdentity.TryResolve(context))
         {
             return next(context);
         }

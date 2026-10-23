@@ -28,10 +28,9 @@ public sealed class CallerTokenForwardingHandler : DelegatingHandler
         CancellationToken cancellationToken
     )
     {
-        HttpContext? httpContext = this._httpContextAccessor.HttpContext;
-        string? token = httpContext is null ? null : CallerBearerToken.FromRequest(httpContext.Request);
+        CallerIdentity? identity = CallerIdentity.Of(this._httpContextAccessor.HttpContext);
 
-        if (token is null)
+        if (identity is null)
         {
             // An unauthenticated upstream call would silently use GitHub's anonymous rate limit and visibility
             this._logger.LogCallerTokenMissing(method: request.Method.Method, requestUri: request.RequestUri);
@@ -41,7 +40,7 @@ public sealed class CallerTokenForwardingHandler : DelegatingHandler
 
         request.Headers.Authorization = new AuthenticationHeaderValue(
             scheme: CallerBearerToken.Scheme,
-            parameter: token
+            parameter: identity.Token
         );
 
         return base.SendAsync(request: request, cancellationToken: cancellationToken);
