@@ -120,7 +120,7 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     private GitHubRestClient CreateClient(HttpMessageHandler upstream)
     {
         return new(
-            httpClientFactory: CreateHttpClientFactory(upstream),
+            httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
     }

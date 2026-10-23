@@ -7,7 +7,7 @@ namespace Credfeto.Workflow.GitHub.Tests.Http;
 
 public abstract class GitHubClientTestBase : TestBase
 {
-    protected static IHttpClientFactory CreateHttpClientFactory(HttpMessageHandler upstream)
+    protected static IHttpClientFactory MockHttpClientFactoryCreateClient(HttpMessageHandler upstream)
     {
         IHttpClientFactory factory = GetSubstitute<IHttpClientFactory>();
 

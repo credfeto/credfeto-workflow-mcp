@@ -101,7 +101,7 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
     private ValueTask<TestData> ExecuteAsync(HttpMessageHandler upstream)
     {
         GitHubGraphQlClient client = new(
-            httpClientFactory: CreateHttpClientFactory(upstream),
+            httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 
