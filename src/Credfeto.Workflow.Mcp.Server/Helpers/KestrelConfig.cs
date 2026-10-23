@@ -29,7 +29,6 @@ public static class KestrelConfig
         options.DisableStringReuse = false;
         options.AllowSynchronousIO = false;
         options.AddServerHeader = false;
-        options.Limits.MinResponseDataRate = null;
 
         if (File.Exists(certPath))
         {

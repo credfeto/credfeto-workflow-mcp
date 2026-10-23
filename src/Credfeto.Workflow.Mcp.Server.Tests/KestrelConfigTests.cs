@@ -62,7 +62,11 @@ public sealed class KestrelConfigTests : LoggingFolderCleanupTestBase
     {
         Assert.False(condition: options.AddServerHeader, userMessage: "Server header should be disabled");
         Assert.False(condition: options.AllowSynchronousIO, userMessage: "Synchronous IO should be disabled");
-        Assert.Null(options.Limits.MinResponseDataRate);
+        Assert.NotNull(options.Limits.MinResponseDataRate);
+        Assert.Equal(
+            expected: new KestrelServerLimits().MinResponseDataRate?.BytesPerSecond,
+            actual: options.Limits.MinResponseDataRate.BytesPerSecond
+        );
         Assert.NotNull(options.Limits.MinRequestBodyDataRate);
         Assert.Equal(
             expected: new KestrelServerLimits().MinRequestBodyDataRate?.BytesPerSecond,
