@@ -169,6 +169,12 @@ public sealed class GitHubLinkHeaderTests : TestBase
         GitHubServices.ApiBaseUrl,
         GitHubServices.ApiBaseUrl + "repos/o/r/issues?page=2"
     )]
+    [InlineData(
+        "<my%20repo%2ename/issues?q=repo%3Aowner%2Frepo&page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "https://ghe.example/api/v3/repos/o/r/my%20repo.name/issues?q=repo%3Aowner%2Frepo&page=2"
+    )]
     public static void RelativeNextLinkIsResolvedAgainstRequestUri(
         string link,
         string requestUri,
@@ -270,6 +276,41 @@ public sealed class GitHubLinkHeaderTests : TestBase
     )]
     [InlineData(
         "<https://ghe.example/repos:x/items?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<%2e%2e/%2e%2e/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<%2E%2e/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<.%2e/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<%2e./admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<items%2f..%2f..%2fadmin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<items%5C..%5C..%5Cadmin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<https://proxy.example/api/v3/%2e%2e/%2e%2e/admin?page=2>; rel=\"next\"",
         "https://proxy.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]
