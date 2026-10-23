@@ -29,14 +29,15 @@ public sealed class EndpointAuthorizationTests : TestBase
     }
 
     [Theory]
-    [InlineData(null, HttpStatusCode.Unauthorized)]
-    [InlineData("Basic dXNlcjpwYXNz", HttpStatusCode.Unauthorized)]
-    [InlineData("Bearer caller-token", HttpStatusCode.OK)]
-    public async Task McpRequiresBearerTokenAsync(string? authorization, HttpStatusCode expected)
+    [InlineData("/mcp", null, HttpStatusCode.Unauthorized)]
+    [InlineData("/mcp", "Basic dXNlcjpwYXNz", HttpStatusCode.Unauthorized)]
+    [InlineData("/mcp", "Bearer caller-token", HttpStatusCode.OK)]
+    [InlineData("/MCP", null, HttpStatusCode.Unauthorized)]
+    public async Task McpRequiresBearerTokenAsync(string path, string? authorization, HttpStatusCode expected)
     {
         HttpStatusCode statusCode = await this.SendAsync(
             method: HttpMethod.Post,
-            path: "/mcp",
+            path: path,
             authorization: authorization
         );
 

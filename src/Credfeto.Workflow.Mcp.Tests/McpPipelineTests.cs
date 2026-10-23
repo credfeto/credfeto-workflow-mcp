@@ -1,20 +1,19 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 using Xunit;
 
 namespace Credfeto.Workflow.Mcp.Tests;
 
 public sealed class McpPipelineTests : TestBase
 {
-    [Theory]
-    [InlineData("/mcp", StatusCodes.Status401Unauthorized)]
-    [InlineData("/MCP/", StatusCodes.Status401Unauthorized)]
-    [InlineData("/mcpx", StatusCodes.Status404NotFound)]
-    [InlineData("/ping", StatusCodes.Status404NotFound)]
-    public static async Task OnlyMcpRequestsRequireCallerTokenAsync(string path, int expectedStatusCode)
+    [Fact]
+    public static async Task EveryMcpEndpointRejectsRequestsWithoutCallerTokenAsync()
     {
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Configuration.Sources.Clear();
@@ -24,16 +23,33 @@ public sealed class McpPipelineTests : TestBase
 
         app.MapMcpEndpoint();
 
-        // Only the middleware pipeline is built here, without routing, so anything the token requirement
-        // lets through falls to the terminal 404
-        RequestDelegate pipeline = ((IApplicationBuilder)app).Build();
+        IReadOnlyList<RouteEndpoint> endpoints = GetEndpoints(app);
 
-        DefaultHttpContext context = new() { RequestServices = app.Services };
-        context.Request.Method = HttpMethods.Post;
-        context.Request.Path = path;
+        Assert.NotEmpty(endpoints);
 
-        await pipeline(context);
+        foreach (RouteEndpoint endpoint in endpoints)
+        {
+            DefaultHttpContext context = new() { RequestServices = app.Services };
+            context.Request.Method = HttpMethods.Post;
+            context.Request.Path = "/mcp";
 
-        Assert.Equal(expected: expectedStatusCode, actual: context.Response.StatusCode);
+            RequestDelegate? handler = endpoint.RequestDelegate;
+            Assert.NotNull(handler);
+
+            await handler(context);
+
+            Assert.Equal(expected: StatusCodes.Status401Unauthorized, actual: context.Response.StatusCode);
+            Assert.Equal(expected: "Bearer", actual: context.Response.Headers.WWWAuthenticate.ToString());
+        }
+    }
+
+    private static IReadOnlyList<RouteEndpoint> GetEndpoints(WebApplication app)
+    {
+        return
+        [
+            .. ((IEndpointRouteBuilder)app)
+                .DataSources.SelectMany(static dataSource => dataSource.Endpoints)
+                .OfType<RouteEndpoint>(),
+        ];
     }
 }
