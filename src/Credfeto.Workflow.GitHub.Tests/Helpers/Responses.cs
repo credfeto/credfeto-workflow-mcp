@@ -21,6 +21,14 @@ internal static class Responses
         return response;
     }
 
+    public static HttpResponseMessage Html(string html)
+    {
+        return new(HttpStatusCode.OK)
+        {
+            Content = new StringContent(content: html, encoding: Encoding.UTF8, mediaType: "text/html"),
+        };
+    }
+
     public static HttpResponseMessage Status(HttpStatusCode statusCode)
     {
         return new(statusCode);

@@ -88,6 +88,21 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         await Assert.ThrowsAsync<GitHubInvalidResponseException>(() => this.ExecuteAsync(upstream).AsTask());
     }
 
+    [Theory]
+    [InlineData(true, "<html><body>Bad gateway</body></html>")]
+    [InlineData(false, """{"data":"not an object"}""")]
+    public async Task UnreadableBodyIsInvalidResponseAsync(bool asHtml, string body)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => asHtml ? Responses.Html(body) : Responses.Json(body));
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: "GitHub GraphQL response body could not be read as JSON", actual: exception.Message);
+        Assert.IsType<JsonException>(exception.InnerException, exactMatch: false);
+    }
+
     [Fact]
     public async Task FailureStatusThrowsAsync()
     {

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
@@ -106,14 +107,38 @@ public sealed class GitHubRestClient : IGitHubRestClient
             throw GitHubHttpFailure.FromResponse(response);
         }
 
-        TContent content =
-            await response.Content.ReadFromJsonAsync(jsonTypeInfo: typeInfo, cancellationToken: cancellationToken)
-            ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
+        TContent content = await ReadContentAsync(
+            content: response.Content,
+            typeInfo: typeInfo,
+            cancellationToken: cancellationToken
+        );
 
         return new(
             Content: content,
             NextUri: GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: httpClient.BaseAddress)
         );
+    }
+
+    // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
+    // kept only as the inner exception for server-side diagnostics
+    private static async ValueTask<TContent> ReadContentAsync<TContent>(
+        HttpContent content,
+        JsonTypeInfo<TContent> typeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await content.ReadFromJsonAsync(jsonTypeInfo: typeInfo, cancellationToken: cancellationToken)
+                ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
+        }
+        catch (JsonException exception)
+        {
+            throw new GitHubInvalidResponseException(
+                message: "GitHub returned a response body that could not be read as JSON",
+                innerException: exception
+            );
+        }
     }
 
     // UriKind.Relative alone accepts network-path references such as //other.host/path, which resolve to

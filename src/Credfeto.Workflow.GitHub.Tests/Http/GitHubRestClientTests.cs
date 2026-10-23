@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -109,6 +110,31 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
                 )
                 .AsTask()
         );
+    }
+
+    [Theory]
+    [InlineData(false, "<html><body>Bad gateway</body></html>")]
+    [InlineData(true, "<html><body>Bad gateway</body></html>")]
+    [InlineData(false, """{"id":"not a number","name":"first"}""")]
+    public async Task UnreadableBodyIsInvalidResponseAsync(bool asHtml, string body)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => asHtml ? Responses.Html(body) : Responses.Json(body));
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.CreateClient(upstream)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(
+            expected: "GitHub returned a response body that could not be read as JSON",
+            actual: exception.Message
+        );
+        Assert.IsType<JsonException>(exception.InnerException, exactMatch: false);
     }
 
     [Theory]
