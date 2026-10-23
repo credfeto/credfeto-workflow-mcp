@@ -87,17 +87,16 @@ public sealed class EndpointAuthorizationTests : TestBase
 
     private static WebApplication BuildApp()
     {
-        WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
-        builder.Configuration.Sources.Clear();
+        return TestAppFactory.BuildApp(ConfigureForLoopback).MapWorkflowEndpoints();
+    }
+
+    private static void ConfigureForLoopback(WebApplicationBuilder builder)
+    {
         _ = builder.Configuration.AddInMemoryCollection([
             new KeyValuePair<string, string?>(key: "GitHub:ApiBaseUrl", value: "https://api.github.com/"),
         ]);
 
         // Port 0 binds an ephemeral loopback port so the test never collides with a fixed port
         _ = builder.WebHost.UseKestrel(static options => options.Listen(address: IPAddress.Loopback, port: 0));
-
-        _ = builder.AddWorkflowServices();
-
-        return builder.Build().MapWorkflowEndpoints();
     }
 }
