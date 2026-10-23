@@ -30,7 +30,6 @@ public static class KestrelConfig
         options.AllowSynchronousIO = false;
         options.AddServerHeader = false;
         options.Limits.MinResponseDataRate = null;
-        options.Limits.MinRequestBodyDataRate = null;
 
         if (File.Exists(certPath))
         {
