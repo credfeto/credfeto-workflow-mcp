@@ -11,7 +11,7 @@ public static partial class GitHubLinkHeader
     private const string NEXT_RELATION = "next";
     private const int MATCH_TIMEOUT_MILLISECONDS = 1000;
 
-    public static string? FindNextPage(HttpResponseHeaders headers)
+    public static string? FindNextPage(HttpResponseHeaders headers, Uri? baseAddress)
     {
         if (!headers.TryGetValues(name: "Link", out IEnumerable<string>? linkValues))
         {
@@ -21,7 +21,7 @@ public static partial class GitHubLinkHeader
         return linkValues
             .SelectMany(static linkValue => LinkPattern().Matches(linkValue))
             .Where(static match => IsNextRelation(match.Groups["rel"].Value))
-            .Select(static match => ToRelativeUri(match.Groups["url"].Value))
+            .Select(match => ToRelativeUri(url: match.Groups["url"].Value, baseAddress: baseAddress))
             .FirstOrDefault();
     }
 
@@ -34,12 +34,31 @@ public static partial class GitHubLinkHeader
 
     // GitHub advertises its own public host in Link even when the request went through a proxy at a
     // different ApiBaseUrl; following that absolute URL would bypass the configured host and send the
-    // caller's token to it. Path and query resolve against the "GitHub" client's base address instead.
-    private static string ToRelativeUri(string url)
+    // caller's token to it. The Link host is only compared, never requested: on the configured host the
+    // path already carries any base path (e.g. GHE /api/v3/), so it stays rooted; on any other host the
+    // path is made relative so it resolves under the configured base path.
+    private static string ToRelativeUri(string url, Uri? baseAddress)
     {
-        return Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute)
+        if (!Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute))
+        {
+            return url;
+        }
+
+        return IsSameServer(link: absolute, baseAddress: baseAddress)
             ? absolute.PathAndQuery
-            : url;
+            : absolute.PathAndQuery[1..];
+    }
+
+    private static bool IsSameServer(Uri link, Uri? baseAddress)
+    {
+        return baseAddress is not null
+            && Uri.Compare(
+                uri1: link,
+                uri2: baseAddress,
+                partsToCompare: UriComponents.SchemeAndServer,
+                compareFormat: UriFormat.Unescaped,
+                comparisonType: StringComparison.OrdinalIgnoreCase
+            ) == 0;
     }
 
     [GeneratedRegex(

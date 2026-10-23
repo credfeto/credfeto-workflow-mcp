@@ -32,19 +32,35 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo"), actual: request.RequestUri);
     }
 
-    [Fact]
-    public async Task GetAllPagesFollowsNextLinkOnConfiguredHostAsync()
+    [Theory]
+    [InlineData(
+        "https://github-proxy.example/",
+        "https://api.github.com/repositories/9/issues?page=2",
+        "https://github-proxy.example/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "https://proxy.example/github/",
+        "https://api.github.com/repositories/9/issues?page=2",
+        "https://proxy.example/github/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "https://ghe.example/api/v3/",
+        "https://ghe.example/api/v3/repositories/9/issues?page=2",
+        "https://ghe.example/api/v3/repositories/9/issues?page=2"
+    )]
+    public async Task GetAllPagesFollowsNextLinkUnderConfiguredBaseAddressAsync(
+        string baseAddress,
+        string nextLink,
+        string expectedSecondPage
+    )
     {
-        using RecordingHttpMessageHandler upstream = new(static index =>
+        using RecordingHttpMessageHandler upstream = new(index =>
             index == 0
-                ? Responses.Json(
-                    json: """[{"id":1,"name":"first"}]""",
-                    nextLink: "<https://api.github.com/repositories/9/issues?page=2>; rel=\"next\""
-                )
+                ? Responses.Json(json: """[{"id":1,"name":"first"}]""", nextLink: $"<{nextLink}>; rel=\"next\"")
                 : Responses.Json("""[{"id":2,"name":"second"}]""")
         );
 
-        IReadOnlyList<TestItem> items = await this.CreateClient(upstream)
+        IReadOnlyList<TestItem> items = await this.CreateClient(upstream: upstream, baseAddress: baseAddress)
             .GetAllPagesAsync(
                 relativeUri: "repos/owner/repo/issues",
                 pageTypeInfo: TestJsonContext.Default.TestItemArray,
@@ -56,11 +72,7 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
             actual: items
         );
         Assert.Equal(
-            expected:
-            [
-                new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues"),
-                new Uri(GitHubServices.ApiBaseUrl + "repositories/9/issues?page=2"),
-            ],
+            expected: [new Uri(baseAddress + "repos/owner/repo/issues"), new Uri(expectedSecondPage)],
             actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
         );
     }
@@ -119,8 +131,13 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
 
     private GitHubRestClient CreateClient(HttpMessageHandler upstream)
     {
+        return this.CreateClient(upstream: upstream, baseAddress: GitHubServices.ApiBaseUrl);
+    }
+
+    private GitHubRestClient CreateClient(HttpMessageHandler upstream, string baseAddress)
+    {
         return new(
-            httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            httpClientFactory: MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: baseAddress),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
     }

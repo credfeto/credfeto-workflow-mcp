@@ -97,6 +97,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
                 cancellationToken: cancellationToken
             ) ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
 
-        return new(Content: content, NextUri: GitHubLinkHeader.FindNextPage(response.Headers));
+        return new(
+            Content: content,
+            NextUri: GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: httpClient.BaseAddress)
+        );
     }
 }
