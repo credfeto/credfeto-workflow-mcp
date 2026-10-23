@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -150,7 +151,10 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         // GraphQL reports failures with HTTP 200 and an errors array, often alongside partial data
         if (root.TryGetProperty(propertyName: "errors", out JsonElement errors) && HasErrors(errors))
         {
-            throw new GitHubGraphQlException(DescribeErrors(errors));
+            throw new GitHubGraphQlException("GitHub GraphQL request returned errors")
+            {
+                Errors = DescribeErrors(errors),
+            };
         }
 
         if (!root.TryGetProperty(propertyName: "data", out JsonElement data))
@@ -167,19 +171,20 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         return errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() != 0;
     }
 
-    private static string DescribeErrors(JsonElement errors)
+    // Materialised now because the JsonDocument backing these elements is disposed once the exception is thrown
+    private static IReadOnlyList<string> DescribeErrors(JsonElement errors)
     {
-        return "GitHub GraphQL request returned errors: "
-            + string.Join(separator: "; ", values: errors.EnumerateArray().Select(DescribeError));
+        return [.. errors.EnumerateArray().Select(DescribeError)];
     }
 
-    private static string? DescribeError(JsonElement error)
+    private static string DescribeError(JsonElement error)
     {
         return
             error.ValueKind == JsonValueKind.Object
             && error.TryGetProperty(propertyName: "message", out JsonElement message)
             && message.ValueKind == JsonValueKind.String
-            ? message.GetString()
+            && message.GetString() is { } text
+            ? text
             : UNKNOWN_ERROR;
     }
 }

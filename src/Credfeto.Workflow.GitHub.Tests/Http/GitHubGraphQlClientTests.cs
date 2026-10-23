@@ -64,9 +64,10 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
             this.ExecuteAsync(upstream).AsTask()
         );
 
+        Assert.Equal(expected: "GitHub GraphQL request returned errors", actual: exception.Message);
         Assert.Equal(
-            expected: "GitHub GraphQL request returned errors: Could not resolve to a Repository; unknown error; unknown error",
-            actual: exception.Message
+            expected: ["Could not resolve to a Repository", "unknown error", "unknown error"],
+            actual: exception.Errors
         );
     }
 
@@ -77,7 +78,11 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
     {
         using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(json));
 
-        await Assert.ThrowsAsync<GitHubGraphQlException>(() => this.ExecuteAsync(upstream).AsTask());
+        GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Empty(exception.Errors);
     }
 
     [Fact]
