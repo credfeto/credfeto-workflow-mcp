@@ -81,7 +81,7 @@ public static partial class GitHubLinkHeader
     // such as //other.host/path parses as an absolute file URI, so the scheme check rejects it as well
     private static Uri? ParseAbsoluteLink(string url)
     {
-        if (Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute))
+        if (!IsRootedPath(url) && Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, out Uri? absolute))
         {
             if (!UriSchemes.IsHttp(absolute))
             {
@@ -94,6 +94,14 @@ public static partial class GitHubLinkHeader
         return Uri.TryCreate(uriString: url, uriKind: UriKind.Relative, out _)
             ? null
             : throw new GitHubInvalidResponseException("GitHub returned a next page link that is not a valid URI");
+    }
+
+    // On Unix a rooted path such as /api/v3/items parses as an absolute file URI, which the scheme check would
+    // reject; keeping it relative resolves it against the configured host on every OS. A network-path
+    // reference (//host/path) is not a rooted path, so it still takes the absolute route and is rejected
+    private static bool IsRootedPath(string url)
+    {
+        return url is ['/'] or ['/', not '/', ..];
     }
 
     // An upstream behind a proxy can carry the same base path as the configured one (GHE /api/v3/ behind a
