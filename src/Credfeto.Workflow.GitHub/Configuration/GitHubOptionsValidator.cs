@@ -25,6 +25,14 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
             return ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must use the http or https scheme.");
         }
 
+        // Every request is checked against the same rule, so a base URL that breaks it would fail every call
+        if (UriHosts.HasEncodedPathTraversal(apiBaseUrl))
+        {
+            return ValidateOptionsResult.Fail(
+                "GitHub:ApiBaseUrl path must not contain encoded '.' or '..' segments (such as %2f..%2f)."
+            );
+        }
+
         // Relative request URIs only keep the base path when it ends in '/'; a host-only URL has the path '/'
         return IsDirectoryUrl(apiBaseUrl)
             ? ValidateOptionsResult.Success

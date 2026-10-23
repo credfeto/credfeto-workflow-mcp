@@ -15,6 +15,8 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [InlineData("http://github-proxy.example/")]
     [InlineData("https://github.example/api/v3/")]
     [InlineData("https://api.github.com")]
+    [InlineData("https://proxy.example/a%2Fb/")]
+    [InlineData("https://proxy.example/a%5Cb/")]
     public void ValidApiBaseUrlSucceeds(string apiBaseUrl)
     {
         ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
@@ -38,6 +40,20 @@ public sealed class GitHubOptionsValidatorTests : TestBase
         Assert.True(
             condition: result.Failed,
             userMessage: "Validation should fail for " + (apiBaseUrl ?? "a missing ApiBaseUrl")
+        );
+    }
+
+    [Theory]
+    [InlineData("https://proxy.example/a%2f..%2fb/")]
+    [InlineData("https://proxy.example/a%5C..%5Cb/")]
+    [InlineData("https://proxy.example/%252e%252e/b/")]
+    public void TraversingApiBaseUrlFails(string apiBaseUrl)
+    {
+        ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
+
+        Assert.Equal(
+            expected: "GitHub:ApiBaseUrl path must not contain encoded '.' or '..' segments (such as %2f..%2f).",
+            actual: result.FailureMessage
         );
     }
 
