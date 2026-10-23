@@ -7,14 +7,9 @@ namespace Credfeto.Workflow.GitHub.Tests.Http;
 
 public abstract class GitHubClientTestBase : TestBase
 {
-    protected static IHttpClientFactory MockHttpClientFactoryCreateClient(HttpMessageHandler upstream)
-    {
-        return MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: GitHubServices.ApiBaseUrl);
-    }
-
     protected static IHttpClientFactory MockHttpClientFactoryCreateClient(
         HttpMessageHandler upstream,
-        string baseAddress
+        string? baseAddress = GitHubServices.ApiBaseUrl
     )
     {
         IHttpClientFactory factory = GetSubstitute<IHttpClientFactory>();
@@ -23,7 +18,7 @@ public abstract class GitHubClientTestBase : TestBase
             .CreateClient(GitHubSetup.HttpClientName)
             .Returns(_ => new HttpClient(handler: upstream, disposeHandler: false)
             {
-                BaseAddress = new Uri(baseAddress),
+                BaseAddress = baseAddress is null ? null : new Uri(baseAddress),
             });
 
         return factory;
