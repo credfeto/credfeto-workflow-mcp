@@ -44,6 +44,26 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "/api/v3/repositories/9/issues?page=2"
     )]
     [InlineData(
+        "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://api.github.com/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://ghe.example/API/V3/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "API/V3/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://ghe.example/api/v3x/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "api/v3x/repositories/9/issues?page=2"
+    )]
+    [InlineData(
         "<https://api.github.com/repositories/9/issues?page=2>; rel=\"next\"",
         null,
         "repositories/9/issues?page=2"
