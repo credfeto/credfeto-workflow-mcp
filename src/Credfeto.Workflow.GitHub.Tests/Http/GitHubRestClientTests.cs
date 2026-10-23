@@ -172,19 +172,18 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     // Only the first page advertises the link, so a regression that follows it fails rather than paginating forever
-    [Fact]
-    public async Task NetworkPathNextLinkIsNotFollowedAsync()
+    [Theory]
+    [InlineData("<//elsewhere.example/repos/owner/repo/issues?page=2>; rel=\"next\"")]
+    [InlineData("<ftp://elsewhere.example/repos/owner/repo/issues?page=2>; rel=\"next\"")]
+    public async Task NonHttpNextLinkIsNotFollowedAsync(string nextLink)
     {
-        using RecordingHttpMessageHandler upstream = new(static index =>
+        using RecordingHttpMessageHandler upstream = new(index =>
             index == 0
-                ? Responses.Json(
-                    json: """[{"id":1,"name":"first"}]""",
-                    nextLink: "<//elsewhere.example/repos/owner/repo/issues?page=2>; rel=\"next\""
-                )
+                ? Responses.Json(json: """[{"id":1,"name":"first"}]""", nextLink: nextLink)
                 : Responses.Json("[]")
         );
 
-        await Assert.ThrowsAsync<UriFormatException>(() =>
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
             this.CreateClient(upstream)
                 .GetAllPagesAsync(
                     relativeUri: "repos/owner/repo/issues",

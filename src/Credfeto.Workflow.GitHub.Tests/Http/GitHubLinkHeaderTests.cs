@@ -1,6 +1,7 @@
 using System;
 using System.Net.Http;
 using Credfeto.Workflow.GitHub.Http;
+using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
 using FunFair.Test.Common;
 using Xunit;
@@ -32,11 +33,6 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "<https://github-proxy.example/items?page=2>; rel=\"next\"",
         GitHubServices.ApiBaseUrl,
         "/items?page=2"
-    )]
-    [InlineData(
-        "<//elsewhere.example/items?page=2>; rel=\"next\"",
-        GitHubServices.ApiBaseUrl,
-        "//elsewhere.example/items?page=2"
     )]
     [InlineData(
         "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\"",
@@ -79,5 +75,28 @@ public sealed class GitHubLinkHeaderTests : TestBase
                 baseAddress: baseAddress is null ? null : new Uri(baseAddress)
             )
         );
+    }
+
+    [Theory]
+    [InlineData(
+        "<ftp://evil.example/items?page=2>; rel=\"next\"",
+        "GitHub returned a next page link that is not an HTTP(S) URI"
+    )]
+    [InlineData(
+        "<//elsewhere.example/items?page=2>; rel=\"next\"",
+        "GitHub returned a next page link that is not an HTTP(S) URI"
+    )]
+    [InlineData("<http://[>; rel=\"next\"", "GitHub returned a next page link that is not a valid URI")]
+    [InlineData("<http://exa mple/items>; rel=\"next\"", "GitHub returned a next page link that is not a valid URI")]
+    [InlineData("<http://>; rel=\"next\"", "GitHub returned a next page link that is not a valid URI")]
+    public static void MalformedNextLinkIsInvalidResponse(string link, string expectedMessage)
+    {
+        using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
+
+        GitHubInvalidResponseException exception = Assert.Throws<GitHubInvalidResponseException>(() =>
+            GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: new Uri(GitHubServices.ApiBaseUrl))
+        );
+
+        Assert.Equal(expected: expectedMessage, actual: exception.Message);
     }
 }
