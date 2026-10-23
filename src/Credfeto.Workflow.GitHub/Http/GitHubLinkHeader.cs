@@ -12,7 +12,7 @@ public static partial class GitHubLinkHeader
     private const string NEXT_RELATION = "next";
     private const int MATCH_TIMEOUT_MILLISECONDS = 1000;
 
-    public static string? FindNextPage(HttpResponseHeaders headers, Uri? baseAddress)
+    public static string? FindNextPage(HttpResponseHeaders headers, Uri requestUri, Uri? baseAddress)
     {
         if (!headers.TryGetValues(name: "Link", out IEnumerable<string>? linkValues))
         {
@@ -22,7 +22,9 @@ public static partial class GitHubLinkHeader
         return linkValues
             .SelectMany(static linkValue => LinkPattern().Matches(linkValue))
             .Where(static match => IsNextRelation(match.Groups["rel"].Value))
-            .Select(match => ToRelativeUri(url: match.Groups["url"].Value, baseAddress: baseAddress))
+            .Select(match =>
+                ToRelativeUri(url: match.Groups["url"].Value, requestUri: requestUri, baseAddress: baseAddress)
+            )
             .FirstOrDefault();
     }
 
@@ -39,24 +41,24 @@ public static partial class GitHubLinkHeader
     // path already carries any base path (e.g. GHE /api/v3/), so it stays rooted; on any other host the
     // path is made relative so it resolves under the configured base path. Whatever the route, a result that
     // would not resolve under the configured host and base path is rejected here.
-    private static string ToRelativeUri(string url, Uri? baseAddress)
+    private static string ToRelativeUri(string url, Uri requestUri, Uri? baseAddress)
     {
-        string relativeUri = RewriteOntoBaseAddress(url: url, baseAddress: baseAddress);
+        string relativeUri = RewriteOntoBaseAddress(url: url, requestUri: requestUri, baseAddress: baseAddress);
 
         return baseAddress is null || ResolvesUnderBasePath(relativeUri: relativeUri, baseAddress: baseAddress)
             ? relativeUri
-            : throw new GitHubInvalidResponseException(
-                "GitHub returned a next page link outside the configured GitHub API host and base path"
-            );
+            : throw OutsideBasePath();
     }
 
-    private static string RewriteOntoBaseAddress(string url, Uri? baseAddress)
+    private static string RewriteOntoBaseAddress(string url, Uri requestUri, Uri? baseAddress)
     {
         Uri? absolute = ParseAbsoluteLink(url);
 
         if (absolute is null)
         {
-            return url;
+            return IsRootedPath(url) || baseAddress is null
+                ? url
+                : ResolveAgainstRequest(url: url, requestUri: requestUri, baseAddress: baseAddress);
         }
 
         return UriHosts.IsSameServer(link: absolute, baseAddress: baseAddress)
@@ -64,7 +66,28 @@ public static partial class GitHubLinkHeader
             : RelativeToBasePath(pathAndQuery: absolute.PathAndQuery, basePath: baseAddress?.AbsolutePath ?? "/");
     }
 
-    // A link that resolves elsewhere (a same-host path outside the base path, a dot-segment relative link)
+    // RFC 8288 section 3.2 resolves a relative link target against the URI of the request that returned it
+    // (RFC 3986 section 5), not against the API base address, so issues?page=2 returned for repos/o/r/issues
+    // names repos/o/r/issues?page=2. The result is handed back relative to the configured base path, as the
+    // client expects; a dot-segment link that climbs out of the base path is rejected rather than remapped
+    private static string ResolveAgainstRequest(string url, Uri requestUri, Uri baseAddress)
+    {
+        string basePath = baseAddress.AbsolutePath;
+
+        return
+            Uri.TryCreate(baseUri: requestUri, relativeUri: url, out Uri? resolved)
+            && UriHosts.IsSameServer(link: resolved, baseAddress: baseAddress)
+            && resolved.AbsolutePath.StartsWith(value: basePath, comparisonType: StringComparison.Ordinal)
+            ? resolved.PathAndQuery[basePath.Length..]
+            : throw OutsideBasePath();
+    }
+
+    private static GitHubInvalidResponseException OutsideBasePath()
+    {
+        return new("GitHub returned a next page link outside the configured GitHub API host and base path");
+    }
+
+    // A link that resolves elsewhere (a same-host path outside the base path, a rooted path outside it)
     // is upstream content, so it is an invalid response rather than the request-building failure the client
     // raises for a caller-supplied URI. A path stripped from another host can fail to parse as a relative
     // reference (a first segment containing ':' reads as a scheme or drive letter), so it cannot be mapped

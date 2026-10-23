@@ -59,6 +59,12 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         "https://api.github.com/repositories/9/issues?page=2",
         "https://proxy.example/api/v3/repositories/9/issues?page=2"
     )]
+    [InlineData(
+        "https://ghe.example/api/v3/",
+        "issues?page=2",
+        "https://ghe.example/api/v3/repos/owner/repo/issues?page=2"
+    )]
+    [InlineData("https://ghe.example/api/v3/", "?page=2", "https://ghe.example/api/v3/repos/owner/repo/issues?page=2")]
     public async Task GetAllPagesFollowsNextLinkUnderConfiguredBaseAddressAsync(
         string baseAddress,
         string nextLink,
