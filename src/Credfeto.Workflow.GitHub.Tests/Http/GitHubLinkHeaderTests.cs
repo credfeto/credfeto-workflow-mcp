@@ -64,6 +64,16 @@ public sealed class GitHubLinkHeaderTests : TestBase
         null,
         "repositories/9/issues?page=2"
     )]
+    [InlineData(
+        "</api/v3/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/",
+        "/api/v3/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "</repositories/9/issues?page=2>; rel=\"next\"",
+        GitHubServices.ApiBaseUrl,
+        "/repositories/9/issues?page=2"
+    )]
     public static void NextLinkIsRewrittenRelativeToBaseAddress(string? link, string? baseAddress, string? expected)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
@@ -105,6 +115,11 @@ public sealed class GitHubLinkHeaderTests : TestBase
     )]
     [InlineData(
         "<https://ghe.example/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "</repositories/9/issues?page=2>; rel=\"next\"",
         "https://ghe.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]
