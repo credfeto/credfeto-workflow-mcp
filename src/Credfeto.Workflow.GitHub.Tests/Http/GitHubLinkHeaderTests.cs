@@ -175,6 +175,12 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "https://ghe.example/api/v3/",
         "https://ghe.example/api/v3/repos/o/r/my%20repo.name/issues?q=repo%3Aowner%2Frepo&page=2"
     )]
+    [InlineData(
+        "<labels/area%2Fapi?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "https://ghe.example/api/v3/repos/o/r/labels/area%2Fapi?page=2"
+    )]
     public static void RelativeNextLinkIsResolvedAgainstRequestUri(
         string link,
         string requestUri,
@@ -311,6 +317,26 @@ public sealed class GitHubLinkHeaderTests : TestBase
     )]
     [InlineData(
         "<https://proxy.example/api/v3/%2e%2e/%2e%2e/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<items%252f..%252f..%252fadmin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<items%255C..%255C..%255Cadmin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<%25252e%25252e/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<items/a%25252541?page=2>; rel=\"next\"",
         "https://proxy.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]

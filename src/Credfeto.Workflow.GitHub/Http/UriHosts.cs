@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Frozen;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
@@ -8,9 +7,13 @@ namespace Credfeto.Workflow.GitHub.Http;
 
 internal static class UriHosts
 {
+    // Enough for any legitimately encoded value; a segment still changing after this many passes is treated as
+    // traversing, so an attacker cannot out-nest the check
+    private const int MaxDecodePasses = 4;
+
     private static readonly FrozenSet<string> DotSegments = new[] { ".", ".." }.ToFrozenSet(StringComparer.Ordinal);
 
-    private static readonly SearchValues<char> PathSeparators = SearchValues.Create("/\\");
+    private static readonly char[] PathSeparators = ['/', '\\'];
 
     public static bool IsSameServer(Uri link, Uri baseAddress)
     {
@@ -40,14 +43,43 @@ internal static class UriHosts
             && !HasEncodedPathTraversal(link);
     }
 
-    // System.Uri leaves percent-encoded slashes (%2f, %5c) in place, so the prefix match above passes
-    // repos%2f..%2f..%2fadmin, but a proxy that decodes and normalises the path resolves it outside the base path
-    // with the caller's token. Any segment that decodes to a dot segment or contains a separator is rejected;
-    // System.Uri already decodes and collapses %2e dot segments, so that half guards against a change in that
-    private static bool HasEncodedPathTraversal(Uri link)
+    // System.Uri collapses literal and singly encoded (%2e) dot segments but leaves encoded separators (%2f, %5c)
+    // and double-encoded values (%252e, %252f) in place, so the prefix match above passes repos%2f..%2fadmin or
+    // %252e%252e, while a proxy that decodes and normalises the path, possibly over several hops, resolves it
+    // outside the base path with the caller's token. Each segment is decoded until stable and rejected only when a
+    // piece between separators is a dot segment, so an encoded slash inside one parameter (labels/area%2Fapi) is
+    // still allowed
+    public static bool HasEncodedPathTraversal(Uri uri)
     {
-        return link
-            .Segments.Select(static segment => Uri.UnescapeDataString(segment.TrimEnd('/')))
-            .Any(static segment => DotSegments.Contains(segment) || segment.AsSpan().ContainsAny(PathSeparators));
+        return uri.Segments.Any(IsTraversingSegment);
+    }
+
+    private static bool IsTraversingSegment(string segment)
+    {
+        return !TryDecodeUntilStable(value: segment.TrimEnd('/'), out string? decoded)
+            || decoded.Split(PathSeparators).Any(DotSegments.Contains);
+    }
+
+    private static bool TryDecodeUntilStable(string value, [NotNullWhen(true)] out string? decoded)
+    {
+        string current = value;
+
+        for (int pass = 0; pass < MaxDecodePasses; ++pass)
+        {
+            string next = Uri.UnescapeDataString(current);
+
+            if (StringComparer.Ordinal.Equals(x: next, y: current))
+            {
+                decoded = current;
+
+                return true;
+            }
+
+            current = next;
+        }
+
+        decoded = null;
+
+        return false;
     }
 }
