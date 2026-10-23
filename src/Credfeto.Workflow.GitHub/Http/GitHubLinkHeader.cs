@@ -136,9 +136,40 @@ public static partial class GitHubLinkHeader
             : pathAndQuery[1..];
     }
 
+    // RFC 8288 section 3: a link-param is token BWS [ "=" BWS ( token / quoted-string ) ] with a
+    // case-insensitive name, and only the first rel parameter counts, hence the lazy skip over earlier ones.
+    // Anchoring every parameter name on ';' stops a name that merely ends in rel (foorel) being read as rel
+    private const string TOKEN = "[!#$%&'*+.^_`|~0-9A-Za-z-]+";
+    private const string QUOTED_STRING_CONTENT = "(?:[^\"\\\\]|\\\\.)*";
+    private const string PARAMETER_SEPARATOR = @"\s*;\s*";
+    private const string PARAMETER_ASSIGNMENT = @"\s*=\s*";
+
+    private const string OTHER_PARAMETER =
+        PARAMETER_SEPARATOR
+        + TOKEN
+        + "(?:"
+        + PARAMETER_ASSIGNMENT
+        + "(?:"
+        + TOKEN
+        + "|\""
+        + QUOTED_STRING_CONTENT
+        + "\"))?";
+
+    private const string REL_PARAMETER =
+        PARAMETER_SEPARATOR
+        + "rel"
+        + PARAMETER_ASSIGNMENT
+        + "(?:\"(?<rel>"
+        + QUOTED_STRING_CONTENT
+        + ")\"|(?<rel>"
+        + TOKEN
+        + "))";
+
+    private const string LINK_PATTERN = "<(?<url>[^>]*)>(?:" + OTHER_PARAMETER + ")*?" + REL_PARAMETER;
+
     [GeneratedRegex(
-        pattern: "<(?<url>[^>]*)>[^<]*?rel=\"(?<rel>[^\"]*)\"",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        pattern: LINK_PATTERN,
+        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase,
         matchTimeoutMilliseconds: MATCH_TIMEOUT_MILLISECONDS
     )]
     private static partial Regex LinkPattern();
