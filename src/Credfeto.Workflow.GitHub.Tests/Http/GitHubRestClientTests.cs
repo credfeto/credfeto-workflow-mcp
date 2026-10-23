@@ -94,6 +94,65 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         );
     }
 
+    // A followed redirect (renamed or transferred repository) changes the URI that answered, which is the base
+    // a relative next link must be resolved against
+    [Fact]
+    public async Task RelativeNextLinkIsResolvedAgainstRedirectedRequestUriAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? RedirectedPage(answeredBy: GitHubServices.ApiBaseUrl + "repositories/123/issues")
+                : Responses.Json("""[{"id":2,"name":"second"}]""")
+        );
+
+        IReadOnlyList<TestItem> items = await this.CreateClient(upstream)
+            .GetAllPagesAsync(
+                relativeUri: "repos/old/repo/issues",
+                pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(
+            expected: [new TestItem(Id: 1, Name: "first"), new TestItem(Id: 2, Name: "second")],
+            actual: items
+        );
+        Assert.Equal(
+            expected:
+            [
+                new Uri(GitHubServices.ApiBaseUrl + "repos/old/repo/issues"),
+                new Uri(GitHubServices.ApiBaseUrl + "repositories/123/issues?page=2"),
+            ],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
+        );
+    }
+
+    // A redirect that left the configured host or base path must not steer the next page there
+    [Theory]
+    [InlineData(GitHubServices.ApiBaseUrl, "https://elsewhere.example/repositories/123/issues")]
+    [InlineData("https://ghe.example/api/v3/", "https://ghe.example/other/repositories/123/issues")]
+    public async Task RelativeNextLinkFromRedirectOffConfiguredBasePathIsInvalidResponseAsync(
+        string baseAddress,
+        string answeredBy
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(index =>
+            index == 0 ? RedirectedPage(answeredBy) : Responses.Json("[]")
+        );
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.CreateClient(upstream: upstream, baseAddress: baseAddress)
+                .GetAllPagesAsync(
+                    relativeUri: "repos/old/repo/issues",
+                    pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: new Uri(baseAddress + "repos/old/repo/issues"), actual: request.RequestUri);
+    }
+
     [Fact]
     public async Task FailureStatusThrowsAsync()
     {
@@ -337,6 +396,17 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
             json: $$"""[{"id":{{id}},"name":"item"}]""",
             nextLink: $"<{GitHubServices.ApiBaseUrl}repos/owner/repo/issues?page={nextPage}>; rel=\"next\""
         );
+    }
+
+    private static HttpResponseMessage RedirectedPage(string answeredBy)
+    {
+        HttpResponseMessage response = Responses.Json(
+            json: """[{"id":1,"name":"first"}]""",
+            nextLink: "<issues?page=2>; rel=\"next\""
+        );
+        response.RequestMessage = new(method: HttpMethod.Get, requestUri: new Uri(answeredBy));
+
+        return response;
     }
 
     private GitHubRestClient CreateClient(HttpMessageHandler upstream, string? baseAddress = GitHubServices.ApiBaseUrl)
