@@ -8,6 +8,7 @@ using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
 using Credfeto.Workflow.GitHub.Tests.Models;
+using NSubstitute;
 using Xunit;
 
 namespace Credfeto.Workflow.GitHub.Tests.Http;
@@ -111,15 +112,70 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         );
     }
 
-    [Fact]
-    public async Task AbsoluteUriIsRejectedAsync()
+    [Theory]
+    [InlineData("https://elsewhere.example/repos/owner/repo")]
+    [InlineData("//elsewhere.example/repos/owner/repo")]
+    public async Task UriOffConfiguredHostIsRejectedAsync(string relativeUri)
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
 
         await Assert.ThrowsAsync<UriFormatException>(() =>
             this.CreateClient(upstream)
                 .GetAsync(
-                    relativeUri: "https://elsewhere.example/repos/owner/repo",
+                    relativeUri: relativeUri,
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Empty(upstream.Requests);
+    }
+
+    // Only the first page advertises the link, so a regression that follows it fails rather than paginating forever
+    [Fact]
+    public async Task NetworkPathNextLinkIsNotFollowedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Json(
+                    json: """[{"id":1,"name":"first"}]""",
+                    nextLink: "<//elsewhere.example/repos/owner/repo/issues?page=2>; rel=\"next\""
+                )
+                : Responses.Json("[]")
+        );
+
+        await Assert.ThrowsAsync<UriFormatException>(() =>
+            this.CreateClient(upstream)
+                .GetAllPagesAsync(
+                    relativeUri: "repos/owner/repo/issues",
+                    pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues"),
+            actual: request.RequestUri
+        );
+    }
+
+    [Fact]
+    public async Task ClientWithoutBaseAddressIsRejectedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
+        IHttpClientFactory factory = GetSubstitute<IHttpClientFactory>();
+        factory
+            .CreateClient(GitHubSetup.HttpClientName)
+            .Returns(_ => new HttpClient(handler: upstream, disposeHandler: false));
+        GitHubRestClient client = new(httpClientFactory: factory, logger: this.GetTypedLogger<GitHubRestClient>());
+
+        await Assert.ThrowsAsync<UriFormatException>(() =>
+            client
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
                     responseTypeInfo: TestJsonContext.Default.TestItem,
                     cancellationToken: this.CancellationToken()
                 )

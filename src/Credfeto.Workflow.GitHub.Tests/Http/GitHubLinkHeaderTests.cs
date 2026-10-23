@@ -40,6 +40,7 @@ public sealed class GitHubLinkHeaderTests : TestBase
     [InlineData("<https://api.github.com/items?page=2>; rel=\"last NEXT\"", "items?page=2")]
     [InlineData("<items?page=2>; rel=\"next\"", "items?page=2")]
     [InlineData("<https://github-proxy.example/items?page=2>; rel=\"next\"", "/items?page=2")]
+    [InlineData("<//elsewhere.example/items?page=2>; rel=\"next\"", "//elsewhere.example/items?page=2")]
     public static void NextLinkIsRewrittenRelativeToBaseAddress(string link, string expected)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);

@@ -71,10 +71,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
     {
         HttpClient httpClient = this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
 
-        // UriKind.Relative rejects absolute URIs so the caller's token can only reach the configured host
         using HttpRequestMessage request = new(
             method: HttpMethod.Get,
-            requestUri: new Uri(uriString: relativeUri, uriKind: UriKind.Relative)
+            requestUri: ResolveOnConfiguredHost(baseAddress: httpClient.BaseAddress, relativeUri: relativeUri)
         );
 
         using HttpResponseMessage response = await httpClient.SendAsync(
@@ -101,5 +100,23 @@ public sealed class GitHubRestClient : IGitHubRestClient
             Content: content,
             NextUri: GitHubLinkHeader.FindNextPage(headers: response.Headers, baseAddress: httpClient.BaseAddress)
         );
+    }
+
+    // UriKind.Relative alone accepts network-path references such as //other.host/path, which resolve to
+    // a different host; resolving here and checking the result keeps the caller's token on the configured host
+    private static Uri ResolveOnConfiguredHost(Uri? baseAddress, string relativeUri)
+    {
+        Uri relative = new(uriString: relativeUri, uriKind: UriKind.Relative);
+
+        if (
+            baseAddress is null
+            || !Uri.TryCreate(baseUri: baseAddress, relativeUri: relative, out Uri? resolved)
+            || !GitHubLinkHeader.IsSameServer(link: resolved, baseAddress: baseAddress)
+        )
+        {
+            throw new UriFormatException("Request URI must resolve to the configured GitHub API host");
+        }
+
+        return resolved;
     }
 }
