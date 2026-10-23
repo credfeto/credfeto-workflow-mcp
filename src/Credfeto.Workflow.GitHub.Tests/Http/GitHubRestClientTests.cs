@@ -183,6 +183,30 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Equal(expected: HttpStatusCode.NotFound, actual: exception.StatusCode);
     }
 
+    [Theory]
+    [InlineData(ResilienceRejections.Timeout)]
+    [InlineData(ResilienceRejections.RateLimiter)]
+    [InlineData(ResilienceRejections.BrokenCircuit)]
+    public async Task ResilienceRejectionIsAnHttpRequestFailureAsync(string rejectionName)
+    {
+        Exception rejection = ResilienceRejections.Create(rejectionName);
+        using RecordingHttpMessageHandler upstream = new(_ => throw rejection);
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Null(exception.StatusCode);
+        Assert.Same(expected: rejection, actual: exception.InnerException);
+    }
+
     [Fact]
     public async Task NullBodyThrowsAsync()
     {

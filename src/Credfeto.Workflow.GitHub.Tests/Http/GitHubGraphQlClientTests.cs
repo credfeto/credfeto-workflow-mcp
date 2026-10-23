@@ -120,6 +120,24 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         Assert.Equal(expected: HttpStatusCode.BadGateway, actual: exception.StatusCode);
     }
 
+    [Theory]
+    [InlineData(ResilienceRejections.Timeout)]
+    [InlineData(ResilienceRejections.RateLimiter)]
+    [InlineData(ResilienceRejections.BrokenCircuit)]
+    public async Task ResilienceRejectionIsAnHttpRequestFailureAsync(string rejectionName)
+    {
+        Exception rejection = ResilienceRejections.Create(rejectionName);
+        using RecordingHttpMessageHandler upstream = new(_ => throw rejection);
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Null(exception.StatusCode);
+        Assert.Same(expected: rejection, actual: exception.InnerException);
+    }
+
     private ValueTask<TestData> ExecuteAsync(
         HttpMessageHandler upstream,
         string baseAddress = GitHubServices.ApiBaseUrl
