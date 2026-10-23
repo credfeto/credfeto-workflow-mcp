@@ -149,7 +149,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
     }
 
     // UriKind.Relative alone accepts network-path references such as //other.host/path, which resolve to
-    // a different host; resolving here and checking the result keeps the caller's token on the configured host
+    // a different host, and rooted (/path) or dot-segment (../path) references, which resolve outside the
+    // base path; resolving here and checking the result keeps the caller's token on the configured API. The
+    // options validator guarantees the base path ends in '/', so the prefix match is segment-aligned
     private static Uri ResolveOnConfiguredHost(Uri? baseAddress, string relativeUri)
     {
         Uri relative = new(uriString: relativeUri, uriKind: UriKind.Relative);
@@ -158,9 +160,13 @@ public sealed class GitHubRestClient : IGitHubRestClient
             baseAddress is null
             || !Uri.TryCreate(baseUri: baseAddress, relativeUri: relative, out Uri? resolved)
             || !UriHosts.IsSameServer(link: resolved, baseAddress: baseAddress)
+            || !resolved.AbsolutePath.StartsWith(
+                value: baseAddress.AbsolutePath,
+                comparisonType: StringComparison.Ordinal
+            )
         )
         {
-            throw new UriFormatException("Request URI must resolve to the configured GitHub API host");
+            throw new UriFormatException("Request URI must resolve under the configured GitHub API host and base path");
         }
 
         return resolved;
