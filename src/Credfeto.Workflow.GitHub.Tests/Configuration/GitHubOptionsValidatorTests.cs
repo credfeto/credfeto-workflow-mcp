@@ -14,6 +14,7 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [InlineData("https://api.github.com/")]
     [InlineData("http://github-proxy.example/")]
     [InlineData("https://github.example/api/v3/")]
+    [InlineData("https://api.github.com")]
     public void ValidApiBaseUrlSucceeds(string apiBaseUrl)
     {
         ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
@@ -24,7 +25,6 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [Theory]
     [InlineData("api/")]
     [InlineData("ftp://api.github.com/")]
-    [InlineData("https://api.github.com")]
     [InlineData("https://github.example/api/v3")]
     [InlineData("https://api.github.com/?page=/")]
     [InlineData("https://api.github.com/#fragment/")]

@@ -23,7 +23,7 @@ public sealed class GitHubOptionsBindingTests : TestBase
     [Fact]
     public async Task InvalidApiBaseUrlFailsValidationAsync()
     {
-        await using ServiceProvider serviceProvider = GitHubServices.Build(apiBaseUrl: "https://api.github.com");
+        await using ServiceProvider serviceProvider = GitHubServices.Build(apiBaseUrl: "https://github.example/api/v3");
 
         IOptions<GitHubOptions> options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>();
 
