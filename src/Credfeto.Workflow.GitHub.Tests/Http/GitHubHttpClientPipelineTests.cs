@@ -1,29 +1,27 @@
 using System;
-using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
+using Credfeto.Workflow.GitHub.Tests.Models;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Options;
+using Polly.Timeout;
 using Xunit;
 
 namespace Credfeto.Workflow.GitHub.Tests.Http;
 
 public sealed class GitHubHttpClientPipelineTests : TestBase
 {
-    private const int STANDARD_RETRY_ATTEMPTS = 3;
+    private const int RETRY_ATTEMPTS = 3;
 
-    // Comfortably above the standard circuit breaker's default minimum throughput of 100 requests
-    private const int REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT = 150;
-
-    // One more than the standard rate limiter's default of 1000 concurrent permits with no queue
-    private const int REQUESTS_BEYOND_DEFAULT_PERMIT_LIMIT = 1001;
+    // Well beyond the retry delay cap, like the minute GitHub can ask for on a secondary rate limit
+    private static readonly TimeSpan LongRetryAfter = TimeSpan.FromSeconds(60);
 
     private static readonly Uri UserUri = new(uriString: "user", uriKind: UriKind.Relative);
 
@@ -79,7 +77,7 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 
     [Theory]
     [InlineData("POST", 1)]
-    [InlineData("GET", STANDARD_RETRY_ATTEMPTS + 1)]
+    [InlineData("GET", RETRY_ATTEMPTS + 1)]
     public async Task OnlyGetIsRetriedOnTransientFailureAsync(string method, int expectedRequests)
     {
         using RecordingHttpMessageHandler upstream = new(static _ =>
@@ -90,53 +88,6 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 
         Assert.Equal(expected: HttpStatusCode.ServiceUnavailable, actual: response.StatusCode);
         Assert.Equal(expected: expectedRequests, actual: upstream.Requests.Count);
-    }
-
-    [Fact]
-    public async Task RepeatedFailuresDoNotOpenASharedCircuitAsync()
-    {
-        using RecordingHttpMessageHandler upstream = new(static _ =>
-            Responses.Status(HttpStatusCode.ServiceUnavailable)
-        );
-        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
-        serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
-
-        using HttpClient client = CreateClient(serviceProvider);
-
-        for (int attempt = 0; attempt < REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT; ++attempt)
-        {
-            using HttpRequestMessage request = new(method: HttpMethod.Post, requestUri: UserUri);
-            using HttpResponseMessage response = await client.SendAsync(
-                request: request,
-                cancellationToken: this.CancellationToken()
-            );
-
-            Assert.Equal(expected: HttpStatusCode.ServiceUnavailable, actual: response.StatusCode);
-        }
-
-        Assert.Equal(expected: REQUESTS_BEYOND_BREAKER_MINIMUM_THROUGHPUT, actual: upstream.Requests.Count);
-    }
-
-    [Fact]
-    public async Task ConcurrentRequestsBeyondTheDefaultPermitLimitAreNotRejectedAsync()
-    {
-        using GatedHttpMessageHandler upstream = new(REQUESTS_BEYOND_DEFAULT_PERMIT_LIMIT);
-        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
-        serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
-
-        using HttpClient client = CreateClient(serviceProvider);
-        CancellationToken cancellationToken = this.CancellationToken();
-
-        HttpStatusCode[] statusCodes = await Task.WhenAll(
-            Enumerable
-                .Range(start: 0, count: REQUESTS_BEYOND_DEFAULT_PERMIT_LIMIT)
-                .Select(_ => GetStatusCodeAsync(client: client, cancellationToken: cancellationToken))
-        );
-
-        Assert.All(
-            collection: statusCodes,
-            action: static statusCode => Assert.Equal(expected: HttpStatusCode.OK, actual: statusCode)
-        );
     }
 
     [Fact]
@@ -167,6 +118,91 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.Empty(upstream.Requests);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task RetryAfterBeyondTheDelayCapIsReturnedWithoutRetryingAsync(HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.StatusWithRetryAfter(statusCode: statusCode, retryAfter: new(LongRetryAfter))
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
+
+        Assert.Equal(expected: statusCode, actual: response.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task RetryAfterDateBeyondTheDelayCapIsReturnedWithoutRetryingAsync()
+    {
+        DateTimeOffset retryAt = TimeProvider.System.GetUtcNow().Add(LongRetryAfter);
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.StatusWithRetryAfter(statusCode: HttpStatusCode.TooManyRequests, retryAfter: new(retryAt))
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
+
+        Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: response.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task RetryAfterWithinTheDelayCapIsRetriedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.StatusWithRetryAfter(statusCode: HttpStatusCode.TooManyRequests, retryAfter: new(TimeSpan.Zero))
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
+
+        Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: response.StatusCode);
+        Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RetryAfterDateWithinTheDelayCapIsRetriedAsync()
+    {
+        DateTimeOffset retryAt = TimeProvider.System.GetUtcNow();
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.StatusWithRetryAfter(statusCode: HttpStatusCode.TooManyRequests, retryAfter: new(retryAt))
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
+
+        Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: response.StatusCode);
+        Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RateLimitBeyondTheDelayCapKeepsItsStatusForTheCallerAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.StatusWithRetryAfter(statusCode: HttpStatusCode.TooManyRequests, retryAfter: new(LongRetryAfter))
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.GetThroughRestClientAsync(upstream)
+        );
+
+        Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: exception.StatusCode);
+    }
+
+    [Fact]
+    public async Task AttemptTimeoutIsRetriedThenSurfacedAsARejectionAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => throw new TimeoutRejectedException());
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.GetThroughRestClientAsync(upstream)
+        );
+
+        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Null(exception.StatusCode);
+        Assert.IsType<TimeoutRejectedException>(exception.InnerException);
+        Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+    }
+
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, HttpMessageHandler upstream)
     {
         await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
@@ -179,14 +215,18 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         return await client.SendAsync(request: request, cancellationToken: this.CancellationToken());
     }
 
-    private static async Task<HttpStatusCode> GetStatusCodeAsync(HttpClient client, CancellationToken cancellationToken)
+    private async Task<TestItem> GetThroughRestClientAsync(HttpMessageHandler upstream)
     {
-        using HttpResponseMessage response = await client.GetAsync(
-            requestUri: UserUri,
-            cancellationToken: cancellationToken
-        );
+        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
+        serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
 
-        return response.StatusCode;
+        return await serviceProvider
+            .GetRequiredService<IGitHubRestClient>()
+            .GetAsync(
+                relativeUri: "user",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
     }
 
     private static HttpClient CreateClient(ServiceProvider serviceProvider)

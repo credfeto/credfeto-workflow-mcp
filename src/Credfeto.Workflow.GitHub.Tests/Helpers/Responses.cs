@@ -45,4 +45,12 @@ internal static class Responses
     {
         return new(statusCode);
     }
+
+    public static HttpResponseMessage StatusWithRetryAfter(
+        HttpStatusCode statusCode,
+        RetryConditionHeaderValue retryAfter
+    )
+    {
+        return new(statusCode) { Headers = { RetryAfter = retryAfter } };
+    }
 }

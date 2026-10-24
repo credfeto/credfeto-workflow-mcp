@@ -24,9 +24,9 @@ internal static class GitHubServices
             _ = services
                 .AddHttpClient(GitHubSetup.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => primaryHandler)
-                .Services.Configure<HttpStandardResilienceOptions>(
-                    name: GitHubSetup.HttpClientName + "-standard",
-                    configureOptions: static options => options.Retry.Delay = TimeSpan.Zero
+                .Services.Configure<HttpRetryStrategyOptions>(
+                    name: GitHubSetup.HttpClientName,
+                    configureOptions: static options => options.Delay = TimeSpan.Zero
                 );
         }
 

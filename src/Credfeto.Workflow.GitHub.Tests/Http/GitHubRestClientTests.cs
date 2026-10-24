@@ -9,6 +9,7 @@ using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
 using Credfeto.Workflow.GitHub.Tests.Models;
+using Polly.Timeout;
 using Xunit;
 
 namespace Credfeto.Workflow.GitHub.Tests.Http;
@@ -183,13 +184,10 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Equal(expected: HttpStatusCode.NotFound, actual: exception.StatusCode);
     }
 
-    [Theory]
-    [InlineData(ResilienceRejections.Timeout)]
-    [InlineData(ResilienceRejections.RateLimiter)]
-    [InlineData(ResilienceRejections.BrokenCircuit)]
-    public async Task ResilienceRejectionIsAnHttpRequestFailureAsync(string rejectionName)
+    [Fact]
+    public async Task ResilienceTimeoutIsAnHttpRequestFailureAsync()
     {
-        Exception rejection = ResilienceRejections.Create(rejectionName);
+        TimeoutRejectedException rejection = new();
         using RecordingHttpMessageHandler upstream = new(_ => throw rejection);
 
         HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>

@@ -7,10 +7,10 @@ namespace Credfeto.Workflow.GitHub.Http;
 
 internal static class GitHubHttpSender
 {
-    // The standard resilience handler fails a request it gives up on (an attempt or total timeout, a rejected
-    // permit, an open circuit) with a Polly ExecutionRejectedException rather than an HttpRequestException, so
-    // it is mapped here to keep the clients' failure contract. A cancellation by the caller is not a rejection
-    // and still surfaces as OperationCanceledException
+    // The resilience handler fails a request that runs out of time (an attempt or total request timeout) with a
+    // Polly ExecutionRejectedException rather than an HttpRequestException, so it is mapped here to keep the
+    // clients' failure contract. A cancellation by the caller is not a rejection and still surfaces as
+    // OperationCanceledException
     public static async ValueTask<HttpResponseMessage> SendAsync(
         HttpClient httpClient,
         HttpRequestMessage request,
