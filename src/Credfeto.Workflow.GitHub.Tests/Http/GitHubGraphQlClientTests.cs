@@ -72,7 +72,50 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         );
     }
 
+    [Fact]
+    public async Task ErrorsAreSurfacedWhenDataIsNullAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Json("""{"errors":[{"message":"Not found"}],"data":null}""")
+        );
+
+        GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: ["Not found"], actual: exception.Errors);
+    }
+
     [Theory]
+    [InlineData("""{"data":{"login":"octocat"},"errors":{"message":"Something went wrong"}}""")]
+    [InlineData("""{"data":{"login":"octocat"},"errors":"Something went wrong"}""")]
+    [InlineData("""{"data":{"login":"octocat"},"errors":1}""")]
+    [InlineData("""{"data":{"login":"octocat"},"errors":true}""")]
+    public async Task NonArrayErrorsAreInvalidResponseAsync(string json)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(json));
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: "GitHub GraphQL response errors value was not an array", actual: exception.Message);
+    }
+
+    [Fact]
+    public async Task NullBodyIsInvalidResponseAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("null"));
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: "GitHub GraphQL response body was null", actual: exception.Message);
+    }
+
+    [Theory]
+    [InlineData("{}")]
     [InlineData("""{"errors":null}""")]
     [InlineData("""{"data":null}""")]
     public async Task MissingDataIsAFailureAsync(string json)
@@ -91,7 +134,11 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("[]"));
 
-        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() => this.ExecuteAsync(upstream).AsTask());
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.IsType<JsonException>(exception.InnerException, exactMatch: false);
     }
 
     [Theory]
@@ -150,7 +197,7 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
             query: QUERY,
             variables: new TestVariables(Owner: "owner", Number: 42),
             variablesTypeInfo: TestJsonContext.Default.TestVariables,
-            dataTypeInfo: TestJsonContext.Default.TestData,
+            responseTypeInfo: TestJsonContext.Default.GraphQlResponseTestData,
             cancellationToken: this.CancellationToken()
         );
     }

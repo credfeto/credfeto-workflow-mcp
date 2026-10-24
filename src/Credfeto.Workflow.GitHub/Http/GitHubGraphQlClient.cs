@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Http.LoggingExtensions;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
+using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Credfeto.Workflow.GitHub.Http;
@@ -40,7 +41,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         string query,
         TVariables variables,
         JsonTypeInfo<TVariables> variablesTypeInfo,
-        JsonTypeInfo<TData> dataTypeInfo,
+        JsonTypeInfo<GraphQlResponse<TData>> responseTypeInfo,
         CancellationToken cancellationToken
     )
     {
@@ -71,29 +72,30 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
-        return await ReadResponseAsync(
+        GraphQlResponse<TData> graphQlResponse = await ReadResponseAsync(
             stream: stream,
-            dataTypeInfo: dataTypeInfo,
+            responseTypeInfo: responseTypeInfo,
             cancellationToken: cancellationToken
         );
+
+        return ReadData(graphQlResponse);
     }
 
     // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
     // kept only as the inner exception for server-side diagnostics
-    private static async ValueTask<TData> ReadResponseAsync<TData>(
+    private static async ValueTask<GraphQlResponse<TData>> ReadResponseAsync<TData>(
         Stream stream,
-        JsonTypeInfo<TData> dataTypeInfo,
+        JsonTypeInfo<GraphQlResponse<TData>> responseTypeInfo,
         CancellationToken cancellationToken
     )
     {
         try
         {
-            using JsonDocument document = await JsonDocument.ParseAsync(
-                utf8Json: stream,
-                cancellationToken: cancellationToken
-            );
-
-            return ReadData(root: document.RootElement, dataTypeInfo: dataTypeInfo);
+            return await JsonSerializer.DeserializeAsync(
+                    utf8Json: stream,
+                    jsonTypeInfo: responseTypeInfo,
+                    cancellationToken: cancellationToken
+                ) ?? throw new GitHubInvalidResponseException("GitHub GraphQL response body was null");
         }
         catch (JsonException exception)
         {
@@ -140,37 +142,32 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         return content;
     }
 
-    private static TData ReadData<TData>(JsonElement root, JsonTypeInfo<TData> dataTypeInfo)
+    private static TData ReadData<TData>(GraphQlResponse<TData> graphQlResponse)
     {
-        if (root.ValueKind != JsonValueKind.Object)
-        {
-            throw new GitHubInvalidResponseException("GitHub GraphQL response was not a JSON object");
-        }
-
         // GraphQL reports failures with HTTP 200 and an errors array, often alongside partial data
-        if (root.TryGetProperty(propertyName: "errors", out JsonElement errors) && HasErrors(errors))
+        if (HasErrors(graphQlResponse.Errors))
         {
             throw new GitHubGraphQlException("GitHub GraphQL request returned errors")
             {
-                Errors = DescribeErrors(errors),
+                Errors = DescribeErrors(graphQlResponse.Errors),
             };
         }
 
-        if (!root.TryGetProperty(propertyName: "data", out JsonElement data))
-        {
-            throw new GitHubGraphQlException("GitHub GraphQL response contained no data");
-        }
-
-        return JsonSerializer.Deserialize(element: data, jsonTypeInfo: dataTypeInfo)
-            ?? throw new GitHubGraphQlException("GitHub GraphQL response contained null data");
+        return graphQlResponse.Data ?? throw new GitHubGraphQlException("GitHub GraphQL response contained no data");
     }
 
+    // Only an absent, null or empty errors array means success; any other shape could be hiding a failure, so
+    // returning the (possibly partial) data would misreport it as a success
     private static bool HasErrors(JsonElement errors)
     {
-        return errors.ValueKind == JsonValueKind.Array && errors.GetArrayLength() != 0;
+        return errors.ValueKind switch
+        {
+            JsonValueKind.Undefined or JsonValueKind.Null => false,
+            JsonValueKind.Array => errors.GetArrayLength() != 0,
+            _ => throw new GitHubInvalidResponseException("GitHub GraphQL response errors value was not an array"),
+        };
     }
 
-    // Materialised now because the JsonDocument backing these elements is disposed once the exception is thrown
     private static IReadOnlyList<string> DescribeErrors(JsonElement errors)
     {
         return [.. errors.EnumerateArray().Select(DescribeError)];
