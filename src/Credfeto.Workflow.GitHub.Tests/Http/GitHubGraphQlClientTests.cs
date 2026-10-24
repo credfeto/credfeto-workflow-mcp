@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -130,6 +131,45 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task ErrorsAreSurfacedWhenPartialDataDoesNotMatchTheDataTypeAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Json("""{"data":{"login":123},"errors":[{"message":"Could not resolve to a Repository"}]}""")
+        );
+
+        GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: ["Could not resolve to a Repository"], actual: exception.Errors);
+    }
+
+    [Fact]
+    public async Task ValueTypeDataIsReadAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"data":{"count":3}}"""));
+
+        TestCount data = await this.ExecuteAsync(upstream: upstream, dataTypeInfo: TestJsonContext.Default.TestCount);
+
+        Assert.Equal(expected: new TestCount(3), actual: data);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"data":null}""")]
+    public async Task MissingValueTypeDataIsAFailureAsync(string json)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(json));
+
+        GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() =>
+            this.ExecuteAsync(upstream: upstream, dataTypeInfo: TestJsonContext.Default.TestCount).AsTask()
+        );
+
+        Assert.Equal(expected: "GitHub GraphQL response contained no data", actual: exception.Message);
+        Assert.Empty(exception.Errors);
+    }
+
+    [Fact]
     public async Task NonObjectResponseIsInvalidAsync()
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("[]"));
@@ -188,6 +228,19 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         string baseAddress = GitHubServices.ApiBaseUrl
     )
     {
+        return this.ExecuteAsync(
+            upstream: upstream,
+            dataTypeInfo: TestJsonContext.Default.TestData,
+            baseAddress: baseAddress
+        );
+    }
+
+    private ValueTask<TData> ExecuteAsync<TData>(
+        HttpMessageHandler upstream,
+        JsonTypeInfo<TData> dataTypeInfo,
+        string baseAddress = GitHubServices.ApiBaseUrl
+    )
+    {
         GitHubGraphQlClient client = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: baseAddress),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
@@ -197,7 +250,7 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
             query: QUERY,
             variables: new TestVariables(Owner: "owner", Number: 42),
             variablesTypeInfo: TestJsonContext.Default.TestVariables,
-            responseTypeInfo: TestJsonContext.Default.GraphQlResponseTestData,
+            dataTypeInfo: dataTypeInfo,
             cancellationToken: this.CancellationToken()
         );
     }

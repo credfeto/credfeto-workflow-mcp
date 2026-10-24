@@ -1,7 +1,6 @@
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
-using Credfeto.Workflow.GitHub.Interfaces.Models;
 
 namespace Credfeto.Workflow.GitHub.Interfaces;
 
@@ -11,7 +10,7 @@ public interface IGitHubGraphQlClient
         string query,
         TVariables variables,
         JsonTypeInfo<TVariables> variablesTypeInfo,
-        JsonTypeInfo<GraphQlResponse<TData>> responseTypeInfo,
+        JsonTypeInfo<TData> dataTypeInfo,
         CancellationToken cancellationToken
     );
 }
