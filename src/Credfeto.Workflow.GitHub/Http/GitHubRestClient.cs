@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using System.Net.Http;
-using System.Text.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
@@ -143,33 +141,19 @@ public sealed class GitHubRestClient : IGitHubRestClient
         }
     }
 
-    // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
-    // kept only as the inner exception for server-side diagnostics. The raw stream is read rather than using
-    // ReadFromJsonAsync, which honours the Content-Type charset and throws InvalidOperationException (escaping
-    // this wrapping) when the upstream sends an unknown one
-    private static async ValueTask<TContent> ReadContentAsync<TContent>(
+    private static ValueTask<TContent> ReadContentAsync<TContent>(
         HttpContent content,
         JsonTypeInfo<TContent> typeInfo,
         CancellationToken cancellationToken
     )
     {
-        await using Stream stream = await content.ReadAsStreamAsync(cancellationToken);
-
-        try
-        {
-            return await JsonSerializer.DeserializeAsync(
-                    utf8Json: stream,
-                    jsonTypeInfo: typeInfo,
-                    cancellationToken: cancellationToken
-                ) ?? throw new GitHubInvalidResponseException("GitHub returned a null response body");
-        }
-        catch (JsonException exception)
-        {
-            throw new GitHubInvalidResponseException(
-                message: "GitHub returned a response body that could not be read as JSON",
-                innerException: exception
-            );
-        }
+        return GitHubJsonBody.ReadAsync(
+            content: content,
+            typeInfo: typeInfo,
+            nullMessage: "GitHub returned a null response body",
+            unreadableMessage: "GitHub returned a response body that could not be read as JSON",
+            cancellationToken: cancellationToken
+        );
     }
 
     // UriKind.Relative alone accepts references that resolve to a different host or outside the base path;

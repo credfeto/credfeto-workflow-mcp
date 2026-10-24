@@ -1,7 +1,6 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -21,6 +20,8 @@ namespace Credfeto.Workflow.GitHub.Http;
 public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
 {
     private const string UNKNOWN_ERROR = "unknown error";
+
+    private const string UNREADABLE_RESPONSE = "GitHub GraphQL response body could not be read as JSON";
 
     private const string ENTERPRISE_REST_PATH_SUFFIX = "/api/v3/";
 
@@ -71,37 +72,15 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
             throw GitHubHttpFailure.FromResponse(response);
         }
 
-        await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-        GraphQlResponse graphQlResponse = await ReadResponseAsync(stream: stream, cancellationToken: cancellationToken);
+        GraphQlResponse graphQlResponse = await GitHubJsonBody.ReadAsync(
+            content: response.Content,
+            typeInfo: GitHubJsonContext.Default.GraphQlResponse,
+            nullMessage: "GitHub GraphQL response body was null",
+            unreadableMessage: UNREADABLE_RESPONSE,
+            cancellationToken: cancellationToken
+        );
 
         return ReadData(graphQlResponse: graphQlResponse, dataTypeInfo: dataTypeInfo);
-    }
-
-    private static async ValueTask<GraphQlResponse> ReadResponseAsync(
-        Stream stream,
-        CancellationToken cancellationToken
-    )
-    {
-        try
-        {
-            return await JsonSerializer.DeserializeAsync(
-                    utf8Json: stream,
-                    jsonTypeInfo: GitHubJsonContext.Default.GraphQlResponse,
-                    cancellationToken: cancellationToken
-                ) ?? throw new GitHubInvalidResponseException("GitHub GraphQL response body was null");
-        }
-        catch (JsonException exception)
-        {
-            throw Unreadable(exception);
-        }
-    }
-
-    // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
-    // kept only as the inner exception for server-side diagnostics
-    private static GitHubInvalidResponseException Unreadable(JsonException exception)
-    {
-        return new(message: "GitHub GraphQL response body could not be read as JSON", innerException: exception);
     }
 
     // Kept relative so HttpClient resolves it against BaseAddress and it can only reach the configured host
@@ -165,7 +144,9 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         }
         catch (JsonException exception)
         {
-            throw Unreadable(exception);
+            // The fixed message is what callers see; the JsonException, whose message can quote the upstream body,
+            // is kept only as the inner exception for server-side diagnostics
+            throw new GitHubInvalidResponseException(message: UNREADABLE_RESPONSE, innerException: exception);
         }
     }
 
