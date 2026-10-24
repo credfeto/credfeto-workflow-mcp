@@ -28,6 +28,13 @@ public static class GitHubSetup
 
     private const string RESILIENCE_PIPELINE_NAME = "resilience";
 
+    // The decompressed body is buffered whole before it is read, so this bounds what a compression bomb from
+    // upstream can grow into. A page holds at most 100 items, and even 100 issues or pull requests each carrying a
+    // maximum-length (65,536 character) body of 3-byte UTF-8 text come to about 20 MB, so 32 MB leaves headroom
+    // for the surrounding fields of the largest REST objects or a GraphQL page; a larger body fails the request
+    // with an HttpRequestException
+    private const long MAX_RESPONSE_CONTENT_BUFFER_SIZE = 32 * 1024 * 1024;
+
     // Also the HttpClient timeout, which unlike the resilience pipeline covers buffering the response body
     private static readonly TimeSpan TotalRequestTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(10);
@@ -125,6 +132,7 @@ public static class GitHubSetup
 
         client.BaseAddress = options.ApiBaseUrl;
         client.Timeout = TotalRequestTimeout;
+        client.MaxResponseContentBufferSize = MAX_RESPONSE_CONTENT_BUFFER_SIZE;
         client.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
         );
