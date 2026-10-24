@@ -48,9 +48,9 @@ internal static class UriHosts
     // System.Uri collapses literal and singly encoded (%2e) dot segments but leaves encoded separators (%2f, %5c)
     // and double-encoded values (%252e, %252f) in place, so the prefix match above passes repos%2f..%2fadmin or
     // %252e%252e, while a proxy that decodes and normalises the path, possibly over several hops, resolves it
-    // outside the base path with the caller's token. Each segment is decoded until stable and rejected only when a
-    // piece between separators is a dot segment, so an encoded slash inside one parameter (labels/area%2Fapi) is
-    // still allowed
+    // outside the base path with the caller's token. Each segment is decoded until stable and rejected only when it
+    // never stabilises or a piece between separators could still resolve as a dot segment (see IsTraversingPiece),
+    // so an encoded slash inside one parameter (labels/area%2Fapi) is still allowed
     public static bool HasEncodedPathTraversal(Uri uri)
     {
         return uri.Segments.Any(IsTraversingSegment);
