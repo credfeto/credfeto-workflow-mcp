@@ -53,4 +53,12 @@ internal static class Responses
     {
         return new(statusCode) { Headers = { RetryAfter = retryAfter } };
     }
+
+    public static HttpResponseMessage StatusWithRateLimitRemaining(HttpStatusCode statusCode, string remaining)
+    {
+        HttpResponseMessage response = new(statusCode);
+        response.Headers.Add(name: "x-ratelimit-remaining", value: remaining);
+
+        return response;
+    }
 }

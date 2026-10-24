@@ -35,6 +35,10 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
     // Short enough to keep the tests fast, and far inside the resilience attempt timeout so only HttpClient fires
     private static readonly TimeSpan ShortTimeout = TimeSpan.FromMilliseconds(100);
 
+    // A slow response outlasts the short attempt timeout but is far inside the total request timeout
+    private static readonly TimeSpan ShortAttemptTimeout = TimeSpan.FromMilliseconds(100);
+    private static readonly TimeSpan SlowResponse = TimeSpan.FromMilliseconds(500);
+
     [Fact]
     public async Task ClientIsConfiguredForGitHubAsync()
     {
@@ -211,6 +215,80 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: exception.StatusCode);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.TooManyRequests)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    public async Task ExhaustedRateLimitKeepsItsStatusWithoutRetryingAsync(HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.StatusWithRateLimitRemaining(statusCode: statusCode, remaining: "0")
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.GetThroughRestClientAsync(upstream)
+        );
+
+        Assert.Equal(expected: statusCode, actual: exception.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task RateLimitWithRequestsRemainingIsRetriedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.StatusWithRateLimitRemaining(statusCode: HttpStatusCode.TooManyRequests, remaining: "5")
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
+
+        Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: response.StatusCode);
+        Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task TooManyRequestsWithoutRateLimitHeadersIsRetriedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.TooManyRequests));
+
+        using HttpResponseMessage response = await this.SendAsync(method: HttpMethod.Get, upstream: upstream);
+
+        Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: response.StatusCode);
+        Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task SlowPostIsNotCutAtTheAttemptTimeoutAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(
+            static _ => Responses.Status(HttpStatusCode.OK),
+            responseDelay: SlowResponse
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(
+            method: HttpMethod.Post,
+            upstream: upstream,
+            attemptTimeout: ShortAttemptTimeout
+        );
+
+        Assert.Equal(expected: HttpStatusCode.OK, actual: response.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task SlowGetIsCutAtTheAttemptTimeoutAndRetriedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(
+            static _ => Responses.Status(HttpStatusCode.OK),
+            responseDelay: SlowResponse
+        );
+
+        await Assert.ThrowsAsync<TimeoutRejectedException>(() =>
+            this.SendAsync(method: HttpMethod.Get, upstream: upstream, attemptTimeout: ShortAttemptTimeout)
+        );
+
+        Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
+    }
+
     [Fact]
     public async Task AttemptTimeoutIsRetriedThenSurfacedAsARejectionAsync()
     {
@@ -281,9 +359,16 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         );
     }
 
-    private async Task<HttpResponseMessage> SendAsync(HttpMethod method, HttpMessageHandler upstream)
+    private async Task<HttpResponseMessage> SendAsync(
+        HttpMethod method,
+        HttpMessageHandler upstream,
+        TimeSpan? attemptTimeout = null
+    )
     {
-        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
+        await using ServiceProvider serviceProvider = GitHubServices.Build(
+            primaryHandler: upstream,
+            attemptTimeout: attemptTimeout
+        );
         serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
 
         using HttpClient client = CreateClient(serviceProvider);

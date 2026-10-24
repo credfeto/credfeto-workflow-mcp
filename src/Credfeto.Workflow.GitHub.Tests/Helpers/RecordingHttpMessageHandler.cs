@@ -11,10 +11,12 @@ internal sealed class RecordingHttpMessageHandler : HttpMessageHandler
     private readonly Func<int, HttpResponseMessage> _respond;
     private readonly List<RecordedRequest> _requests = [];
     private readonly Lock _lock = new();
+    private readonly TimeSpan _responseDelay;
 
-    public RecordingHttpMessageHandler(Func<int, HttpResponseMessage> respond)
+    public RecordingHttpMessageHandler(Func<int, HttpResponseMessage> respond, TimeSpan responseDelay = default)
     {
         this._respond = respond;
+        this._responseDelay = responseDelay;
     }
 
     public IReadOnlyList<RecordedRequest> Requests
@@ -42,11 +44,17 @@ internal sealed class RecordingHttpMessageHandler : HttpMessageHandler
             Body: body
         );
 
+        int index;
+
         lock (this._lock)
         {
             this._requests.Add(recorded);
-
-            return this._respond(this._requests.Count - 1);
+            index = this._requests.Count - 1;
         }
+
+        // Recorded first, so an attempt cut short by a timeout is still counted
+        await Task.Delay(delay: this._responseDelay, cancellationToken: cancellationToken);
+
+        return this._respond(index);
     }
 }

@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -35,9 +37,24 @@ public static class GitHubSetup
     // with an HttpRequestException
     private const long MAX_RESPONSE_CONTENT_BUFFER_SIZE = 32 * 1024 * 1024;
 
+    private const string RATE_LIMIT_REMAINING_HEADER_NAME = "x-ratelimit-remaining";
+    private const string RATE_LIMIT_EXHAUSTED = "0";
+
     // Also the HttpClient timeout, which unlike the resilience pipeline covers buffering the response body
     private static readonly TimeSpan TotalRequestTimeout = TimeSpan.FromSeconds(30);
+
+    // Only binds a method that is retried, so a timed-out attempt is followed by another
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(10);
+
+    // The methods DisableForUnsafeHttpMethods never retries
+    private static readonly HttpMethod[] UnretriedMethods =
+    [
+        HttpMethod.Post,
+        HttpMethod.Patch,
+        HttpMethod.Put,
+        HttpMethod.Delete,
+        HttpMethod.Connect,
+    ];
 
     // Well inside the total request timeout, so every retry wait leaves room for the attempt that follows it
     private static readonly TimeSpan MaximumRetryDelay = TimeSpan.FromSeconds(5);
@@ -50,6 +67,7 @@ public static class GitHubSetup
 
         // Named after the client so the retry options can be reconfigured for this client alone
         _ = services.AddOptions<HttpRetryStrategyOptions>(HttpClientName).Configure<TimeProvider>(ConfigureRetry);
+        _ = services.AddOptions<HttpTimeoutStrategyOptions>(HttpClientName).Configure(ConfigureAttemptTimeout);
 
         return services
             .AddHttpContextAccessor()
@@ -77,13 +95,29 @@ public static class GitHubSetup
         _ = builder
             .AddTimeout(TotalRequestTimeout)
             .AddRetry(context.GetOptions<HttpRetryStrategyOptions>(HttpClientName))
-            .AddTimeout(AttemptTimeout);
+            .AddTimeout(context.GetOptions<HttpTimeoutStrategyOptions>(HttpClientName));
+    }
+
+    // A request that is never retried (every GraphQL call is a POST) gets the whole total request timeout for its
+    // one attempt. The request is always in the context inside the HTTP pipeline. Timeout is read on each request
+    // so a later Configure of these named options can change it.
+    private static void ConfigureAttemptTimeout(HttpTimeoutStrategyOptions options)
+    {
+        options.Timeout = AttemptTimeout;
+        options.TimeoutGenerator = args =>
+            ValueTask.FromResult(
+                args.Context.GetRequestMessage() is { } request && UnretriedMethods.Contains(request.Method)
+                    ? TotalRequestTimeout
+                    : options.Timeout
+            );
     }
 
     // A Retry-After longer than the retry delay cap is not waited out: the wait would run into the total request
     // timeout and replace GitHub's 429 or 503 with a status-less timeout, so that response is returned as-is.
-    // GraphQL is always POST and a mutation must reach GitHub at most once, so unsafe methods are never retried;
-    // that check is applied last because it wraps whichever predicate is in place when it is called.
+    // An exhausted primary rate limit (403 or 429 with x-ratelimit-remaining: 0 and no Retry-After) is returned
+    // as-is too: it resets at most an hour later, and GitHub warns that requesting on while rate limited can get
+    // an integration banned. GraphQL is always POST and a mutation must reach GitHub at most once, so unsafe methods
+    // are never retried; that check is applied last because it wraps whichever predicate is in place when it is called.
     private static void ConfigureRetry(HttpRetryStrategyOptions options, TimeProvider timeProvider)
     {
         Func<RetryPredicateArguments<HttpResponseMessage>, ValueTask<bool>> isTransient = options.ShouldHandle;
@@ -91,10 +125,19 @@ public static class GitHubSetup
         options.MaxDelay = MaximumRetryDelay;
         options.ShouldHandle = args =>
             args.Outcome.Result is { } response
-            && !RetryAfterFitsDelayCap(response: response, timeProvider: timeProvider)
+            && (
+                IsRateLimitExhausted(response)
+                || !RetryAfterFitsDelayCap(response: response, timeProvider: timeProvider)
+            )
                 ? PredicateResult.False()
                 : isTransient(args);
         options.DisableForUnsafeHttpMethods();
+    }
+
+    private static bool IsRateLimitExhausted(HttpResponseMessage response)
+    {
+        return response.Headers.TryGetValues(name: RATE_LIMIT_REMAINING_HEADER_NAME, out IEnumerable<string>? values)
+            && values.Contains(value: RATE_LIMIT_EXHAUSTED, comparer: StringComparer.Ordinal);
     }
 
     private static bool RetryAfterFitsDelayCap(HttpResponseMessage response, TimeProvider timeProvider)
