@@ -12,7 +12,9 @@ public sealed class GitHubOptionsValidatorTests : TestBase
 
     [Theory]
     [InlineData("https://api.github.com/")]
-    [InlineData("http://github-proxy.example/")]
+    [InlineData("http://localhost:8080/")]
+    [InlineData("http://127.0.0.1/")]
+    [InlineData("http://[::1]/")]
     [InlineData("https://github.example/api/v3/")]
     [InlineData("https://api.github.com")]
     [InlineData("https://proxy.example/a%2Fb/")]
@@ -54,6 +56,20 @@ public sealed class GitHubOptionsValidatorTests : TestBase
 
         Assert.Equal(
             expected: "GitHub:ApiBaseUrl path must not contain encoded '.' or '..' segments (such as %2f..%2f).",
+            actual: result.FailureMessage
+        );
+    }
+
+    [Theory]
+    [InlineData("http://github-proxy.internal/")]
+    [InlineData("http://github-proxy.example/api/v3/")]
+    [InlineData("http://10.0.0.1/")]
+    public void PlainHttpNonLoopbackApiBaseUrlFails(string apiBaseUrl)
+    {
+        ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
+
+        Assert.Equal(
+            expected: "GitHub:ApiBaseUrl must use https unless the host is loopback (localhost, 127.0.0.0/8 or ::1), because every request carries the caller's token.",
             actual: result.FailureMessage
         );
     }

@@ -25,6 +25,14 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
             return ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must use the http or https scheme.");
         }
 
+        // Every request carries the caller's token, so plain http is only safe when it never leaves the machine
+        if (!UriSchemes.IsHttps(apiBaseUrl) && !apiBaseUrl.IsLoopback)
+        {
+            return ValidateOptionsResult.Fail(
+                "GitHub:ApiBaseUrl must use https unless the host is loopback (localhost, 127.0.0.0/8 or ::1), because every request carries the caller's token."
+            );
+        }
+
         // Every request is checked against the same rule, so a base URL that breaks it would fail every call
         if (UriHosts.HasEncodedPathTraversal(apiBaseUrl))
         {
