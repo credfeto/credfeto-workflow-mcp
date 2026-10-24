@@ -82,11 +82,11 @@ public sealed class GitHubRestClient : IGitHubRestClient
                 )
             );
 
-            // A relative next link is resolved against the absolute URI that actually answered, not the relative
-            // one first asked for. The link comes back already checked and is requested exactly as checked
+            // Redirects are not followed, so the page that answered is the one requested and a relative next link
+            // is resolved against it. The link comes back already checked and is requested exactly as checked
             requestUri = GitHubLinkHeader.FindNextPage(
                 headers: response.Headers,
-                requestUri: response.RequestMessage?.RequestUri ?? requestUri,
+                requestUri: requestUri,
                 baseAddress: baseAddress
             );
         }
