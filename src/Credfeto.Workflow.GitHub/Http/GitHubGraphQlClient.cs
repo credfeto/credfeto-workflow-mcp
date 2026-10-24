@@ -12,7 +12,8 @@ using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Http.LoggingExtensions;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
-using Credfeto.Workflow.GitHub.Interfaces.Models;
+using Credfeto.Workflow.GitHub.Json;
+using Credfeto.Workflow.GitHub.Models;
 using Microsoft.Extensions.Logging;
 
 namespace Credfeto.Workflow.GitHub.Http;
@@ -41,7 +42,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         string query,
         TVariables variables,
         JsonTypeInfo<TVariables> variablesTypeInfo,
-        JsonTypeInfo<GraphQlResponse<TData>> responseTypeInfo,
+        JsonTypeInfo<TData> dataTypeInfo,
         CancellationToken cancellationToken
     )
     {
@@ -72,20 +73,13 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
 
         await using Stream stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
-        GraphQlResponse<TData> graphQlResponse = await ReadResponseAsync(
-            stream: stream,
-            responseTypeInfo: responseTypeInfo,
-            cancellationToken: cancellationToken
-        );
+        GraphQlResponse graphQlResponse = await ReadResponseAsync(stream: stream, cancellationToken: cancellationToken);
 
-        return ReadData(graphQlResponse);
+        return ReadData(graphQlResponse: graphQlResponse, dataTypeInfo: dataTypeInfo);
     }
 
-    // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
-    // kept only as the inner exception for server-side diagnostics
-    private static async ValueTask<GraphQlResponse<TData>> ReadResponseAsync<TData>(
+    private static async ValueTask<GraphQlResponse> ReadResponseAsync(
         Stream stream,
-        JsonTypeInfo<GraphQlResponse<TData>> responseTypeInfo,
         CancellationToken cancellationToken
     )
     {
@@ -93,17 +87,21 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         {
             return await JsonSerializer.DeserializeAsync(
                     utf8Json: stream,
-                    jsonTypeInfo: responseTypeInfo,
+                    jsonTypeInfo: GitHubJsonContext.Default.GraphQlResponse,
                     cancellationToken: cancellationToken
                 ) ?? throw new GitHubInvalidResponseException("GitHub GraphQL response body was null");
         }
         catch (JsonException exception)
         {
-            throw new GitHubInvalidResponseException(
-                message: "GitHub GraphQL response body could not be read as JSON",
-                innerException: exception
-            );
+            throw Unreadable(exception);
         }
+    }
+
+    // The fixed message is what callers see; the JsonException, whose message can quote the upstream body, is
+    // kept only as the inner exception for server-side diagnostics
+    private static GitHubInvalidResponseException Unreadable(JsonException exception)
+    {
+        return new(message: "GitHub GraphQL response body could not be read as JSON", innerException: exception);
     }
 
     // Kept relative so HttpClient resolves it against BaseAddress and it can only reach the configured host
@@ -142,7 +140,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         return content;
     }
 
-    private static TData ReadData<TData>(GraphQlResponse<TData> graphQlResponse)
+    private static TData ReadData<TData>(GraphQlResponse graphQlResponse, JsonTypeInfo<TData> dataTypeInfo)
     {
         // GraphQL reports failures with HTTP 200 and an errors array, often alongside partial data
         if (HasErrors(graphQlResponse.Errors))
@@ -153,7 +151,22 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
             };
         }
 
-        return graphQlResponse.Data ?? throw new GitHubGraphQlException("GitHub GraphQL response contained no data");
+        // Checked on the element rather than the result because a value-type TData would turn a missing or null
+        // data into default(TData) and report it as a success
+        if (graphQlResponse.Data.ValueKind is JsonValueKind.Undefined or JsonValueKind.Null)
+        {
+            throw new GitHubGraphQlException("GitHub GraphQL response contained no data");
+        }
+
+        try
+        {
+            // Non-null: a null data element has already been rejected above
+            return JsonSerializer.Deserialize(element: graphQlResponse.Data, jsonTypeInfo: dataTypeInfo)!;
+        }
+        catch (JsonException exception)
+        {
+            throw Unreadable(exception);
+        }
     }
 
     // Only an absent, null or empty errors array means success; any other shape could be hiding a failure, so
