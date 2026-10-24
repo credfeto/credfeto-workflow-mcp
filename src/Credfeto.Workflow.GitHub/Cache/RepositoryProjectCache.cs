@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Frozen;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Interfaces;
