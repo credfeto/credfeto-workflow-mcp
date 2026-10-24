@@ -218,7 +218,10 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
             this.ExecuteAsync(upstream).AsTask()
         );
 
-        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Equal(
+            expected: "GitHub request did not complete; it may or may not have been applied",
+            actual: exception.Message
+        );
         Assert.Null(exception.StatusCode);
         Assert.Same(expected: rejection, actual: exception.InnerException);
     }

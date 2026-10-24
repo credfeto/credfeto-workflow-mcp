@@ -15,12 +15,13 @@ internal static class GitHubHttpFailure
         );
     }
 
-    // No complete response was received, so there is no status code; the timeout or Polly exception is kept only
-    // as the inner exception for server-side diagnostics
+    // No complete response was received, so there is no status code. A timeout can fire after GitHub has received
+    // and applied the request, so the message must not claim it was not applied. The timeout or Polly exception is
+    // kept only as the inner exception for server-side diagnostics
     public static HttpRequestException FromRejection(Exception exception)
     {
         return new(
-            message: "GitHub request was rejected before a response was received",
+            message: "GitHub request did not complete; it may or may not have been applied",
             inner: exception,
             statusCode: null
         );
