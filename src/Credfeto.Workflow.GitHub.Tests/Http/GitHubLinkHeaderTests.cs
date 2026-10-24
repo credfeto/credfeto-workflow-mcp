@@ -157,6 +157,16 @@ public sealed class GitHubLinkHeaderTests : TestBase
         GitHubServices.ApiBaseUrl,
         "https://github-proxy.example///x?page=2"
     )]
+    [InlineData(
+        "<.../x?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "https://proxy.example/api/v3/.../x?page=2"
+    )]
+    [InlineData(
+        "<.github/x?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "https://proxy.example/api/v3/.github/x?page=2"
+    )]
     public static void NextLinkIsResolvedUnderBaseAddress(string? link, string baseAddress, string? expected)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
@@ -431,6 +441,31 @@ public sealed class GitHubLinkHeaderTests : TestBase
     )]
     [InlineData(
         "<.%3F/x?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<..%00/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<..%20/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<..%09/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<%20..%20/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<%c0%ae%c0%ae/admin?page=2>; rel=\"next\"",
         "https://proxy.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]

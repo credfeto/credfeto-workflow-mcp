@@ -19,6 +19,8 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [InlineData("https://api.github.com")]
     [InlineData("https://proxy.example/a%2Fb/")]
     [InlineData("https://proxy.example/a%5Cb/")]
+    [InlineData("https://proxy.example/a/.../b/")]
+    [InlineData("https://proxy.example/a/.github/b/")]
     public void ValidApiBaseUrlSucceeds(string apiBaseUrl)
     {
         ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
@@ -51,6 +53,11 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [InlineData("https://proxy.example/%252e%252e/b/")]
     [InlineData("https://proxy.example/a/..;/b/")]
     [InlineData("https://proxy.example/a/..%3F/b/")]
+    [InlineData("https://proxy.example/a/..%00/b/")]
+    [InlineData("https://proxy.example/a/..%20/b/")]
+    [InlineData("https://proxy.example/a/..%09/b/")]
+    [InlineData("https://proxy.example/a/%20..%20/b/")]
+    [InlineData("https://proxy.example/a/%c0%ae%c0%ae/b/")]
     public void TraversingApiBaseUrlFails(string apiBaseUrl)
     {
         ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
