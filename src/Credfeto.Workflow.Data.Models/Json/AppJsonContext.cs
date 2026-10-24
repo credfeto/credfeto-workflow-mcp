@@ -8,4 +8,4 @@ namespace Credfeto.Workflow.Data.Models.Json;
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
 )]
-public sealed partial class AppJsonContext : JsonSerializerContext { }
+public sealed partial class AppJsonContext : JsonSerializerContext;
