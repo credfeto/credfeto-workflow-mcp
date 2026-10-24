@@ -8,4 +8,4 @@ namespace Credfeto.Workflow.GitHub.Tests.Models;
 [JsonSerializable(typeof(TestData))]
 [JsonSerializable(typeof(TestCount))]
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
-public sealed partial class TestJsonContext : JsonSerializerContext { }
+public sealed partial class TestJsonContext : JsonSerializerContext;
