@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
@@ -105,10 +106,17 @@ public static class GitHubSetup
     }
 
     // A redirect followed by the primary handler would run below CallerTokenForwardingHandler and could reach any
-    // host the Location names without the configured host and base path check, so a 3xx is surfaced as a failure
+    // host the Location names without the configured host and base path check, so a 3xx is surfaced as a failure.
+    // The factory pools this handler across every caller, so it must hold no per-caller state such as cookies.
+    // Compression keeps the many large pages a paged listing can fetch small on the wire.
     private static HttpMessageHandler CreatePrimaryHandler()
     {
-        return new SocketsHttpHandler { AllowAutoRedirect = false };
+        return new SocketsHttpHandler
+        {
+            AllowAutoRedirect = false,
+            UseCookies = false,
+            AutomaticDecompression = DecompressionMethods.All,
+        };
     }
 
     private static void ConfigureHttpClient(IServiceProvider serviceProvider, HttpClient client)

@@ -66,18 +66,29 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
     {
         await using ServiceProvider serviceProvider = GitHubServices.Build();
 
-        HttpMessageHandler handler = serviceProvider
-            .GetRequiredService<IHttpMessageHandlerFactory>()
-            .CreateHandler(GitHubSetup.HttpClientName);
+        SocketsHttpHandler primary = GetPrimaryHandler(serviceProvider);
 
-        while (handler is DelegatingHandler delegatingHandler)
-        {
-            Assert.NotNull(delegatingHandler.InnerHandler);
-            handler = delegatingHandler.InnerHandler;
-        }
-
-        SocketsHttpHandler primary = Assert.IsType<SocketsHttpHandler>(handler);
         Assert.False(condition: primary.AllowAutoRedirect, userMessage: "Redirects must not be followed");
+    }
+
+    [Fact]
+    public async Task PrimaryHandlerDoesNotShareCookiesBetweenCallersAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        SocketsHttpHandler primary = GetPrimaryHandler(serviceProvider);
+
+        Assert.False(condition: primary.UseCookies, userMessage: "Cookies must not be shared between callers");
+    }
+
+    [Fact]
+    public async Task PrimaryHandlerDecompressesResponsesAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        SocketsHttpHandler primary = GetPrimaryHandler(serviceProvider);
+
+        Assert.Equal(expected: DecompressionMethods.All, actual: primary.AutomaticDecompression);
     }
 
     [Theory]
@@ -285,6 +296,21 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
                 responseTypeInfo: TestJsonContext.Default.TestItem,
                 cancellationToken: cancellationToken
             );
+    }
+
+    private static SocketsHttpHandler GetPrimaryHandler(ServiceProvider serviceProvider)
+    {
+        HttpMessageHandler handler = serviceProvider
+            .GetRequiredService<IHttpMessageHandlerFactory>()
+            .CreateHandler(GitHubSetup.HttpClientName);
+
+        while (handler is DelegatingHandler delegatingHandler)
+        {
+            Assert.NotNull(delegatingHandler.InnerHandler);
+            handler = delegatingHandler.InnerHandler;
+        }
+
+        return Assert.IsType<SocketsHttpHandler>(handler);
     }
 
     private static HttpClient CreateClient(ServiceProvider serviceProvider)
