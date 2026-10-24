@@ -59,15 +59,57 @@ internal static class UriHosts
     private static bool IsTraversingSegment(string segment)
     {
         return !TryDecodeUntilStable(value: segment.TrimEnd('/'), out string? decoded)
-            || decoded.Split(PathSeparators).Any(IsDotSegment);
+            || decoded.Split(PathSeparators).Any(IsTraversingPiece);
     }
 
-    // Tomcat, Spring and other servlet-style proxies drop a ;parameter from each segment before normalising, so
-    // ..;/admin and ..;x=1/admin resolve as ../admin; a proxy that decodes the path and re-parses it ends the path
-    // at a decoded '?' or '#', so ..%3F/admin and ..%23/admin resolve the same way
-    private static bool IsDotSegment(string piece)
+    // Rather than one deny-list entry per proxy normalisation, each decoded piece is reduced to what any proxy
+    // could still resolve as a dot segment: servlet-style proxies drop a ;parameter (..;/admin), a proxy that
+    // re-parses the decoded path ends it at '?' or '#' (..%3F/admin), and NUL truncation or whitespace trimming
+    // (IIS and Windows path normalisation) turns ..%00 or ..%20 into '..'. An escape still present once decoding is
+    // stable is invalid UTF-8 such as the overlong %c0%ae, which a lenient decoder resolves to '.', so it is
+    // rejected outright
+    private static bool IsTraversingPiece(string piece)
     {
-        return DotSegments.Contains(piece.Split(separator: SegmentSuffixDelimiters, count: 2)[0]);
+        string beforeSuffix = piece.Split(separator: SegmentSuffixDelimiters, count: 2)[0];
+
+        return DotSegments.Contains(TrimIgnorable(beforeSuffix).ToString()) || HasUndecodableEscape(piece);
+    }
+
+    private static ReadOnlySpan<char> TrimIgnorable(ReadOnlySpan<char> value)
+    {
+        int start = 0;
+
+        while (start < value.Length && IsIgnorable(value[start]))
+        {
+            ++start;
+        }
+
+        int end = value.Length;
+
+        while (end > start && IsIgnorable(value[end - 1]))
+        {
+            --end;
+        }
+
+        return value[start..end];
+    }
+
+    private static bool IsIgnorable(char value)
+    {
+        return char.IsWhiteSpace(value) || char.IsControl(value);
+    }
+
+    private static bool HasUndecodableEscape(string piece)
+    {
+        for (int index = 0; index < piece.Length; ++index)
+        {
+            if (Uri.IsHexEncoding(pattern: piece, index: index))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool TryDecodeUntilStable(string value, [NotNullWhen(true)] out string? decoded)
