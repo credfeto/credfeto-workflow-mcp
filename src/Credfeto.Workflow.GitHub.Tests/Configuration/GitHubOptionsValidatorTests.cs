@@ -50,6 +50,7 @@ public sealed class GitHubOptionsValidatorTests : TestBase
     [InlineData("https://proxy.example/a%5C..%5Cb/")]
     [InlineData("https://proxy.example/%252e%252e/b/")]
     [InlineData("https://proxy.example/a/..;/b/")]
+    [InlineData("https://proxy.example/a/..%3F/b/")]
     public void TraversingApiBaseUrlFails(string apiBaseUrl)
     {
         ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));

@@ -218,6 +218,18 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "https://ghe.example/api/v3/repos/o/r/labels/area%2Fapi?page=2"
     )]
     [InlineData(
+        "<labels/what%3F?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "https://ghe.example/api/v3/repos/o/r/labels/what%3F?page=2"
+    )]
+    [InlineData(
+        "<labels/issue%23?page=2>; rel=\"next\"",
+        "https://ghe.example/api/v3/repos/o/r/issues?page=1",
+        "https://ghe.example/api/v3/",
+        "https://ghe.example/api/v3/repos/o/r/labels/issue%23?page=2"
+    )]
+    [InlineData(
         "<labels/a;b?q=a;..&page=2>; rel=\"next\"",
         "https://ghe.example/api/v3/repos/o/r/issues?page=1",
         "https://ghe.example/api/v3/",
@@ -399,6 +411,26 @@ public sealed class GitHubLinkHeaderTests : TestBase
     )]
     [InlineData(
         "<.;/x?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<..%3F/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<..%23/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<..%253F/admin?page=2>; rel=\"next\"",
+        "https://proxy.example/api/v3/",
+        "GitHub returned a next page link outside the configured GitHub API host and base path"
+    )]
+    [InlineData(
+        "<.%3F/x?page=2>; rel=\"next\"",
         "https://proxy.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]
