@@ -57,7 +57,14 @@ internal static class UriHosts
     private static bool IsTraversingSegment(string segment)
     {
         return !TryDecodeUntilStable(value: segment.TrimEnd('/'), out string? decoded)
-            || decoded.Split(PathSeparators).Any(DotSegments.Contains);
+            || decoded.Split(PathSeparators).Any(IsDotSegment);
+    }
+
+    // Tomcat, Spring and other servlet-style proxies drop a ;parameter from each segment before normalising, so
+    // ..;/admin and ..;x=1/admin resolve as ../admin
+    private static bool IsDotSegment(string piece)
+    {
+        return DotSegments.Contains(piece.Split(separator: ';', count: 2)[0]);
     }
 
     private static bool TryDecodeUntilStable(string value, [NotNullWhen(true)] out string? decoded)
