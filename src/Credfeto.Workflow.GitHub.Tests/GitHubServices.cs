@@ -11,7 +11,11 @@ internal static class GitHubServices
 {
     public const string ApiBaseUrl = "https://github-proxy.example/";
 
-    public static ServiceProvider Build(string? apiBaseUrl = ApiBaseUrl, HttpMessageHandler? primaryHandler = null)
+    public static ServiceProvider Build(
+        string? apiBaseUrl = ApiBaseUrl,
+        HttpMessageHandler? primaryHandler = null,
+        TimeSpan? httpClientTimeout = null
+    )
     {
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection([new KeyValuePair<string, string?>(key: "GitHub:ApiBaseUrl", value: apiBaseUrl)])
@@ -24,6 +28,7 @@ internal static class GitHubServices
             _ = services
                 .AddHttpClient(GitHubSetup.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => primaryHandler)
+                .ConfigureHttpClient(client => client.Timeout = httpClientTimeout ?? client.Timeout)
                 .Services.Configure<HttpRetryStrategyOptions>(
                     name: GitHubSetup.HttpClientName,
                     configureOptions: static options => options.Delay = TimeSpan.Zero

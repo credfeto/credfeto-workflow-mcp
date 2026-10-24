@@ -27,6 +27,7 @@ public static class GitHubSetup
 
     private const string RESILIENCE_PIPELINE_NAME = "resilience";
 
+    // Also the HttpClient timeout, which unlike the resilience pipeline covers buffering the response body
     private static readonly TimeSpan TotalRequestTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(10);
 
@@ -115,6 +116,7 @@ public static class GitHubSetup
         GitHubOptions options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>().Value;
 
         client.BaseAddress = options.ApiBaseUrl;
+        client.Timeout = TotalRequestTimeout;
         client.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
         );

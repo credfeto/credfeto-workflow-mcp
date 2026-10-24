@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -25,6 +26,9 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 
     private static readonly Uri UserUri = new(uriString: "user", uriKind: UriKind.Relative);
 
+    // Short enough to keep the tests fast, and far inside the resilience attempt timeout so only HttpClient fires
+    private static readonly TimeSpan ShortTimeout = TimeSpan.FromMilliseconds(100);
+
     [Fact]
     public async Task ClientIsConfiguredForGitHubAsync()
     {
@@ -33,6 +37,7 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         using HttpClient client = CreateClient(serviceProvider);
 
         Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl), actual: client.BaseAddress);
+        Assert.Equal(expected: TimeSpan.FromSeconds(30), actual: client.Timeout);
         Assert.Equal(expected: "credfeto-workflow-mcp", actual: client.DefaultRequestHeaders.UserAgent.ToString());
         Assert.Equal(expected: "application/vnd.github+json", actual: client.DefaultRequestHeaders.Accept.ToString());
         Assert.True(
@@ -203,6 +208,42 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
     }
 
+    [Fact]
+    public async Task HttpClientTimeoutWhileBufferingTheBodyIsSurfacedAsARejectionAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => StalledBody());
+        await using ServiceProvider serviceProvider = GitHubServices.Build(
+            primaryHandler: upstream,
+            httpClientTimeout: ShortTimeout
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            GetThroughRestClientAsync(serviceProvider: serviceProvider, cancellationToken: this.CancellationToken())
+        );
+
+        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Null(exception.StatusCode);
+        OperationCanceledException timeout = Assert.IsAssignableFrom<OperationCanceledException>(
+            exception.InnerException
+        );
+        Assert.IsType<TimeoutException>(timeout.InnerException);
+    }
+
+    [Fact]
+    public async Task CallerCancellationWhileBufferingTheBodyIsNotARejectionAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => StalledBody());
+        await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
+        using CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(
+            this.CancellationToken()
+        );
+        cancellation.CancelAfter(ShortTimeout);
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            GetThroughRestClientAsync(serviceProvider: serviceProvider, cancellationToken: cancellation.Token)
+        );
+    }
+
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, HttpMessageHandler upstream)
     {
         await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
@@ -218,6 +259,23 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
     private async Task<TestItem> GetThroughRestClientAsync(HttpMessageHandler upstream)
     {
         await using ServiceProvider serviceProvider = GitHubServices.Build(primaryHandler: upstream);
+
+        return await GetThroughRestClientAsync(
+            serviceProvider: serviceProvider,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    private static HttpResponseMessage StalledBody()
+    {
+        return new(HttpStatusCode.OK) { Content = new StallingContent() };
+    }
+
+    private static async Task<TestItem> GetThroughRestClientAsync(
+        ServiceProvider serviceProvider,
+        CancellationToken cancellationToken
+    )
+    {
         serviceProvider.GetRequiredService<IHttpContextAccessor>().HttpContext = CallerContext.WithBearerToken();
 
         return await serviceProvider
@@ -225,7 +283,7 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
             .GetAsync(
                 relativeUri: "user",
                 responseTypeInfo: TestJsonContext.Default.TestItem,
-                cancellationToken: this.CancellationToken()
+                cancellationToken: cancellationToken
             );
     }
 
