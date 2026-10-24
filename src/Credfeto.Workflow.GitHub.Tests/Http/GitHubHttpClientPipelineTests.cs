@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Interfaces;
@@ -21,6 +22,11 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 {
     private const int RETRY_ATTEMPTS = 3;
 
+    // Far smaller than OVERSIZED_JSON, so buffering it exceeds the limit
+    private const long SMALL_BUFFER_LIMIT = 8;
+
+    private const string OVERSIZED_JSON = """{"name":"far longer than the buffer limit allows"}""";
+
     // Well beyond the retry delay cap, like the minute GitHub can ask for on a secondary rate limit
     private static readonly TimeSpan LongRetryAfter = TimeSpan.FromSeconds(60);
 
@@ -38,6 +44,7 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 
         Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl), actual: client.BaseAddress);
         Assert.Equal(expected: TimeSpan.FromSeconds(30), actual: client.Timeout);
+        Assert.Equal(expected: 32 * 1024 * 1024, actual: client.MaxResponseContentBufferSize);
         Assert.Equal(expected: "credfeto-workflow-mcp", actual: client.DefaultRequestHeaders.UserAgent.ToString());
         Assert.Equal(expected: "application/vnd.github+json", actual: client.DefaultRequestHeaders.Accept.ToString());
         Assert.True(
@@ -240,6 +247,25 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.IsType<TimeoutException>(timeout.InnerException);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task BodyLargerThanTheBufferLimitFailsTheRequestAsync(bool sized)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => OversizedBody(sized));
+        await using ServiceProvider serviceProvider = GitHubServices.Build(
+            primaryHandler: upstream,
+            maxResponseContentBufferSize: SMALL_BUFFER_LIMIT
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            GetThroughRestClientAsync(serviceProvider: serviceProvider, cancellationToken: this.CancellationToken())
+        );
+
+        Assert.Null(exception.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
     [Fact]
     public async Task CallerCancellationWhileBufferingTheBodyIsNotARejectionAsync()
     {
@@ -275,6 +301,15 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
             serviceProvider: serviceProvider,
             cancellationToken: this.CancellationToken()
         );
+    }
+
+    // A sized body is rejected from its Content-Length before it is read; an unsized one, as a decompressed body
+    // is, only once the bytes read pass the limit
+    private static HttpResponseMessage OversizedBody(bool sized)
+    {
+        return sized
+            ? Responses.Json(OVERSIZED_JSON)
+            : new(HttpStatusCode.OK) { Content = new UnsizedContent(Encoding.UTF8.GetBytes(OVERSIZED_JSON)) };
     }
 
     private static HttpResponseMessage StalledBody()

@@ -14,7 +14,8 @@ internal static class GitHubServices
     public static ServiceProvider Build(
         string? apiBaseUrl = ApiBaseUrl,
         HttpMessageHandler? primaryHandler = null,
-        TimeSpan? httpClientTimeout = null
+        TimeSpan? httpClientTimeout = null,
+        long? maxResponseContentBufferSize = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -28,7 +29,12 @@ internal static class GitHubServices
             _ = services
                 .AddHttpClient(GitHubSetup.HttpClientName)
                 .ConfigurePrimaryHttpMessageHandler(() => primaryHandler)
-                .ConfigureHttpClient(client => client.Timeout = httpClientTimeout ?? client.Timeout)
+                .ConfigureHttpClient(client =>
+                {
+                    client.Timeout = httpClientTimeout ?? client.Timeout;
+                    client.MaxResponseContentBufferSize =
+                        maxResponseContentBufferSize ?? client.MaxResponseContentBufferSize;
+                })
                 .Services.Configure<HttpRetryStrategyOptions>(
                     name: GitHubSetup.HttpClientName,
                     configureOptions: static options => options.Delay = TimeSpan.Zero
