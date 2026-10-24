@@ -106,11 +106,6 @@ public sealed class GitHubLinkHeaderTests : TestBase
         GitHubServices.ApiBaseUrl,
         GitHubServices.ApiBaseUrl + "items?page=2"
     )]
-    [InlineData("<https://api.github.com/items?page=2; rel=next", GitHubServices.ApiBaseUrl, null)]
-    [InlineData("<https://api.github.com/items?page=2>; rel=\"next", GitHubServices.ApiBaseUrl, null)]
-    [InlineData("<https://api.github.com/x>; title=\"a, <items?page=2>; rel=next", GitHubServices.ApiBaseUrl, null)]
-    [InlineData("https://api.github.com/items?page=2; rel=next", GitHubServices.ApiBaseUrl, null)]
-    [InlineData("<https://api.github.com/items>?page=2>; rel=next", GitHubServices.ApiBaseUrl, null)]
     [InlineData("<items?page=2>; rel=\"next\"", GitHubServices.ApiBaseUrl, GitHubServices.ApiBaseUrl + "items?page=2")]
     [InlineData(
         "<https://github-proxy.example/items?page=2>; rel=\"next\"",
@@ -381,6 +376,37 @@ public sealed class GitHubLinkHeaderTests : TestBase
         "https://proxy.example/api/v3/",
         "GitHub returned a next page link outside the configured GitHub API host and base path"
     )]
+    [InlineData(
+        "<https://api.github.com/items?page=2; rel=next",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a Link header that could not be parsed"
+    )]
+    [InlineData(
+        "<https://api.github.com/items?page=2>; rel=\"next",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a Link header that could not be parsed"
+    )]
+    [InlineData(
+        "<https://api.github.com/x>; title=\"a, <items?page=2>; rel=next",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a Link header that could not be parsed"
+    )]
+    [InlineData(
+        "<https://api.github.com/items?page=1>; rel=prev, <https://api.github.com/items?page=3",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a Link header that could not be parsed"
+    )]
+    [InlineData(
+        "https://api.github.com/items?page=2; rel=next",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a Link header that could not be parsed"
+    )]
+    [InlineData(
+        "<https://api.github.com/items>?page=2>; rel=next",
+        GitHubServices.ApiBaseUrl,
+        "GitHub returned a Link header that could not be parsed"
+    )]
+    [InlineData("; rel=next", GitHubServices.ApiBaseUrl, "GitHub returned a Link header that could not be parsed")]
     public static void MalformedNextLinkIsInvalidResponse(string link, string baseAddress, string expectedMessage)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);

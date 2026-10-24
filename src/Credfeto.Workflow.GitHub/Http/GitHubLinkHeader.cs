@@ -17,7 +17,10 @@ public static class GitHubLinkHeader
     // RFC 8288 section 3: a Link header is a comma-separated list of link-values, each a <URI-Reference>
     // followed by ';'-separated link-params of the form token [ "=" ( token / quoted-string ) ]. Each URI and
     // parameter is read only from the start of its link-value or parameter, so a '<...>; rel=next' sequence
-    // inside a quoted string or a URI is never read as a link or a relation. Only the first rel parameter counts
+    // inside a quoted string or a URI is never read as a link or a relation. Only the first rel parameter counts.
+    // A null result tells the caller it has the last page, so a header that could hide a next relation (an
+    // unterminated '<' or '"') or a next relation whose target is not a lone <URI-Reference> is an invalid
+    // response rather than the end of the listing
     public static Uri? FindNextPage(HttpResponseHeaders headers, Uri requestUri, Uri baseAddress)
     {
         if (!headers.TryGetValues(name: "Link", out IEnumerable<string>? linkValues))
@@ -29,15 +32,14 @@ public static class GitHubLinkHeader
             .SelectMany(static linkValue => SplitOutsideDelimiters(text: linkValue, separator: LINK_SEPARATOR))
             .Select(static link => SplitOutsideDelimiters(text: link, separator: PARAMETER_SEPARATOR))
             .Where(static link => IsNextRelation(FirstRelation(link.Skip(1))))
-            .Select(static link => link[0].Trim())
-            .Where(IsUriReference)
-            .Select(target => ResolveNextPage(url: target[1..^1], requestUri: requestUri, baseAddress: baseAddress))
+            .Select(static link => UriReference(link[0].Trim()))
+            .Select(url => ResolveNextPage(url: url, requestUri: requestUri, baseAddress: baseAddress))
             .FirstOrDefault();
     }
 
     // Splits only where the separator is outside a <URI-Reference> and outside a quoted-string, skipping the
-    // character after a backslash escape in a quoted-string. An unterminated '<' or '"' runs to the end of the
-    // text, so nothing after it is read as a link or a parameter
+    // character after a backslash escape in a quoted-string. An unterminated '<' or '"' leaves no reliable
+    // boundary for anything after it, which could include a next relation, so the header is rejected
     private static List<string> SplitOutsideDelimiters(string text, char separator)
     {
         List<string> parts = [];
@@ -82,7 +84,7 @@ public static class GitHubLinkHeader
 
         parts.Add(text[start..]);
 
-        return parts;
+        return closing == NOT_DELIMITED ? parts : throw MalformedLinkHeader();
     }
 
     // The relation value is compared as written, without unescaping: a relation type is a token or a URI
@@ -105,9 +107,16 @@ public static class GitHubLinkHeader
     }
 
     // The first '>' closes the URI-Reference, so anything after it makes the link-value malformed
-    private static bool IsUriReference(string target)
+    private static string UriReference(string target)
     {
-        return target is ['<', ..] && target.IndexOf('>', StringComparison.Ordinal) == target.Length - 1;
+        return target is ['<', ..] && target.IndexOf('>', StringComparison.Ordinal) == target.Length - 1
+            ? target[1..^1]
+            : throw MalformedLinkHeader();
+    }
+
+    private static GitHubInvalidResponseException MalformedLinkHeader()
+    {
+        return new("GitHub returned a Link header that could not be parsed");
     }
 
     private static bool IsNextRelation(string relations)
