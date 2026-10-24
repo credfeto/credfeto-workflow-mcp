@@ -1,0 +1,81 @@
+using Credfeto.Workflow.GitHub.Authorization;
+using Credfeto.Workflow.GitHub.Cache;
+using Credfeto.Workflow.GitHub.Configuration;
+using Credfeto.Workflow.GitHub.Http;
+using Credfeto.Workflow.GitHub.Interfaces;
+using FunFair.Test.Common;
+using FunFair.Test.Infrastructure;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using NSubstitute;
+using Xunit;
+
+namespace Credfeto.Workflow.GitHub.Tests;
+
+public sealed class GitHubSetupTests : DependencyInjectionTestsBase
+{
+    public GitHubSetupTests(ITestOutputHelper output)
+        : base(output: output, dependencyInjectionRegistration: Configure) { }
+
+    private static IServiceCollection Configure(IServiceCollection services)
+    {
+        return services
+            .AddGitHub()
+            .AddMockedService<IOptions<GitHubOptions>>(static o => o.Value.Returns(new GitHubOptions()));
+    }
+
+    [Fact]
+    public void RepositoryProjectCacheShouldBeRegistered()
+    {
+        this.RequireService<IRepositoryProjectCache>();
+    }
+
+    [Fact]
+    public void RepositoryProjectCacheShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepositoryProjectCache, RepositoryProjectCache>();
+    }
+
+    [Fact]
+    public void GitHubRestClientShouldBeRegistered()
+    {
+        this.RequireService<IGitHubRestClient>();
+    }
+
+    [Fact]
+    public void GitHubRestClientShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IGitHubRestClient, GitHubRestClient>();
+    }
+
+    [Fact]
+    public void GitHubGraphQlClientShouldBeRegistered()
+    {
+        this.RequireService<IGitHubGraphQlClient>();
+    }
+
+    [Fact]
+    public void GitHubGraphQlClientShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IGitHubGraphQlClient, GitHubGraphQlClient>();
+    }
+
+    [Fact]
+    public void OptionsValidatorShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IValidateOptions<GitHubOptions>, GitHubOptionsValidator>();
+    }
+
+    [Fact]
+    public void HttpContextAccessorShouldBeRegistered()
+    {
+        this.RequireService<IHttpContextAccessor>();
+    }
+
+    [Fact]
+    public void CallerTokenForwardingHandlerShouldBeRegistered()
+    {
+        this.RequireService<CallerTokenForwardingHandler>();
+    }
+}

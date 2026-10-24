@@ -1,0 +1,26 @@
+# The GitHub API as the server calls it: relative paths against GitHub:ApiBaseUrl, with the
+# caller's bearer token forwarded on every request.
+@apiBaseUrl = https://api.github.com/
+@token = replace-with-a-github-token
+
+### REST: the authenticated user
+GET {{apiBaseUrl}}user
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### GraphQL: the authenticated user's login (always POST; never retried)
+# On GitHub Enterprise Server (apiBaseUrl = https://<host>/api/v3/) GraphQL is the sibling
+# https://<host>/api/graphql, not {{apiBaseUrl}}graphql.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query { viewer { login } }",
+  "variables": {}
+}
