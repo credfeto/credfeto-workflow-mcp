@@ -1,5 +1,5 @@
+using System;
 using System.Net.Http;
-using Polly;
 
 namespace Credfeto.Workflow.GitHub.Http;
 
@@ -15,9 +15,9 @@ internal static class GitHubHttpFailure
         );
     }
 
-    // No response was received, so there is no status code; the Polly exception is kept only as the inner
-    // exception for server-side diagnostics
-    public static HttpRequestException FromRejection(ExecutionRejectedException exception)
+    // No complete response was received, so there is no status code; the timeout or Polly exception is kept only
+    // as the inner exception for server-side diagnostics
+    public static HttpRequestException FromRejection(Exception exception)
     {
         return new(
             message: "GitHub request was rejected before a response was received",
