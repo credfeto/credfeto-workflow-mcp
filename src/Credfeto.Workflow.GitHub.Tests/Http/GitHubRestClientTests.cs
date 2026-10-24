@@ -235,6 +235,16 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     )]
     [InlineData(
         "https://ghe.example/api/v3/",
+        "repos/o/r/labels/what%3F",
+        "https://ghe.example/api/v3/repos/o/r/labels/what%3F"
+    )]
+    [InlineData(
+        "https://ghe.example/api/v3/",
+        "repos/o/r/labels/issue%23",
+        "https://ghe.example/api/v3/repos/o/r/labels/issue%23"
+    )]
+    [InlineData(
+        "https://ghe.example/api/v3/",
         "search/issues?q=a;..",
         "https://ghe.example/api/v3/search/issues?q=a;.."
     )]
@@ -281,6 +291,11 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     [InlineData("https://ghe.example/api/v3/", "..;x=1/admin")]
     [InlineData("https://ghe.example/api/v3/", "%2e%2e;/admin")]
     [InlineData("https://ghe.example/api/v3/", ".;/x")]
+    [InlineData("https://ghe.example/api/v3/", "repos/o/r/..%3F/..%3F/admin")]
+    [InlineData("https://ghe.example/api/v3/", "..%3F/admin")]
+    [InlineData("https://ghe.example/api/v3/", "..%23/admin")]
+    [InlineData("https://ghe.example/api/v3/", "..%253F/admin")]
+    [InlineData("https://ghe.example/api/v3/", ".%3F/x")]
     public async Task UriOffConfiguredHostOrBasePathIsRejectedAsync(string baseAddress, string relativeUri)
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));

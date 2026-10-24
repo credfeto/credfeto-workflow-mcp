@@ -15,6 +15,8 @@ internal static class UriHosts
 
     private static readonly char[] PathSeparators = ['/', '\\'];
 
+    private static readonly char[] SegmentSuffixDelimiters = [';', '?', '#'];
+
     public static bool IsSameServer(Uri link, Uri baseAddress)
     {
         return Uri.Compare(
@@ -61,10 +63,11 @@ internal static class UriHosts
     }
 
     // Tomcat, Spring and other servlet-style proxies drop a ;parameter from each segment before normalising, so
-    // ..;/admin and ..;x=1/admin resolve as ../admin
+    // ..;/admin and ..;x=1/admin resolve as ../admin; a proxy that decodes the path and re-parses it ends the path
+    // at a decoded '?' or '#', so ..%3F/admin and ..%23/admin resolve the same way
     private static bool IsDotSegment(string piece)
     {
-        return DotSegments.Contains(piece.Split(separator: ';', count: 2)[0]);
+        return DotSegments.Contains(piece.Split(separator: SegmentSuffixDelimiters, count: 2)[0]);
     }
 
     private static bool TryDecodeUntilStable(string value, [NotNullWhen(true)] out string? decoded)
