@@ -63,7 +63,7 @@ public sealed class GitHubOptionsValidatorTests : TestBase
         ValidateOptionsResult result = this.Validate(new Uri(apiBaseUrl));
 
         Assert.Equal(
-            expected: "GitHub:ApiBaseUrl path must not contain encoded '.' or '..' segments (such as %2f..%2f).",
+            expected: "GitHub:ApiBaseUrl path must not contain segments that decode or normalise to '.' or '..', or escapes that cannot be decoded.",
             actual: result.FailureMessage
         );
     }

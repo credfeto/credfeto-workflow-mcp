@@ -37,7 +37,7 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
         if (UriHosts.HasEncodedPathTraversal(apiBaseUrl))
         {
             return ValidateOptionsResult.Fail(
-                "GitHub:ApiBaseUrl path must not contain encoded '.' or '..' segments (such as %2f..%2f)."
+                "GitHub:ApiBaseUrl path must not contain segments that decode or normalise to '.' or '..', or escapes that cannot be decoded."
             );
         }
 
