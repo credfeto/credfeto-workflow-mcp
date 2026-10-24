@@ -9,7 +9,7 @@ internal static class UriHosts
 {
     // Enough for any legitimately encoded value; a segment still changing after this many passes is treated as
     // traversing, so an attacker cannot out-nest the check
-    private const int MaxDecodePasses = 4;
+    private const int MAX_DECODE_PASSES = 4;
 
     private static readonly FrozenSet<string> DotSegments = new[] { ".", ".." }.ToFrozenSet(StringComparer.Ordinal);
 
@@ -116,7 +116,7 @@ internal static class UriHosts
     {
         string current = value;
 
-        for (int pass = 0; pass < MaxDecodePasses; ++pass)
+        for (int pass = 0; pass < MAX_DECODE_PASSES; ++pass)
         {
             string next = Uri.UnescapeDataString(current);
 
