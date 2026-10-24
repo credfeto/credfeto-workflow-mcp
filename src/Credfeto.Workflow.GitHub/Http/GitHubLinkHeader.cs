@@ -2,16 +2,22 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
-using System.Text.RegularExpressions;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 
 namespace Credfeto.Workflow.GitHub.Http;
 
-public static partial class GitHubLinkHeader
+public static class GitHubLinkHeader
 {
     private const string NEXT_RELATION = "next";
-    private const int MATCH_TIMEOUT_MILLISECONDS = 1000;
+    private const string RELATION_PARAMETER = "rel";
+    private const char LINK_SEPARATOR = ',';
+    private const char PARAMETER_SEPARATOR = ';';
+    private const char NOT_DELIMITED = '\0';
 
+    // RFC 8288 section 3: a Link header is a comma-separated list of link-values, each a <URI-Reference>
+    // followed by ';'-separated link-params of the form token [ "=" ( token / quoted-string ) ]. Each URI and
+    // parameter is read only from the start of its link-value or parameter, so a '<...>; rel=next' sequence
+    // inside a quoted string or a URI is never read as a link or a relation. Only the first rel parameter counts
     public static Uri? FindNextPage(HttpResponseHeaders headers, Uri requestUri, Uri baseAddress)
     {
         if (!headers.TryGetValues(name: "Link", out IEnumerable<string>? linkValues))
@@ -20,12 +26,88 @@ public static partial class GitHubLinkHeader
         }
 
         return linkValues
-            .SelectMany(static linkValue => LinkPattern().Matches(linkValue))
-            .Where(static match => IsNextRelation(match.Groups["rel"].Value))
-            .Select(match =>
-                ResolveNextPage(url: match.Groups["url"].Value, requestUri: requestUri, baseAddress: baseAddress)
-            )
+            .SelectMany(static linkValue => SplitOutsideDelimiters(text: linkValue, separator: LINK_SEPARATOR))
+            .Select(static link => SplitOutsideDelimiters(text: link, separator: PARAMETER_SEPARATOR))
+            .Where(static link => IsNextRelation(FirstRelation(link.Skip(1))))
+            .Select(static link => link[0].Trim())
+            .Where(IsUriReference)
+            .Select(target => ResolveNextPage(url: target[1..^1], requestUri: requestUri, baseAddress: baseAddress))
             .FirstOrDefault();
+    }
+
+    // Splits only where the separator is outside a <URI-Reference> and outside a quoted-string, skipping the
+    // character after a backslash escape in a quoted-string. An unterminated '<' or '"' runs to the end of the
+    // text, so nothing after it is read as a link or a parameter
+    private static List<string> SplitOutsideDelimiters(string text, char separator)
+    {
+        List<string> parts = [];
+        int start = 0;
+        char closing = NOT_DELIMITED;
+        bool escaped = false;
+
+        for (int index = 0; index < text.Length; index++)
+        {
+            char current = text[index];
+
+            if (escaped)
+            {
+                escaped = false;
+            }
+            else if (closing == NOT_DELIMITED)
+            {
+                if (current == separator)
+                {
+                    parts.Add(text[start..index]);
+                    start = index + 1;
+                }
+                else
+                {
+                    closing = current switch
+                    {
+                        '<' => '>',
+                        '"' => '"',
+                        _ => NOT_DELIMITED,
+                    };
+                }
+            }
+            else if (current == closing)
+            {
+                closing = NOT_DELIMITED;
+            }
+            else
+            {
+                escaped = closing == '"' && current == '\\';
+            }
+        }
+
+        parts.Add(text[start..]);
+
+        return parts;
+    }
+
+    // The relation value is compared as written, without unescaping: a relation type is a token or a URI
+    // (RFC 8288 section 3.3), neither of which can contain a backslash, so an escaped value is never next
+    private static string FirstRelation(IEnumerable<string> parameters)
+    {
+        return parameters
+            .Select(static parameter => parameter.Split(separator: '=', count: 2))
+            .Where(static parameter =>
+                parameter.Length == 2
+                && StringComparer.OrdinalIgnoreCase.Equals(x: parameter[0].Trim(), y: RELATION_PARAMETER)
+            )
+            .Select(static parameter => Unquote(parameter[1].Trim()))
+            .FirstOrDefault(defaultValue: string.Empty);
+    }
+
+    private static string Unquote(string value)
+    {
+        return value is ['"', .. string quoted, '"'] ? quoted : value;
+    }
+
+    // The first '>' closes the URI-Reference, so anything after it makes the link-value malformed
+    private static bool IsUriReference(string target)
+    {
+        return target is ['<', ..] && target.IndexOf('>', StringComparison.Ordinal) == target.Length - 1;
     }
 
     private static bool IsNextRelation(string relations)
@@ -119,42 +201,4 @@ public static partial class GitHubLinkHeader
             ? pathAndQuery[basePath.Length..]
             : pathAndQuery[1..];
     }
-
-    // RFC 8288 section 3: a link-param is token BWS [ "=" BWS ( token / quoted-string ) ] with a
-    // case-insensitive name, and only the first rel parameter counts, hence the lazy skip over earlier ones.
-    // Anchoring every parameter name on ';' stops a name that merely ends in rel (foorel) being read as rel
-    private const string TOKEN = "[!#$%&'*+.^_`|~0-9A-Za-z-]+";
-    private const string QUOTED_STRING_CONTENT = "(?:[^\"\\\\]|\\\\.)*";
-    private const string PARAMETER_SEPARATOR = @"\s*;\s*";
-    private const string PARAMETER_ASSIGNMENT = @"\s*=\s*";
-
-    private const string OTHER_PARAMETER =
-        PARAMETER_SEPARATOR
-        + TOKEN
-        + "(?:"
-        + PARAMETER_ASSIGNMENT
-        + "(?:"
-        + TOKEN
-        + "|\""
-        + QUOTED_STRING_CONTENT
-        + "\"))?";
-
-    private const string REL_PARAMETER =
-        PARAMETER_SEPARATOR
-        + "rel"
-        + PARAMETER_ASSIGNMENT
-        + "(?:\"(?<rel>"
-        + QUOTED_STRING_CONTENT
-        + ")\"|(?<rel>"
-        + TOKEN
-        + "))";
-
-    private const string LINK_PATTERN = "<(?<url>[^>]*)>(?:" + OTHER_PARAMETER + ")*?" + REL_PARAMETER;
-
-    [GeneratedRegex(
-        pattern: LINK_PATTERN,
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture | RegexOptions.IgnoreCase,
-        matchTimeoutMilliseconds: MATCH_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex LinkPattern();
 }

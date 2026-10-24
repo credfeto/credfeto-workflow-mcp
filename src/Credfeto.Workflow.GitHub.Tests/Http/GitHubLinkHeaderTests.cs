@@ -70,6 +70,47 @@ public sealed class GitHubLinkHeaderTests : TestBase
         null
     )]
     [InlineData("<https://api.github.com/items?page=2>; rel=prev; rel=next", GitHubServices.ApiBaseUrl, null)]
+    [InlineData(
+        "<https://api.github.com/x?page=1>; title=\"<items?page=99>; rel=next\"",
+        GitHubServices.ApiBaseUrl,
+        null
+    )]
+    [InlineData(
+        "<https://api.github.com/x?page=1>; title=\"a, <items?page=99>; rel=next\"",
+        GitHubServices.ApiBaseUrl,
+        null
+    )]
+    [InlineData(
+        "<https://api.github.com/items?page=1>; title=\"a, b\", <https://api.github.com/items?page=3>; rel=next",
+        GitHubServices.ApiBaseUrl,
+        GitHubServices.ApiBaseUrl + "items?page=3"
+    )]
+    [InlineData(
+        "<https://api.github.com/x?page=1>; title=\"x\\\"<items?page=99>; rel=next\\\"\"",
+        GitHubServices.ApiBaseUrl,
+        null
+    )]
+    [InlineData(
+        "<https://api.github.com/x\\>; rel=prev, <https://api.github.com/items?page=2>; rel=next",
+        GitHubServices.ApiBaseUrl,
+        GitHubServices.ApiBaseUrl + "items?page=2"
+    )]
+    [InlineData("<https://api.github.com/items?page=2>; rel=\"n\\ext\"", GitHubServices.ApiBaseUrl, null)]
+    [InlineData(
+        "<https://api.github.com/items?page=2>; crossorigin; rel=next",
+        GitHubServices.ApiBaseUrl,
+        GitHubServices.ApiBaseUrl + "items?page=2"
+    )]
+    [InlineData(
+        ", <https://api.github.com/items?page=2>; rel=next",
+        GitHubServices.ApiBaseUrl,
+        GitHubServices.ApiBaseUrl + "items?page=2"
+    )]
+    [InlineData("<https://api.github.com/items?page=2; rel=next", GitHubServices.ApiBaseUrl, null)]
+    [InlineData("<https://api.github.com/items?page=2>; rel=\"next", GitHubServices.ApiBaseUrl, null)]
+    [InlineData("<https://api.github.com/x>; title=\"a, <items?page=2>; rel=next", GitHubServices.ApiBaseUrl, null)]
+    [InlineData("https://api.github.com/items?page=2; rel=next", GitHubServices.ApiBaseUrl, null)]
+    [InlineData("<https://api.github.com/items>?page=2>; rel=next", GitHubServices.ApiBaseUrl, null)]
     [InlineData("<items?page=2>; rel=\"next\"", GitHubServices.ApiBaseUrl, GitHubServices.ApiBaseUrl + "items?page=2")]
     [InlineData(
         "<https://github-proxy.example/items?page=2>; rel=\"next\"",
