@@ -298,7 +298,10 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
             this.GetThroughRestClientAsync(upstream)
         );
 
-        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Equal(
+            expected: "GitHub request did not complete; it may or may not have been applied",
+            actual: exception.Message
+        );
         Assert.Null(exception.StatusCode);
         Assert.IsType<TimeoutRejectedException>(exception.InnerException);
         Assert.Equal(expected: RETRY_ATTEMPTS + 1, actual: upstream.Requests.Count);
@@ -317,7 +320,10 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
             GetThroughRestClientAsync(serviceProvider: serviceProvider, cancellationToken: this.CancellationToken())
         );
 
-        Assert.Equal(expected: "GitHub request was rejected before a response was received", actual: exception.Message);
+        Assert.Equal(
+            expected: "GitHub request did not complete; it may or may not have been applied",
+            actual: exception.Message
+        );
         Assert.Null(exception.StatusCode);
         OperationCanceledException timeout = Assert.IsAssignableFrom<OperationCanceledException>(
             exception.InnerException
