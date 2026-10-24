@@ -1,5 +1,6 @@
 using System;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
@@ -273,10 +274,11 @@ public sealed class GitHubLinkHeaderTests : TestBase
     public static void RelativeNextLinkEscapingBasePathFromRequestUriIsInvalidResponse(string link, string requestUri)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
+        HttpResponseHeaders headers = response.Headers;
 
         GitHubInvalidResponseException exception = Assert.Throws<GitHubInvalidResponseException>(() =>
             GitHubLinkHeader.FindNextPage(
-                headers: response.Headers,
+                headers: headers,
                 requestUri: new Uri(requestUri),
                 baseAddress: new Uri("https://ghe.example/api/v3/")
             )
@@ -503,10 +505,11 @@ public sealed class GitHubLinkHeaderTests : TestBase
     public static void MalformedNextLinkIsInvalidResponse(string link, string baseAddress, string expectedMessage)
     {
         using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
+        HttpResponseHeaders headers = response.Headers;
 
         GitHubInvalidResponseException exception = Assert.Throws<GitHubInvalidResponseException>(() =>
             GitHubLinkHeader.FindNextPage(
-                headers: response.Headers,
+                headers: headers,
                 requestUri: FirstPageUnder(baseAddress),
                 baseAddress: new Uri(baseAddress)
             )
