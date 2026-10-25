@@ -1,0 +1,30 @@
+<Solution>
+  <Folder Name="/Config/">
+    <File Path="../CHANGELOG.md" />
+    <File Path="../README.md" />
+    <File Path="../.editorconfig" />
+    <File Path="../.globalconfig" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/Docs/">
+    <File Path="../docs/api.http" />
+    <File Path="../docs/github.http" />
+    <File Path="../docs/mcp.http" />
+  </Folder>
+  <Folder Name="/GitHub/">
+    <Project Path="Credfeto.Workflow.GitHub.Interfaces/Credfeto.Workflow.GitHub.Interfaces.csproj" />
+    <Project Path="Credfeto.Workflow.GitHub.Tests/Credfeto.Workflow.GitHub.Tests.csproj" />
+    <Project Path="Credfeto.Workflow.GitHub/Credfeto.Workflow.GitHub.csproj" />
+  </Folder>
+  <Folder Name="/MCP/">
+    <Project Path="Credfeto.Workflow.Mcp.Tests/Credfeto.Workflow.Mcp.Tests.csproj" />
+    <Project Path="Credfeto.Workflow.Mcp/Credfeto.Workflow.Mcp.csproj" />
+  </Folder>
+  <Folder Name="/Models/">
+    <Project Path="Credfeto.Workflow.Data.Models/Credfeto.Workflow.Data.Models.csproj" />
+  </Folder>
+  <Folder Name="/Server/">
+    <Project Path="Credfeto.Workflow.Mcp.Server.Tests/Credfeto.Workflow.Mcp.Server.Tests.csproj" />
+    <Project Path="Credfeto.Workflow.Mcp.Server/Credfeto.Workflow.Mcp.Server.csproj" />
+  </Folder>
+</Solution>

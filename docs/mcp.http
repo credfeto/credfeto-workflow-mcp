@@ -1,0 +1,68 @@
+@baseUrl = http://127.0.0.1:8080
+# A GitHub token; the server forwards it to GitHub and never validates or stores it.
+@token = replace-with-a-github-token
+
+# The MCP endpoint is stateless: each request stands alone, with no session header.
+# Streamable HTTP requires both JSON and event-stream in Accept, otherwise the server replies 406.
+# Every request must carry "Authorization: Bearer <token>", otherwise the server replies 401.
+
+### Missing Authorization header; expects 401 with "WWW-Authenticate: Bearer"
+POST {{baseUrl}}/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 0,
+  "method": "tools/list",
+  "params": {}
+}
+
+### Initialize
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "initialize",
+  "params": {
+    "protocolVersion": "2025-06-18",
+    "capabilities": {},
+    "clientInfo": {
+      "name": "http-client",
+      "version": "1.0.0"
+    }
+  }
+}
+
+### List tools; expects a single "ping" tool
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 2,
+  "method": "tools/list",
+  "params": {}
+}
+
+### Call the ping tool; expects {"value":"pong"}
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "ping",
+    "arguments": {}
+  }
+}

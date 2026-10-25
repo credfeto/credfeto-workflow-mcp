@@ -1,0 +1,82 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>AllEnabledByDefault</AnalysisMode>
+    <CodeAnalysisTreatWarningsAsErrors>true</CodeAnalysisTreatWarningsAsErrors>
+    <DebuggerSupport>true</DebuggerSupport>
+    <Description>Credfeto Workflow MCP Server</Description>
+    <DisableImplicitNuGetFallbackFolder>true</DisableImplicitNuGetFallbackFolder>
+    <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnableRequestDelegateGenerator>true</EnableRequestDelegateGenerator>
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Features>strict;flow-analysis</Features>
+    <GenerateNeutralResourcesLanguageAttribute>true</GenerateNeutralResourcesLanguageAttribute>
+    <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <IlcOptimizationPreference>Size</IlcOptimizationPreference>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsPublishable>true</IsPublishable>
+    <IsTransformWebConfigDisabled>true</IsTransformWebConfigDisabled>
+    <IsTrimmable>true</IsTrimmable>
+    <JsonSerializerIsReflectionEnabledByDefault>false</JsonSerializerIsReflectionEnabledByDefault>
+    <LangVersion>latest</LangVersion>
+    <NeutralLanguage>en</NeutralLanguage>
+    <NuGetAudit>true</NuGetAudit>
+    <NuGetAuditLevel>low</NuGetAuditLevel>
+    <NuGetAuditMode>direct</NuGetAuditMode>
+    <Nullable>enable</Nullable>
+    <OptimizationPreference>speed</OptimizationPreference>
+    <OutputType>Exe</OutputType>
+    <PublishAot>true</PublishAot>
+    <RepositoryUrl>https://github.com/credfeto/credfeto-workflow-mcp</RepositoryUrl>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <RuntimeIdentifiers>linux-x64;linux-arm64</RuntimeIdentifiers>
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <TargetFramework>net11.0</TargetFramework>
+    <TieredCompilation>true</TieredCompilation>
+    <TieredPGO>true</TieredPGO>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <ValidateExecutableReferencesMatchSelfContained>true</ValidateExecutableReferencesMatchSelfContained>
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+    <WarningsAsErrors />
+  </PropertyGroup>
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Credfeto.Docker.HealthCheck.Http.Client" Version="0.0.81.1260" IncludeAssets="compile;runtime" />
+    <PackageReference Include="Serilog" Version="4.4.0" IncludeAssets="compile;runtime;build;buildTransitive" />
+    <PackageReference Include="Serilog.Enrichers.Environment" Version="3.0.1" IncludeAssets="compile;runtime" />
+    <PackageReference Include="Serilog.Enrichers.Process" Version="3.0.0" IncludeAssets="compile;runtime" />
+    <PackageReference Include="Serilog.Enrichers.Thread" Version="4.0.0" IncludeAssets="compile;runtime" />
+    <PackageReference Include="Serilog.Extensions.Logging" Version="10.0.0" IncludeAssets="compile;runtime" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" IncludeAssets="compile;runtime" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Credfeto.Workflow.Data.Models/Credfeto.Workflow.Data.Models.csproj" />
+    <ProjectReference Include="../Credfeto.Workflow.GitHub/Credfeto.Workflow.GitHub.csproj" />
+    <ProjectReference Include="../Credfeto.Workflow.Mcp/Credfeto.Workflow.Mcp.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="AsyncFixer" Version="2.1.0" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="FunFair.CodeAnalysis" Version="7.2.20.2501" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="Meziantou.Analyzer" Version="3.0.316" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading.Analyzers" Version="18.12.1" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="Philips.CodeAnalysis.DuplicateCodeAnalyzer" Version="2.0.0" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="Philips.CodeAnalysis.MaintainabilityAnalyzers" Version="2.0.0" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="Roslynator.Analyzers" Version="5.0.1" PrivateAssets="All" ExcludeAssets="runtime" Condition="Exists('$(SolutionDir)DoesNotExist.props')" />
+    <PackageReference Include="SecurityCodeScan.VS2019" Version="5.6.7" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="SmartAnalyzers.CSharpExtensions.Annotations" Version="4.2.11" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="SonarAnalyzer.CSharp" Version="10.35.0.4138" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="SourceLink.Create.CommandLine" Version="2.8.3" PrivateAssets="All" ExcludeAssets="runtime" />
+    <PackageReference Include="ToStringWithoutOverrideAnalyzer" Version="0.6.0" PrivateAssets="All" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>
