@@ -12,6 +12,22 @@
   - any: ['CHANGELOG.md']
 "Config Change":
   - any: ['src/**/*.json', '!src/global.json']
+"credfeto-workflow-data-models":
+  - any: ['src/Credfeto.Workflow.Data.Models/**/*']
+"credfeto-workflow-github":
+  - any: ['src/Credfeto.Workflow.GitHub/**/*']
+"credfeto-workflow-github-interfaces":
+  - any: ['src/Credfeto.Workflow.GitHub.Interfaces/**/*']
+"credfeto-workflow-github-tests":
+  - any: ['src/Credfeto.Workflow.GitHub.Tests/**/*']
+"credfeto-workflow-mcp":
+  - any: ['src/Credfeto.Workflow.Mcp/**/*']
+"credfeto-workflow-mcp-server":
+  - any: ['src/Credfeto.Workflow.Mcp.Server/**/*']
+"credfeto-workflow-mcp-server-tests":
+  - any: ['src/Credfeto.Workflow.Mcp.Server.Tests/**/*']
+"credfeto-workflow-mcp-tests":
+  - any: ['src/Credfeto.Workflow.Mcp.Tests/**/*']
 "dotnet":
   - any: ['src/**/*.csproj']
 "Editorconfig":

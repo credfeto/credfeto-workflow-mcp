@@ -44,6 +44,38 @@
   color: "d8bb50"
   description: "Configuration files changes"
 
+- name: "credfeto-workflow-data-models"
+  color: "96f7d2"
+  description: "Changes in Credfeto.Workflow.Data.Models project"
+
+- name: "credfeto-workflow-github"
+  color: "96f7d2"
+  description: "Changes in Credfeto.Workflow.GitHub project"
+
+- name: "credfeto-workflow-github-interfaces"
+  color: "96f7d2"
+  description: "Changes in Credfeto.Workflow.GitHub.Interfaces project"
+
+- name: "credfeto-workflow-github-tests"
+  color: "0e8a16"
+  description: "Changes in Credfeto.Workflow.GitHub.Tests project"
+
+- name: "credfeto-workflow-mcp"
+  color: "96f7d2"
+  description: "Changes in Credfeto.Workflow.Mcp project"
+
+- name: "credfeto-workflow-mcp-server"
+  color: "96f7d2"
+  description: "Changes in Credfeto.Workflow.Mcp.Server project"
+
+- name: "credfeto-workflow-mcp-server-tests"
+  color: "0e8a16"
+  description: "Changes in Credfeto.Workflow.Mcp.Server.Tests project"
+
+- name: "credfeto-workflow-mcp-tests"
+  color: "0e8a16"
+  description: "Changes in Credfeto.Workflow.Mcp.Tests project"
+
 - name: "dependencies"
   color: "0366d6"
   description: "Updates to dependencies"
