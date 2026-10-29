@@ -25,34 +25,29 @@ public static class GitHubNames
     {
         int separator = value.IndexOf('/', StringComparison.Ordinal);
 
-        if (separator < 0 || value.AsSpan(separator + 1).Contains('/'))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must be in the form owner/repo"
-            );
-        }
+        ThrowIf(
+            invalid: separator < 0 || value.AsSpan(separator + 1).Contains('/'),
+            parameterName: parameterName,
+            rule: "it must be in the form owner/repo"
+        );
 
-        if (!IsRepositoryPart(value.AsSpan(0, separator)) || !IsRepositoryPart(value.AsSpan(separator + 1)))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "owner and repo may only contain letters, digits, '_', '.' and '-' and must not be '.' or '..'"
-            );
-        }
+        ThrowIf(
+            invalid: !IsRepositoryPart(value.AsSpan(0, separator)) || !IsRepositoryPart(value.AsSpan(separator + 1)),
+            parameterName: parameterName,
+            rule: "owner and repo may only contain letters, digits, '_', '.' and '-' and must not be '.' or '..'"
+        );
 
         return value;
     }
 
     public static string Number(string value, string parameterName)
     {
-        if (value.Length == 0 || value.AsSpan().ContainsAnyExceptInRange(lowInclusive: '0', highInclusive: '9'))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must contain only the digits 0-9"
-            );
-        }
+        ThrowIf(
+            invalid: value.Length == 0
+                || value.AsSpan().ContainsAnyExceptInRange(lowInclusive: '0', highInclusive: '9'),
+            parameterName: parameterName,
+            rule: "it must contain only the digits 0-9"
+        );
 
         string trimmed = value.TrimStart('0');
 
@@ -63,10 +58,11 @@ public static class GitHubNames
     {
         string number = Number(value: value, parameterName: parameterName);
 
-        if (StringComparer.Ordinal.Equals(x: number, y: "0"))
-        {
-            throw ParameterValidationException.For(parameterName: parameterName, rule: "it must be greater than zero");
-        }
+        ThrowIf(
+            invalid: StringComparer.Ordinal.Equals(x: number, y: "0"),
+            parameterName: parameterName,
+            rule: "it must be greater than zero"
+        );
 
         return number;
     }
@@ -76,26 +72,22 @@ public static class GitHubNames
     {
         string number = PositiveNumber(value: value, parameterName: parameterName);
 
-        if (number.Length > MAX_COMMENT_ID_DIGITS)
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must have at most 19 significant digits"
-            );
-        }
+        ThrowIf(
+            invalid: number.Length > MAX_COMMENT_ID_DIGITS,
+            parameterName: parameterName,
+            rule: "it must have at most 19 significant digits"
+        );
 
         return number;
     }
 
     public static string CommitSha(string value, string parameterName)
     {
-        if (value.Length != COMMIT_SHA_LENGTH || value.AsSpan().ContainsAnyExcept(HexDigits))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must be a full 40 character hexadecimal commit SHA"
-            );
-        }
+        ThrowIf(
+            invalid: value.Length != COMMIT_SHA_LENGTH || value.AsSpan().ContainsAnyExcept(HexDigits),
+            parameterName: parameterName,
+            rule: "it must be a full 40 character hexadecimal commit SHA"
+        );
 
         return string.Create(
             length: value.Length,
@@ -108,39 +100,33 @@ public static class GitHubNames
     {
         Tag(value: value, parameterName: parameterName);
 
-        if (value[0] == '-' || StringComparer.Ordinal.Equals(x: value, y: "HEAD"))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "a branch name must not start with '-' or be 'HEAD'"
-            );
-        }
+        ThrowIf(
+            invalid: value[0] == '-' || StringComparer.Ordinal.Equals(x: value, y: "HEAD"),
+            parameterName: parameterName,
+            rule: "a branch name must not start with '-' or be 'HEAD'"
+        );
 
         return value;
     }
 
     public static string Tag(string value, string parameterName)
     {
-        if (!GitRefFormat.IsValidRefName(value))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must be a valid git ref name"
-            );
-        }
+        ThrowIf(
+            invalid: !GitRefFormat.IsValidRefName(value),
+            parameterName: parameterName,
+            rule: "it must be a valid git ref name"
+        );
 
         return value;
     }
 
     public static string Status(string value, string parameterName)
     {
-        if (GitRefFormat.ContainsControlCharacter(value))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must not contain control characters"
-            );
-        }
+        ThrowIf(
+            invalid: GitRefFormat.ContainsControlCharacter(value),
+            parameterName: parameterName,
+            rule: "it must not contain control characters"
+        );
 
         return value;
     }
@@ -148,29 +134,23 @@ public static class GitHubNames
     // Length is counted in Unicode scalar values (runes) so an emoji counts once, as it does on GitHub
     public static string Label(string value, string parameterName)
     {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must not be empty or whitespace"
-            );
-        }
+        ThrowIf(
+            invalid: string.IsNullOrWhiteSpace(value),
+            parameterName: parameterName,
+            rule: "it must not be empty or whitespace"
+        );
 
-        if (value.Contains(',', StringComparison.Ordinal) || GitRefFormat.ContainsControlCharacter(value))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must not contain ',' or control characters"
-            );
-        }
+        ThrowIf(
+            invalid: value.Contains(',', StringComparison.Ordinal) || GitRefFormat.ContainsControlCharacter(value),
+            parameterName: parameterName,
+            rule: "it must not contain ',' or control characters"
+        );
 
-        if (HasMoreRunesThan(value: value, maximum: MAX_LABEL_LENGTH))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must be at most 50 characters long"
-            );
-        }
+        ThrowIf(
+            invalid: HasMoreRunesThan(value: value, maximum: MAX_LABEL_LENGTH),
+            parameterName: parameterName,
+            rule: "it must be at most 50 characters long"
+        );
 
         return value;
     }
@@ -181,15 +161,21 @@ public static class GitHubNames
             ? value.AsSpan(0, value.Length - BOT_SUFFIX.Length)
             : value.AsSpan();
 
-        if (name.IsEmpty || name.ContainsAnyExcept(LoginCharacters))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it may only contain letters, digits, '_' and '-', optionally followed by '[bot]'"
-            );
-        }
+        ThrowIf(
+            invalid: name.IsEmpty || name.ContainsAnyExcept(LoginCharacters),
+            parameterName: parameterName,
+            rule: "it may only contain letters, digits, '_' and '-', optionally followed by '[bot]'"
+        );
 
         return value;
+    }
+
+    private static void ThrowIf(bool invalid, string parameterName, string rule)
+    {
+        if (invalid)
+        {
+            throw ParameterValidationException.For(parameterName: parameterName, rule: rule);
+        }
     }
 
     // Every rune is at least one UTF-16 char, so a string no longer than the maximum cannot exceed it in runes
