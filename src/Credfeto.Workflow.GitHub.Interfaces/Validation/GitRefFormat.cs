@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Linq;
 
 namespace Credfeto.Workflow.GitHub.Interfaces.Validation;
 
@@ -9,10 +10,7 @@ public static class GitRefFormat
 
     public static bool ContainsControlCharacter(string value)
     {
-        ReadOnlySpan<char> span = value.AsSpan();
-
-        return span.ContainsAnyInRange(lowInclusive: '\0', highInclusive: '\u001F')
-            || span.ContainsAnyInRange(lowInclusive: '\u007F', highInclusive: '\u009F');
+        return value.Any(char.IsControl);
     }
 
     public static bool IsValidRefName(string name)
