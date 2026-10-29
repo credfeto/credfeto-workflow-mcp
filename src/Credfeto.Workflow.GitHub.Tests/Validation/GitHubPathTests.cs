@@ -26,4 +26,10 @@ public sealed class GitHubPathTests : TestBase
     {
         Assert.Equal(expected: expected, actual: GitHubPath.BranchPath(branch));
     }
+
+    [Fact]
+    public void BranchPathEncodesLoneSurrogateAsReplacementCharacter()
+    {
+        Assert.Equal(expected: "a%EF%BF%BDb", actual: GitHubPath.BranchPath("a\uD800b"));
+    }
 }
