@@ -107,13 +107,7 @@ public static class GitHubNames
 
     public static string Branch(string value, string parameterName)
     {
-        if (!GitRefFormat.IsValidRefName(value))
-        {
-            throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must be a valid git ref name"
-            );
-        }
+        Tag(value: value, parameterName: parameterName);
 
         if (value[0] == '-' || StringComparer.Ordinal.Equals(x: value, y: "HEAD"))
         {
