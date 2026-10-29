@@ -1,6 +1,5 @@
 using System;
 using System.Buffers;
-using System.Linq;
 using System.Text;
 
 namespace Credfeto.Workflow.GitHub.Interfaces.Validation;
@@ -165,7 +164,7 @@ public static class GitHubNames
             );
         }
 
-        if (value.EnumerateRunes().Skip(MAX_LABEL_LENGTH).Any())
+        if (HasMoreRunesThan(value: value, maximum: MAX_LABEL_LENGTH))
         {
             throw ParameterValidationException.For(
                 parameterName: parameterName,
@@ -191,6 +190,29 @@ public static class GitHubNames
         }
 
         return value;
+    }
+
+    // Every rune is at least one UTF-16 char, so a string no longer than the maximum cannot exceed it in runes
+    private static bool HasMoreRunesThan(string value, int maximum)
+    {
+        if (value.Length <= maximum)
+        {
+            return false;
+        }
+
+        int count = 0;
+
+        foreach (Rune rune in value.EnumerateRunes())
+        {
+            ++count;
+
+            if (count > maximum)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsRepositoryPart(ReadOnlySpan<char> part)
