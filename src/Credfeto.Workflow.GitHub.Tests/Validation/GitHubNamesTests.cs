@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using FunFair.Test.Common;
 using Xunit;
@@ -186,7 +187,7 @@ public sealed class GitHubNamesTests : TestBase
     [Fact]
     public void LabelCountsEmojiAsOneCharacter()
     {
-        string value = string.Concat(Repeat(count: 50, text: "\U0001F600"));
+        string value = string.Concat(Enumerable.Repeat(element: "\U0001F600", count: 50));
 
         Assert.Equal(expected: value, actual: GitHubNames.Label(value: value, parameterName: PARAMETER));
     }
@@ -238,14 +239,6 @@ public sealed class GitHubNamesTests : TestBase
             actualString: exception.Message,
             comparisonType: StringComparison.Ordinal
         );
-    }
-
-    private static string[] Repeat(int count, string text)
-    {
-        string[] items = new string[count];
-        Array.Fill(array: items, value: text);
-
-        return items;
     }
 
     // The message is fully determined by the parameter name and rule, which proves the rejected value is never echoed
