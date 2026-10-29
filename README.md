@@ -100,6 +100,28 @@ docker inspect --format '{{.State.Health.Status}}' workflow-mcp
 curl https://<host>:8081/ping
 ```
 
+### Parameter rules
+
+Tool parameters are checked before any GitHub call is made.
+A value that breaks a rule is rejected with a message that names the parameter and the rule, never the value itself.
+
+| Parameter        | Rule                                                                                                                                                   |
+|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Repository       | `owner/repo`: exactly one `/`; each part uses only letters, digits, `_`, `.` and `-`, and is not `.` or `..`.                                          |
+| Number           | Digits `0-9` only; leading zeros are removed, and zero is allowed.                                                                                     |
+| Issue/PR number  | Digits `0-9` only, greater than zero; leading zeros are removed.                                                                                       |
+| Comment ID       | Digits `0-9` only, greater than zero, at most 19 digits once leading zeros are removed.                                                                |
+| Commit SHA       | Exactly 40 hexadecimal characters; returned in lower case.                                                                                             |
+| Branch           | A valid git ref name (see below) that does not start with `-` and is not `HEAD`.                                                                       |
+| Tag              | A valid git ref name (see below).                                                                                                                      |
+| Status           | Any text without control characters (`U+0000`-`U+001F`, `U+007F`-`U+009F`).                                                                            |
+| Label            | Not empty or whitespace, no `,` or control characters, at most 50 characters counted as Unicode scalar values (an emoji counts once).                  |
+| Login            | Letters, digits, `_` and `-` only, optionally followed by `[bot]`.                                                                                     |
+
+A valid git ref name is not empty or `@`; does not contain `..`, `@{`, `//`, a space, `~`, `^`, `:`, `?`, `*`, `[`, `\` or a control character; does not start with `/` or end with `/` or `.`; and has no `/`-separated component that starts with `.` or ends with `.lock`.
+
+When a branch name is placed in a GitHub API path, every UTF-8 byte other than `A-Z`, `a-z`, `0-9`, `.`, `_`, `~`, `-` and `/` is percent-encoded, so `feature/a+b` becomes `feature/a%2Bb`.
+
 ### Configuration
 
 Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`), and command-line arguments (use `:` as the section separator, for example `--GitHub:ApiBaseUrl=https://ghe.example.com/api/v3/`).
