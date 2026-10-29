@@ -7,11 +7,6 @@ public static class GitRefFormat
 {
     private static readonly SearchValues<char> ForbiddenCharacters = SearchValues.Create(" ~^:?*[\\");
 
-    public static bool IsControlCharacter(char value)
-    {
-        return value is < ' ' or >= '\u007F' and <= '\u009F';
-    }
-
     public static bool ContainsControlCharacter(string value)
     {
         ReadOnlySpan<char> span = value.AsSpan();
