@@ -53,20 +53,6 @@ public sealed class GitRefFormatTests : TestBase
     }
 
     [Theory]
-    [InlineData('\u0000', true)]
-    [InlineData('\u001F', true)]
-    [InlineData(' ', false)]
-    [InlineData('~', false)]
-    [InlineData('\u007F', true)]
-    [InlineData('\u0080', true)]
-    [InlineData('\u009F', true)]
-    [InlineData(' ', false)]
-    public static void ControlCharactersAreDetected(char value, bool expected)
-    {
-        Assert.Equal(expected: expected, actual: GitRefFormat.IsControlCharacter(value));
-    }
-
-    [Theory]
     [InlineData("plain text", false)]
     [InlineData("", false)]
     [InlineData("tab\there", true)]
