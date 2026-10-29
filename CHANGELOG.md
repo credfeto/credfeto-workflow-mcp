@@ -15,7 +15,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Dockerfile for building and running the MCP server
 - Bearer token requirement on /mcp, forwarded to the configured GitHub ApiBaseUrl through host-restricted REST and GraphQL clients with bounded paging, plus a per-caller-token, per-repo id cache so ids fetched with one caller's token are never served to another
 - Name validation and GitHub API path encoding (owner/repo, numbers, comment ids, SHAs, branches, tags, labels, BranchPath)
-- Workflow board resolution with per-repository cache (#4)
+- Workflow board resolver (IWorkflowBoardResolver) that finds the open 'Workflow' GitHub Project v2 for a repository, cached per repository
 ### Fixed
 ### Changed
 ### Deprecated
