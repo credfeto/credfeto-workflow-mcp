@@ -48,4 +48,37 @@ public sealed class WorkflowMcpTools
             throw new McpException(message: exception.Message, innerException: exception);
         }
     }
+
+    [McpServerTool(Name = "branch_required_checks", Title = "Branch required checks", ReadOnly = true)]
+    [Description(
+        "Lists the status check names a branch requires before a merge, from branch protection and rulesets combined, or fails rather than return a partial list"
+    )]
+    public static async Task<BranchRequiredChecksResponse> BranchRequiredChecksAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The branch name")] string branch,
+        IRequiredChecksReader reader,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await reader.ReadRequiredCheckNamesAsync(
+                repository: repo,
+                branch: branch,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is BranchNotFoundException
+                        or RepositoryNotFoundException
+                        or RequiredChecksUnreadableException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
 }

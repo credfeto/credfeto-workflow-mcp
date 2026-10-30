@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
@@ -137,7 +138,18 @@ public sealed class GitHubRestClient : IGitHubRestClient
         {
             this._logger.LogRequestFailed(path: requestUri.PathAndQuery, statusCode: (int)response.StatusCode);
 
-            throw GitHubHttpFailure.FromResponse(response);
+            // Only a 403 is told apart by its message, so any other failure is reported without reading the body
+            if (response.StatusCode != HttpStatusCode.Forbidden)
+            {
+                throw GitHubHttpFailure.FromResponse(response);
+            }
+
+            string? upstreamMessage = await GitHubHttpFailure.ReadUpstreamMessageAsync(
+                content: response.Content,
+                cancellationToken: cancellationToken
+            );
+
+            throw GitHubHttpFailure.FromResponse(response: response, upstreamMessage: upstreamMessage);
         }
     }
 

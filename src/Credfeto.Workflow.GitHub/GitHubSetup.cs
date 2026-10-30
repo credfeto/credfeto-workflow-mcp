@@ -7,6 +7,7 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
+using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
@@ -79,6 +80,7 @@ public static class GitHubSetup
             .AddSingleton<IGitHubGraphQlClient, GitHubGraphQlClient>()
             .AddSingleton<IWorkflowBoardResolver, WorkflowBoardResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
+            .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddTransient<CallerTokenForwardingHandler>()
             .AddHttpClient(name: HttpClientName, configureClient: ConfigureHttpClient)
             .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)

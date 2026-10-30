@@ -67,3 +67,29 @@ Content-Type: application/json
     "threadsAfter": null
   }
 }
+
+### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
+# A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
+# is missing, which the repository request below tells apart.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/branches/main
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the ruleset rules that apply to a branch (branch_required_checks)
+# Follow the Link header's rel="next" URL until there is none. A 403 saying "Upgrade to GitHub Pro or
+# make this repository public" means rulesets are unavailable, so the branch has no ruleset checks.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/rules/branches/main?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the repository, only after the branch request returned 404 (branch_required_checks)
+# A 200 means the branch is missing; a 404 means the repository is missing or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp

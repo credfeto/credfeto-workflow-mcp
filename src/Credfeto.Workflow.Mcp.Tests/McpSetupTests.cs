@@ -18,8 +18,11 @@ public sealed class McpSetupTests : TestBase
     {
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Configuration.Sources.Clear();
-        // Registered so the tool binds the reader as a service instead of a JSON argument
-        _ = builder.Services.AddMockedService<IPullRequestCommentsReader>().AddMcpTools();
+        // Registered so each tool binds its reader as a service instead of a JSON argument
+        _ = builder
+            .Services.AddMockedService<IPullRequestCommentsReader>()
+            .AddMockedService<IRequiredChecksReader>()
+            .AddMcpTools();
 
         await using WebApplication app = builder.Build();
 

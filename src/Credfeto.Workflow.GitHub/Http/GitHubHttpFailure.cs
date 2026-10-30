@@ -1,18 +1,80 @@
 using System;
+using System.IO;
 using System.Net.Http;
+using System.Text.Json;
+using System.Threading;
+using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Json;
 
 namespace Credfeto.Workflow.GitHub.Http;
 
 internal static class GitHubHttpFailure
 {
-    // The response body is deliberately left out: it is upstream content that callers may surface
-    public static HttpRequestException FromResponse(HttpResponseMessage response)
+    private const string UPSTREAM_MESSAGE_KEY = "Credfeto.Workflow.GitHub.UpstreamMessage";
+
+    // An error body is only read to tell failures with the same status apart, so anything larger is not an
+    // error message GitHub would send and is ignored rather than buffered
+    private const int MAX_UPSTREAM_MESSAGE_BYTES = 16 * 1024;
+
+    // The upstream message is kept only in the exception's Data, never in its Message: it is upstream content that
+    // callers may surface, so it is there for readers that must tell failures with the same status apart
+    public static HttpRequestException FromResponse(HttpResponseMessage response, string? upstreamMessage = null)
     {
-        return new(
+        HttpRequestException exception = new(
             message: $"GitHub request failed with status {response.StatusCode}",
             inner: null,
             statusCode: response.StatusCode
         );
+
+        if (upstreamMessage is not null)
+        {
+            exception.Data[UPSTREAM_MESSAGE_KEY] = upstreamMessage;
+        }
+
+        return exception;
+    }
+
+    public static string? UpstreamMessage(HttpRequestException exception)
+    {
+        return exception.Data[UPSTREAM_MESSAGE_KEY] as string;
+    }
+
+    // Content-Length is not trusted, so one byte past the limit is read to detect an oversize body. A body that is
+    // empty, too large or not a GitHub error document has no usable message
+    public static async ValueTask<string?> ReadUpstreamMessageAsync(
+        HttpContent content,
+        CancellationToken cancellationToken
+    )
+    {
+        byte[] buffer = new byte[MAX_UPSTREAM_MESSAGE_BYTES + 1];
+
+        await using Stream stream = await content.ReadAsStreamAsync(cancellationToken);
+
+        int length = await stream.ReadAtLeastAsync(
+            buffer: buffer,
+            minimumBytes: buffer.Length,
+            throwOnEndOfStream: false,
+            cancellationToken: cancellationToken
+        );
+
+        if (length is 0 or > MAX_UPSTREAM_MESSAGE_BYTES)
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer
+                .Deserialize(
+                    utf8Json: buffer.AsSpan(start: 0, length: length),
+                    jsonTypeInfo: GitHubJsonContext.Default.GitHubErrorResponse
+                )
+                ?.Message;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     // No complete response was received, so there is no status code. A timeout can fire after GitHub has received

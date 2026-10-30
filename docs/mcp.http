@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "ping" and "pr_comments" tools
+### List tools; expects the "branch_required_checks", "ping" and "pr_comments" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -101,6 +101,44 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "not-a-repository",
       "pr": 41
+    }
+  }
+}
+
+### Call the branch_required_checks tool; expects the repository, the branch and its required check names
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 6,
+  "method": "tools/call",
+  "params": {
+    "name": "branch_required_checks",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "branch": "main"
+    }
+  }
+}
+
+### Call the branch_required_checks tool with an invalid branch; expects a tool error naming the "branch" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "branch_required_checks",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "branch": "-bad"
     }
   }
 }
