@@ -124,6 +124,16 @@ A valid git ref name is not empty or `@`; does not contain `..`, `@{`, `//`, a s
 
 When a branch name is placed in a GitHub API path, every UTF-8 byte other than `A-Z`, `a-z`, `0-9`, `.`, `_`, `~`, `-` and `/` is percent-encoded, so `feature/a+b` becomes `feature/a%2Bb`.
 
+### Comment body rules
+
+An agent's comment that contains one of the two accepted plan-approval keywords could be read as a human approving a plan, so comment bodies are checked for them.
+
+- Either keyword is matched in any case, as a whole word.
+- A letter, digit or underscore directly on either side makes it part of a longer word, which passes.
+- Underscores around the keyword with only a word boundary beyond them are Markdown emphasis, which renders as the bare keyword, so that is still a match.
+- A Markdown quote line (a `>` after at most three leading spaces) is ignored, so a human's own words can be quoted. A `>` after four or more spaces, or after a tab, is Markdown code rather than a quote, so a keyword on that line still counts.
+- A refusal reports the rule name and the 1-based line number of the first matching line, never the matched text.
+
 ### Configuration
 
 Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`), and command-line arguments (use `:` as the section separator, for example `--GitHub:ApiBaseUrl=https://ghe.example.com/api/v3/`).
