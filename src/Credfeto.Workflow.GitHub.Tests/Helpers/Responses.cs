@@ -46,6 +46,14 @@ internal static class Responses
         return new(statusCode);
     }
 
+    public static HttpResponseMessage StatusWithJson(HttpStatusCode statusCode, string json)
+    {
+        return new(statusCode)
+        {
+            Content = new StringContent(content: json, encoding: Encoding.UTF8, mediaType: "application/json"),
+        };
+    }
+
     public static HttpResponseMessage StatusWithRetryAfter(
         HttpStatusCode statusCode,
         RetryConditionHeaderValue retryAfter

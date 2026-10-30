@@ -137,7 +137,12 @@ public sealed class GitHubRestClient : IGitHubRestClient
         {
             this._logger.LogRequestFailed(path: requestUri.PathAndQuery, statusCode: (int)response.StatusCode);
 
-            throw GitHubHttpFailure.FromResponse(response);
+            string? upstreamMessage = await GitHubHttpFailure.ReadUpstreamMessageAsync(
+                content: response.Content,
+                cancellationToken: cancellationToken
+            );
+
+            throw GitHubHttpFailure.FromResponse(response: response, upstreamMessage: upstreamMessage);
         }
     }
 

@@ -18,11 +18,15 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private const string REPOSITORY = "credfeto/credfeto-workflow-mcp";
     private const int PULL_REQUEST = 41;
 
+    private const string BRANCH = "main";
+
+    private readonly IRequiredChecksReader _checksReader;
     private readonly IPullRequestCommentsReader _reader;
 
     public WorkflowMcpToolsTests()
     {
         this._reader = GetSubstitute<IPullRequestCommentsReader>();
+        this._checksReader = GetSubstitute<IRequiredChecksReader>();
     }
 
     [Fact]
@@ -89,6 +93,101 @@ public sealed class WorkflowMcpToolsTests : TestBase
         GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(this.ReadAsync);
 
         Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task BranchRequiredChecksReturnsWhatTheReaderReadAsync()
+    {
+        BranchRequiredChecksResponse expected = new(Repo: REPOSITORY, Branch: BRANCH, Checks: ["build", "lint"]);
+        this._checksReader.ReadRequiredCheckNamesAsync(
+                repository: REPOSITORY,
+                branch: BRANCH,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        BranchRequiredChecksResponse actual = await this.ReadRequiredChecksAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task BranchNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertChecksFailureReportedAsync(
+            new BranchNotFoundException("the branch " + BRANCH + " was not found in " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task RepositoryNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertChecksFailureReportedAsync(
+            new RepositoryNotFoundException(
+                "the repository " + REPOSITORY + " was not found, or the caller cannot see it"
+            )
+        );
+    }
+
+    [Fact]
+    public Task UnreadableRequiredChecksAreReportedToTheCallerAsync()
+    {
+        return this.AssertChecksFailureReportedAsync(
+            new RequiredChecksUnreadableException(
+                "could not read the required checks of " + REPOSITORY + " branch " + BRANCH
+            )
+        );
+    }
+
+    [Fact]
+    public Task InvalidBranchParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertChecksFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "branch", rule: "must not start with '-'")
+        );
+    }
+
+    [Fact]
+    public async Task OtherRequiredChecksFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.ChecksReaderFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.ReadRequiredChecksAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private async Task AssertChecksFailureReportedAsync(Exception failure)
+    {
+        this.ChecksReaderFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.ReadRequiredChecksAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void ChecksReaderFailsWith(Exception failure)
+    {
+        this._checksReader.ReadRequiredCheckNamesAsync(
+                repository: REPOSITORY,
+                branch: BRANCH,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<BranchRequiredChecksResponse> ReadRequiredChecksAsync()
+    {
+        return WorkflowMcpTools.BranchRequiredChecksAsync(
+            repo: REPOSITORY,
+            branch: BRANCH,
+            reader: this._checksReader,
+            cancellationToken: this.CancellationToken()
+        );
     }
 
     private async Task AssertReportedAsync(Exception failure)
