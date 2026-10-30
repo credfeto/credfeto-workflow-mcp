@@ -118,7 +118,9 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
             PullRequestNode node =
                 data.Repository?.PullRequest ?? throw PullRequestCommentsFailure.Incomplete(reference);
 
-            AcceptPage(node: node, comments: comments, reviews: reviews, threads: threads);
+            comments.Accept(node.Comments);
+            reviews.Accept(node.Reviews);
+            threads.Accept(node.ReviewThreads);
 
             if (!comments.Pending && !reviews.Pending && !threads.Pending)
             {
@@ -133,29 +135,6 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
         }
 
         throw PullRequestCommentsFailure.Incomplete(reference);
-    }
-
-    private static void AcceptPage(
-        PullRequestNode node,
-        PagedList<IssueCommentNode, PullRequestComment> comments,
-        PagedList<ReviewNode, PullRequestReview> reviews,
-        PagedList<ReviewThreadNode, PullRequestThread> threads
-    )
-    {
-        if (comments.Pending)
-        {
-            comments.Accept(node.Comments);
-        }
-
-        if (reviews.Pending)
-        {
-            reviews.Accept(node.Reviews);
-        }
-
-        if (threads.Pending)
-        {
-            threads.Accept(node.ReviewThreads);
-        }
     }
 
     private static PullRequestComments BuildResult(

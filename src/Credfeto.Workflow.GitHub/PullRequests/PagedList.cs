@@ -34,6 +34,11 @@ internal sealed class PagedList<TNode, TResult>
 
     public void Accept(GraphQlConnection<TNode>? connection)
     {
+        if (!this.Pending)
+        {
+            return;
+        }
+
         if (connection is null)
         {
             throw this.Incomplete();
