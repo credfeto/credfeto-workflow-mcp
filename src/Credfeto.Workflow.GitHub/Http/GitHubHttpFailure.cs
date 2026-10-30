@@ -16,14 +16,9 @@ internal static class GitHubHttpFailure
     // error message GitHub would send and is ignored rather than buffered
     private const int MAX_UPSTREAM_MESSAGE_BYTES = 16 * 1024;
 
-    public static HttpRequestException FromResponse(HttpResponseMessage response)
-    {
-        return FromResponse(response: response, upstreamMessage: null);
-    }
-
     // The upstream message is kept only in the exception's Data, never in its Message: it is upstream content that
     // callers may surface, so it is there for readers that must tell failures with the same status apart
-    public static HttpRequestException FromResponse(HttpResponseMessage response, string? upstreamMessage)
+    public static HttpRequestException FromResponse(HttpResponseMessage response, string? upstreamMessage = null)
     {
         HttpRequestException exception = new(
             message: $"GitHub request failed with status {response.StatusCode}",
