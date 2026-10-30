@@ -4,7 +4,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Text.RegularExpressions;
 using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Http;
 
@@ -12,11 +11,9 @@ namespace Credfeto.Workflow.GitHub.PullRequests;
 
 // Turns upstream nodes into the tool's output, refusing any node with a missing or malformed required field
 [DebuggerDisplay("{_reference}")]
-internal sealed partial class PullRequestCommentsProjector
+internal sealed class PullRequestCommentsProjector
 {
     private const int MAX_THREAD_COMMENTS = 100;
-
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     private const string COMMENTED_STATE = "COMMENTED";
 
@@ -124,7 +121,7 @@ internal sealed partial class PullRequestCommentsProjector
 
     private string Id(string? value)
     {
-        if (value is null || !DatabaseId().IsMatch(value))
+        if (value is null || value.Length == 0 || value.AsSpan().ContainsAnyExceptInRange('0', '9'))
         {
             throw this.Incomplete();
         }
@@ -222,12 +219,4 @@ internal sealed partial class PullRequestCommentsProjector
     {
         return PullRequestCommentsFailure.Incomplete(this._reference);
     }
-
-    // \z rather than $ because in .NET $ also matches before a trailing newline, which would let one through
-    [GeneratedRegex(
-        pattern: @"^[0-9]+\z",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex DatabaseId();
 }
