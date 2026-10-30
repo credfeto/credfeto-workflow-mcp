@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.Http;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
 
@@ -129,19 +130,13 @@ internal sealed partial class PullRequestCommentsProjector
         if (
             value is null
             || !Uri.TryCreate(uriString: value, uriKind: UriKind.Absolute, out Uri? uri)
-            || !IsWebScheme(uri)
+            || !UriSchemes.IsHttp(uri)
         )
         {
             throw this.Incomplete();
         }
 
         return uri;
-    }
-
-    private static bool IsWebScheme(Uri uri)
-    {
-        return StringComparer.Ordinal.Equals(x: uri.Scheme, y: Uri.UriSchemeHttps)
-            || StringComparer.Ordinal.Equals(x: uri.Scheme, y: Uri.UriSchemeHttp);
     }
 
     // A deleted account leaves no author, which is reported as an empty author rather than refused
@@ -202,7 +197,7 @@ internal sealed partial class PullRequestCommentsProjector
 
     private static bool IsBlank(string body)
     {
-        return body.All(static character => character is ' ' or '\t' or '\r' or '\n');
+        return body.AsSpan().IndexOfAnyExcept(" \t\r\n".AsSpan()) < 0;
     }
 
     private static string LineNumber(int? line)
