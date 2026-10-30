@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -22,6 +23,13 @@ internal sealed partial class PullRequestCommentsProjector
     private const char LINE_SEPARATOR = (char)0x2028;
 
     private const char PARAGRAPH_SEPARATOR = (char)0x2029;
+
+    private static readonly SearchValues<char> LineBreakingCharacters = SearchValues.Create([
+        .. Enumerable.Range(start: 0x00, count: 0x20).Select(static c => (char)c),
+        .. Enumerable.Range(start: 0x7F, count: 0x21).Select(static c => (char)c),
+        LINE_SEPARATOR,
+        PARAGRAPH_SEPARATOR,
+    ]);
 
     private readonly string _reference;
 
@@ -168,6 +176,11 @@ internal sealed partial class PullRequestCommentsProjector
         if (value is null)
         {
             throw this.Incomplete();
+        }
+
+        if (!value.AsSpan().ContainsAny(LineBreakingCharacters))
+        {
+            return value;
         }
 
         return string.Create(
