@@ -92,7 +92,7 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
             Checks:
             [
                 .. checks
-                    .Select(check => ReplaceControlCharacters(check.Name))
+                    .Select(check => UpstreamText.ReplaceLineBreaking(check.Name))
                     .Distinct(StringComparer.Ordinal)
                     .Order(StringComparer.Ordinal),
             ]
@@ -290,22 +290,5 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
             ),
             _ => appId,
         };
-    }
-
-    // Check names are upstream content shown to callers, so control characters cannot reach them as-is
-    private static string ReplaceControlCharacters(string name)
-    {
-        return string.Create(
-            length: name.Length,
-            state: name,
-            action: static (span, source) =>
-            {
-                for (int index = 0; index < source.Length; ++index)
-                {
-                    char character = source[index];
-                    span[index] = char.IsControl(character) ? ' ' : character;
-                }
-            }
-        );
     }
 }
