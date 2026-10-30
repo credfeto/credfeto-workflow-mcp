@@ -1,9 +1,12 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Interfaces;
 using FunFair.Test.Common;
+using FunFair.Test.Infrastructure;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Xunit;
 
 namespace Credfeto.Workflow.Mcp.Tests;
@@ -15,7 +18,8 @@ public sealed class McpSetupTests : TestBase
     {
         WebApplicationBuilder builder = WebApplication.CreateSlimBuilder();
         builder.Configuration.Sources.Clear();
-        _ = builder.Services.AddMcpTools();
+        // Registered so the tool binds the reader as a service instead of a JSON argument
+        _ = builder.Services.AddMockedService<IPullRequestCommentsReader>().AddMcpTools();
 
         await using WebApplication app = builder.Build();
 
