@@ -4,6 +4,7 @@ using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.GitHub.PullRequests;
 using FunFair.Test.Common;
 using FunFair.Test.Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -72,6 +73,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void WorkflowBoardResolverShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IWorkflowBoardResolver, WorkflowBoardResolver>();
+    }
+
+    [Fact]
+    public void PullRequestCommentsReaderShouldBeRegistered()
+    {
+        this.RequireService<IPullRequestCommentsReader>();
+    }
+
+    [Fact]
+    public void PullRequestCommentsReaderShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPullRequestCommentsReader, PullRequestCommentsReader>();
     }
 
     [Fact]

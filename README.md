@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping` tool and a matching HTTP health check; the workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping` and `pr_comments` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -45,9 +45,10 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 
 ### MCP tools
 
-| Tool   | Description                                                  |
-|--------|--------------------------------------------------------------|
-| `ping` | Returns `{"value":"pong"}`, the same payload as `GET /ping`. |
+| Tool          | Description                                                                                                                                                                                               |
+|---------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `ping`        | Returns `{"value":"pong"}`, the same payload as `GET /ping`.                                                                                                                                              |
+| `pr_comments` | Read only. Takes `repo` (`owner/repo`) and `pr`; returns the review decision, every top-level comment, review and inline review thread, and a summary of counts. Fails rather than return a partial list. |
 
 ### Listening ports
 

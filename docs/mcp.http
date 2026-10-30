@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects a single "ping" tool
+### List tools; expects the "ping" and "pr_comments" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -64,5 +64,43 @@ Accept: application/json, text/event-stream
   "params": {
     "name": "ping",
     "arguments": {}
+  }
+}
+
+### Call the pr_comments tool; expects the pull request's comments, reviews, review threads and summary
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 4,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_comments",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41
+    }
+  }
+}
+
+### Call the pr_comments tool with an invalid repository; expects a tool error naming the "repo" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 5,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_comments",
+    "arguments": {
+      "repo": "not-a-repository",
+      "pr": 41
+    }
   }
 }

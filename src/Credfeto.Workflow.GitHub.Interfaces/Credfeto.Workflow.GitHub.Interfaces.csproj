@@ -36,6 +36,9 @@
     <WarningsAsErrors />
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../Credfeto.Workflow.Data.Models/Credfeto.Workflow.Data.Models.csproj" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="AsyncFixer" Version="2.1.0" PrivateAssets="All" ExcludeAssets="runtime" />
     <PackageReference Include="Credfeto.Exceptions.SourceGenerator" Version="0.0.13.429" PrivateAssets="All" ExcludeAssets="runtime" />
     <PackageReference Include="FunFair.CodeAnalysis" Version="7.2.20.2501" PrivateAssets="All" ExcludeAssets="runtime" />
