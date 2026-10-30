@@ -37,18 +37,11 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
 
     public ValueTask<BranchInfo> ReadBranchAsync(string repository, string branch, CancellationToken cancellationToken)
     {
-        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
-        string validBranch = GitHubNames.Branch(value: branch, parameterName: nameof(branch));
-
-        return ReadOrFailAsync(
-            repository: validRepository,
-            branch: validBranch,
-            read: () =>
-                this.ReadBranchInfoAsync(
-                    repository: validRepository,
-                    branch: validBranch,
-                    cancellationToken: cancellationToken
-                )
+        return ReadValidatedAsync(
+            repository: repository,
+            branch: branch,
+            read: this.ReadBranchInfoAsync,
+            cancellationToken: cancellationToken
         );
     }
 
@@ -58,18 +51,11 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
         CancellationToken cancellationToken
     )
     {
-        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
-        string validBranch = GitHubNames.Branch(value: branch, parameterName: nameof(branch));
-
-        return ReadOrFailAsync(
-            repository: validRepository,
-            branch: validBranch,
-            read: () =>
-                this.ReadAllRequiredChecksAsync(
-                    repository: validRepository,
-                    branch: validBranch,
-                    cancellationToken: cancellationToken
-                )
+        return ReadValidatedAsync(
+            repository: repository,
+            branch: branch,
+            read: this.ReadAllRequiredChecksAsync,
+            cancellationToken: cancellationToken
         );
     }
 
@@ -96,6 +82,25 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
                     .Distinct(StringComparer.Ordinal)
                     .Order(StringComparer.Ordinal),
             ]
+        );
+    }
+
+    // The arguments are validated before anything is read, so an invalid one is reported as such rather than as
+    // unreadable checks
+    private static ValueTask<T> ReadValidatedAsync<T>(
+        string repository,
+        string branch,
+        Func<string, string, CancellationToken, ValueTask<T>> read,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+        string validBranch = GitHubNames.Branch(value: branch, parameterName: nameof(branch));
+
+        return ReadOrFailAsync(
+            repository: validRepository,
+            branch: validBranch,
+            read: () => read(arg1: validRepository, arg2: validBranch, arg3: cancellationToken)
         );
     }
 
@@ -212,7 +217,7 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
             .. (required.Checks ?? []).Select(check =>
                 check is null
                     ? throw new GitHubInvalidResponseException("GitHub returned an empty required status check")
-                    : new RequiredCheck(Name: ValidName(check.Context), AppId: ValidAppId(check.AppId))
+                    : ToRequiredCheck(context: check.Context, appId: check.AppId)
             ),
         ];
 
@@ -261,7 +266,7 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
                 .Select(check =>
                     check is null
                         ? throw new GitHubInvalidResponseException("GitHub returned an empty required status check")
-                        : new RequiredCheck(Name: ValidName(check.Context), AppId: ValidAppId(check.IntegrationId))
+                        : ToRequiredCheck(context: check.Context, appId: check.IntegrationId)
                 ),
         ];
     }
@@ -271,6 +276,11 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
         return exception.StatusCode == HttpStatusCode.Forbidden
             && GitHubHttpFailure.UpstreamMessage(exception) is { } message
             && message.Contains(value: RULESETS_UNAVAILABLE_MESSAGE, comparisonType: StringComparison.Ordinal);
+    }
+
+    private static RequiredCheck ToRequiredCheck(string? context, long? appId)
+    {
+        return new(Name: ValidName(context), AppId: ValidAppId(appId));
     }
 
     private static string ValidName(string? name)
