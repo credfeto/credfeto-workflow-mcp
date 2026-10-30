@@ -17,6 +17,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Name validation and GitHub API path encoding (owner/repo, numbers, comment ids, SHAs, branches, tags, labels, BranchPath)
 - Workflow board resolver (IWorkflowBoardResolver) that finds the open 'Workflow' GitHub Project v2 for a repository, cached per repository
 - Added read-only pr_comments MCP tool (repo, pr) that returns all comments, reviews and review threads with their inline comments for a pull request, fully paginated and count-verified, using the GitHub GraphQL client (#29)
+- Added read-only branch_required_checks MCP tool (repo, branch) that lists the status checks a branch requires, merged from branch protection and rulesets (#24)
 ### Fixed
 ### Changed
 ### Deprecated
