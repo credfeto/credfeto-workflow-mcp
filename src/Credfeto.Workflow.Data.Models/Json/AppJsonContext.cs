@@ -4,6 +4,8 @@ using Credfeto.Workflow.Data.Models.Models;
 namespace Credfeto.Workflow.Data.Models.Json;
 
 [JsonSerializable(typeof(PingResponse))]
+[JsonSerializable(typeof(PullRequestComments))]
+[JsonSerializable(typeof(int))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
     DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull

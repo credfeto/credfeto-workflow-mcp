@@ -42,3 +42,28 @@ Content-Type: application/json
     "after": null
   }
 }
+
+### GraphQL: a pull request's review decision, comments, reviews and review threads (pr_comments)
+# Each connection is paged on its own: while one still has pageInfo.hasNextPage true, repeat with its
+# include flag true and its "...After" set to its pageInfo.endCursor; finished connections get false.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!,$comments:Boolean!,$reviews:Boolean!,$threads:Boolean!,$commentsAfter:String,$reviewsAfter:String,$threadsAfter:String){repository(owner:$o,name:$r){pullRequest(number:$n){reviewDecision comments(first:100,after:$commentsAfter) @include(if:$comments){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation createdAt isMinimized url body}} reviews(first:100,after:$reviewsAfter) @include(if:$reviews){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation state submittedAt url body}} reviewThreads(first:100,after:$threadsAfter) @include(if:$threads){totalCount pageInfo{hasNextPage endCursor} nodes{isResolved isOutdated path line originalLine comments(first:100){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation createdAt isMinimized url body replyTo{fullDatabaseId} pullRequestReview{fullDatabaseId}}}}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 41,
+    "comments": true,
+    "reviews": true,
+    "threads": true,
+    "commentsAfter": null,
+    "reviewsAfter": null,
+    "threadsAfter": null
+  }
+}
