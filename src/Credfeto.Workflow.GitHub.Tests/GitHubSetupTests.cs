@@ -1,4 +1,5 @@
 using Credfeto.Workflow.GitHub.Authorization;
+using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
@@ -59,6 +60,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void GitHubGraphQlClientShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IGitHubGraphQlClient, GitHubGraphQlClient>();
+    }
+
+    [Fact]
+    public void WorkflowBoardResolverShouldBeRegistered()
+    {
+        this.RequireService<IWorkflowBoardResolver>();
+    }
+
+    [Fact]
+    public void WorkflowBoardResolverShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IWorkflowBoardResolver, WorkflowBoardResolver>();
     }
 
     [Fact]

@@ -24,3 +24,21 @@ Content-Type: application/json
   "query": "query { viewer { login } }",
   "variables": {}
 }
+
+### GraphQL: list projects linked to a repository (finds the board titled Workflow)
+# Repeat with "after" set to pageInfo.endCursor while pageInfo.hasNextPage is true.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($owner:String!,$name:String!,$after:String){ repository(owner:$owner,name:$name){ projectsV2(first: 100, after:$after){ nodes{ id number title closed resourcePath } pageInfo{ hasNextPage endCursor } } } }",
+  "variables": {
+    "owner": "credfeto",
+    "name": "credfeto-workflow-mcp",
+    "after": null
+  }
+}
