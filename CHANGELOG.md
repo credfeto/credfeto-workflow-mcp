@@ -18,6 +18,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Workflow board resolver (IWorkflowBoardResolver) that finds the open 'Workflow' GitHub Project v2 for a repository, cached per repository
 - Added read-only pr_comments MCP tool (repo, pr) that returns all comments, reviews and review threads with their inline comments for a pull request, fully paginated and count-verified, using the GitHub GraphQL client (#29)
 - Added read-only branch_required_checks MCP tool (repo, branch) that lists the status checks a branch requires, merged from branch protection and rulesets, read through a shared IRequiredChecksReader, so workflows can see which checks must pass before merge (#24)
+- Approval keyword matcher (refusal check returning first matching line, and yes/no detection) ported from cfwf, ignoring Markdown quote lines (#9)
 ### Fixed
 ### Changed
 ### Deprecated
