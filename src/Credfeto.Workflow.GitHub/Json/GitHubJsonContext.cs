@@ -20,4 +20,9 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(StatusQueryData))]
 [JsonSerializable(typeof(BoardItemsQueryVariables))]
 [JsonSerializable(typeof(BoardItemsQueryData))]
+[JsonSerializable(typeof(NodeIdQueryData))]
+[JsonSerializable(typeof(AddItemMutationVariables))]
+[JsonSerializable(typeof(AddItemMutationData))]
+[JsonSerializable(typeof(UpdateItemMutationVariables))]
+[JsonSerializable(typeof(UpdateItemMutationData))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

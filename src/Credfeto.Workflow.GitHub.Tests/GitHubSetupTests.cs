@@ -89,6 +89,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void BoardWriterShouldBeRegistered()
+    {
+        this.RequireService<IBoardWriter>();
+    }
+
+    [Fact]
+    public void BoardWriterShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IBoardWriter, BoardWriter>();
+    }
+
+    [Fact]
     public void PullRequestCommentsReaderShouldBeRegistered()
     {
         this.RequireService<IPullRequestCommentsReader>();

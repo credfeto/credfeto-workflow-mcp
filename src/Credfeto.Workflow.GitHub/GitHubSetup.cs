@@ -80,6 +80,7 @@ public static class GitHubSetup
             .AddSingleton<IGitHubGraphQlClient, GitHubGraphQlClient>()
             .AddSingleton<IWorkflowBoardResolver, WorkflowBoardResolver>()
             .AddSingleton<IWorkflowBoardReader, WorkflowBoardReader>()
+            .AddSingleton<IBoardWriter, BoardWriter>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddTransient<CallerTokenForwardingHandler>()

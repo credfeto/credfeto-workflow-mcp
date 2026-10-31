@@ -104,6 +104,60 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: a work item's node id, only when its board item id is not cached (board_set_status)
+# For a pull request use item:pullRequest(number:$n) in place of item:issue(number:$n).
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){item:issue(number:$n){id}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 6
+  }
+}
+
+### GraphQL: add a work item to the Workflow board (board_set_status)
+# Adding an item that is already on the board returns its existing item id.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}",
+  "variables": {
+    "p": "PVT_kwDOA",
+    "c": "I_kwDOA"
+  }
+}
+
+### GraphQL: set a board item's status (board_set_status)
+# An error saying "Could not resolve to a node" means the cached item id is stale, so the item is added again.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}",
+  "variables": {
+    "p": "PVT_kwDOA",
+    "i": "PVTI_lADOA",
+    "f": "PVTSSF_lADOA",
+    "o": "47fc9ee4"
+  }
+}
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.
