@@ -79,6 +79,7 @@ public static class GitHubSetup
             .AddSingleton<IGitHubRestClient, GitHubRestClient>()
             .AddSingleton<IGitHubGraphQlClient, GitHubGraphQlClient>()
             .AddSingleton<IWorkflowBoardResolver, WorkflowBoardResolver>()
+            .AddSingleton<IWorkflowBoardReader, WorkflowBoardReader>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddTransient<CallerTokenForwardingHandler>()

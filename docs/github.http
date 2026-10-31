@@ -68,6 +68,42 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: an issue's or pull request's status on the Workflow board (board_read_status)
+# For a pull request use item:pullRequest(number:$n) in place of item:issue(number:$n). The node whose project id is
+# the board's gives the status: the legacy "Workflow Status" field wins, else "Status" when it is a workflow state.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){item:issue(number:$n){projectItems(first:100){nodes{project{id} legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}} pageInfo{hasNextPage endCursor}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 7
+  }
+}
+
+### GraphQL: list the Workflow board's items, only after the direct status read failed (board_read_status)
+# Repeat with "c" set to pageInfo.endCursor while pageInfo.hasNextPage is true and the work item is not yet found.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($project:ID!,$c:String){node(id:$project){... on ProjectV2{items(first:100,after:$c){nodes{type content{... on Issue{number repository{nameWithOwner}} ... on PullRequest{number repository{nameWithOwner}}} legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}} pageInfo{hasNextPage endCursor}}}}}",
+  "variables": {
+    "project": "PVT_kwDOA",
+    "c": null
+  }
+}
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.

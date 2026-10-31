@@ -19,6 +19,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only pr_comments MCP tool (repo, pr) that returns all comments, reviews and review threads with their inline comments for a pull request, fully paginated and count-verified, using the GitHub GraphQL client (#29)
 - Added read-only branch_required_checks MCP tool (repo, branch) that lists the status checks a branch requires, merged from branch protection and rulesets, read through a shared IRequiredChecksReader, so workflows can see which checks must pass before merge (#24)
 - Approval keyword matcher (refusal check returning first matching line, and yes/no detection) ported from cfwf, ignoring Markdown quote lines (#9)
+- Workflow board reader (IWorkflowBoardReader) that reads the workflow status of an issue or pull request from the Workflow board via GraphQL, falling back to a paged listing of board items when a direct lookup is not available (#7)
 ### Fixed
 ### Changed
 ### Deprecated
