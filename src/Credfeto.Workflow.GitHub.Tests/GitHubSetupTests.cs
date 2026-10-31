@@ -77,6 +77,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void WorkflowBoardReaderShouldBeRegistered()
+    {
+        this.RequireService<IWorkflowBoardReader>();
+    }
+
+    [Fact]
+    public void WorkflowBoardReaderShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IWorkflowBoardReader, WorkflowBoardReader>();
+    }
+
+    [Fact]
     public void PullRequestCommentsReaderShouldBeRegistered()
     {
         this.RequireService<IPullRequestCommentsReader>();
