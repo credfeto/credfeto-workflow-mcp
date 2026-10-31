@@ -26,11 +26,14 @@ public sealed class WorkflowBoardReader : IWorkflowBoardReader
     private const string ISSUE_NOT_FOUND = "Could not resolve to an Issue with the number";
     private const string PULL_REQUEST_NOT_FOUND = "Could not resolve to a PullRequest with the number";
 
+    private const string FIELD_VALUES =
+        "legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}";
+
     private const string ISSUE_STATUS_QUERY =
-        "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){item:issue(number:$n){projectItems(first:100){nodes{project{id} legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}} pageInfo{hasNextPage endCursor}}}}}";
+        $"query($o:String!,$r:String!,$n:Int!){{repository(owner:$o,name:$r){{item:issue(number:$n){{projectItems(first:100){{nodes{{project{{id}} {FIELD_VALUES}}} pageInfo{{hasNextPage endCursor}}}}}}}}}}";
 
     private const string PULL_REQUEST_STATUS_QUERY =
-        "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){item:pullRequest(number:$n){projectItems(first:100){nodes{project{id} legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}} pageInfo{hasNextPage endCursor}}}}}";
+        $"query($o:String!,$r:String!,$n:Int!){{repository(owner:$o,name:$r){{item:pullRequest(number:$n){{projectItems(first:100){{nodes{{project{{id}} {FIELD_VALUES}}} pageInfo{{hasNextPage endCursor}}}}}}}}}}";
 
     private const string BOARD_ITEMS_QUERY =
         "query($project:ID!,$c:String){node(id:$project){... on ProjectV2{items(first:100,after:$c){nodes{type content{... on Issue{number repository{nameWithOwner}} ... on PullRequest{number repository{nameWithOwner}}} legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}} pageInfo{hasNextPage endCursor}}}}}";
