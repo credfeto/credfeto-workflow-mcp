@@ -36,7 +36,7 @@ public sealed class WorkflowBoardReader : IWorkflowBoardReader
         $"query($o:String!,$r:String!,$n:Int!){{repository(owner:$o,name:$r){{item:pullRequest(number:$n){{projectItems(first:100){{nodes{{project{{id}} {FIELD_VALUES}}} pageInfo{{hasNextPage endCursor}}}}}}}}}}";
 
     private const string BOARD_ITEMS_QUERY =
-        "query($project:ID!,$c:String){node(id:$project){... on ProjectV2{items(first:100,after:$c){nodes{type content{... on Issue{number repository{nameWithOwner}} ... on PullRequest{number repository{nameWithOwner}}} legacy:fieldValueByName(name:\"Workflow Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}} status:fieldValueByName(name:\"Status\"){... on ProjectV2ItemFieldSingleSelectValue{name}}} pageInfo{hasNextPage endCursor}}}}}";
+        $"query($project:ID!,$c:String){{node(id:$project){{... on ProjectV2{{items(first:100,after:$c){{nodes{{type content{{... on Issue{{number repository{{nameWithOwner}}}} ... on PullRequest{{number repository{{nameWithOwner}}}}}} {FIELD_VALUES}}} pageInfo{{hasNextPage endCursor}}}}}}}}}}";
 
     private static readonly BoardItemStatus NotOnBoard = new(State: BoardItemState.NOT_ON_BOARD, Name: null);
     private static readonly BoardItemStatus Unset = new(State: BoardItemState.UNSET, Name: null);
