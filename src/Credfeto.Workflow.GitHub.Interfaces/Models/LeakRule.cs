@@ -8,4 +8,5 @@ public enum LeakRule
     CONTROL_CHARACTER,
     INVALID_UTF8,
     TOO_LONG,
+    PRIVATE_REPOSITORY,
 }

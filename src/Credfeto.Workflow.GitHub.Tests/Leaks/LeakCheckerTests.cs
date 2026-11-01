@@ -1,8 +1,10 @@
 using System;
+using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Leaks;
 using FunFair.Test.Common;
+using Microsoft.Extensions.Options;
 using Xunit;
 
 namespace Credfeto.Workflow.GitHub.Tests.Leaks;
@@ -13,7 +15,15 @@ public sealed class LeakCheckerTests : TestBase
 {
     private const string SECRET = "gh" + "p_abcdef";
 
-    private readonly ILeakChecker _leakChecker = new LeakChecker();
+    private readonly ILeakChecker _leakChecker;
+
+    public LeakCheckerTests()
+    {
+        this._leakChecker = new LeakChecker(
+            visibilityLookup: GetSubstitute<IRepositoryVisibilityLookup>(),
+            options: Options.Create(new WorkflowOptions())
+        );
+    }
 
     [Fact]
     public void CleanBodyPasses()

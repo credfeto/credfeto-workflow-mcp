@@ -27,7 +27,8 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     {
         return services
             .AddGitHub()
-            .AddMockedService<IOptions<GitHubOptions>>(static o => o.Value.Returns(new GitHubOptions()));
+            .AddMockedService<IOptions<GitHubOptions>>(static o => o.Value.Returns(new GitHubOptions()))
+            .AddMockedService<IOptions<WorkflowOptions>>(static o => o.Value.Returns(new WorkflowOptions()));
     }
 
     [Fact]
@@ -136,6 +137,24 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void RequiredChecksReaderShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IRequiredChecksReader, RequiredChecksReader>();
+    }
+
+    [Fact]
+    public void RepositoryVisibilityLookupShouldBeRegistered()
+    {
+        this.RequireService<IRepositoryVisibilityLookup>();
+    }
+
+    [Fact]
+    public void RepositoryVisibilityLookupShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>();
+    }
+
+    [Fact]
+    public void WorkflowOptionsValidatorShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IValidateOptions<WorkflowOptions>, WorkflowOptionsValidator>();
     }
 
     [Fact]

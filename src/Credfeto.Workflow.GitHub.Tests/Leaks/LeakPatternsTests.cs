@@ -256,6 +256,34 @@ public sealed partial class LeakPatternsTests : TestBase
         );
     }
 
+    [Fact]
+    public static void EveryMatchIsReported()
+    {
+        Assert.Equal(
+            expected: ["ab", "cd"],
+            actual: LeakPatterns.Matches(pattern: Word(), line: "ab cd").Select(static m => m.Value),
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    [Fact]
+    public static void MatchesTimeoutIsReportedWithoutTheText()
+    {
+        LeakCheckFailedException exception = Assert.Throws<LeakCheckFailedException>(() =>
+            LeakPatterns.Matches(pattern: Catastrophic(), line: CATASTROPHIC_INPUT)
+        );
+
+        Assert.Null(exception.InnerException);
+        Assert.DoesNotContain(
+            expectedSubstring: CATASTROPHIC_INPUT,
+            actualString: exception.ToString(),
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [GeneratedRegex(pattern: @"\w+", options: RegexOptions.CultureInvariant, matchTimeoutMilliseconds: 1000)]
+    private static partial Regex Word();
+
     [GeneratedRegex(
         pattern: @"^(\w+\s?)*$",
         options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,

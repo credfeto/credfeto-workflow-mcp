@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -13,7 +14,7 @@ public static partial class LeakPatterns
 {
     public const int MAXIMUM_BODY_LENGTH = 65536;
 
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
+    internal const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     private const string SPACE = @"[ \t\n\v\f\r]";
     private const string NOT_SPACE = @"[^ \t\n\v\f\r]";
@@ -123,6 +124,29 @@ public static partial class LeakPatterns
     {
         return TryMatch(pattern: pattern, line: line)
             ?? throw new LeakCheckFailedException("the text could not be checked for leaks in time");
+    }
+
+    public static IReadOnlyList<Match> Matches(Regex pattern, string line)
+    {
+        return TryMatches(pattern: pattern, line: line)
+            ?? throw new LeakCheckFailedException("the text could not be checked for leaks in time");
+    }
+
+    private static IReadOnlyList<Match>? TryMatches(Regex pattern, string line)
+    {
+        try
+        {
+            MatchCollection matches = pattern.Matches(line);
+
+            // MatchCollection is lazy and reading Count runs every match, so a timeout is raised here where it is caught
+            _ = matches.Count;
+
+            return matches;
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            return null;
+        }
     }
 
     private static bool? TryMatch(Regex pattern, string line)

@@ -175,6 +175,25 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: a repository's visibility (leak check for references in text written to a repository)
+# Visibility is PUBLIC, PRIVATE or INTERNAL. An error saying "Could not resolve to a Repository" means the
+# repository is missing or the caller cannot see it. The REST equivalent is the visibility field of
+# GET repos/{owner}/{repo}.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!){repository(owner:$o,name:$r){visibility}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp"
+  }
+}
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.

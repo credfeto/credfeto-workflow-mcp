@@ -21,6 +21,27 @@ public sealed class GitHubNamesTests : TestBase
     }
 
     [Theory]
+    [InlineData("credfeto")]
+    [InlineData("a-b1")]
+    [InlineData("A")]
+    public static void OwnerAcceptsValidValues(string value)
+    {
+        Assert.Equal(expected: value, actual: GitHubNames.Owner(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("-a")]
+    [InlineData("a_b")]
+    [InlineData("a.b")]
+    [InlineData("a b")]
+    [InlineData("a/b")]
+    public static void OwnerRejectsInvalidValues(string value)
+    {
+        AssertRejected(() => GitHubNames.Owner(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("owner")]
     [InlineData("owner/repo/extra")]
