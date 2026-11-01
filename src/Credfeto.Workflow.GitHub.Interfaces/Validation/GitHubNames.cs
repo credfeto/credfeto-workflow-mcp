@@ -21,6 +21,10 @@ public static class GitHubNames
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-"
     );
 
+    private static readonly SearchValues<char> OwnerCharacters = SearchValues.Create(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-"
+    );
+
     public static string Repository(string value, string parameterName)
     {
         int separator = value.IndexOf('/', StringComparison.Ordinal);
@@ -165,6 +169,17 @@ public static class GitHubNames
             invalid: name.IsEmpty || name.ContainsAnyExcept(LoginCharacters),
             parameterName: parameterName,
             rule: "it may only contain letters, digits, '_' and '-', optionally followed by '[bot]'"
+        );
+
+        return value;
+    }
+
+    public static string Owner(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: value.Length == 0 || value[0] == '-' || value.AsSpan().ContainsAnyExcept(OwnerCharacters),
+            parameterName: parameterName,
+            rule: "it may only contain letters, digits and '-' and must not start with '-'"
         );
 
         return value;

@@ -12,6 +12,7 @@ using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Status;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,6 +67,7 @@ public static class GitHubSetup
     public static IServiceCollection AddGitHub(this IServiceCollection services)
     {
         _ = services.AddOptions<GitHubOptions>().BindConfiguration(GitHubOptions.SectionName).ValidateOnStart();
+        _ = services.AddOptions<WorkflowOptions>().BindConfiguration(WorkflowOptions.SectionName).ValidateOnStart();
 
         services.TryAddSingleton(TimeProvider.System);
 
@@ -76,6 +78,7 @@ public static class GitHubSetup
         return services
             .AddHttpContextAccessor()
             .AddSingleton<IValidateOptions<GitHubOptions>, GitHubOptionsValidator>()
+            .AddSingleton<IValidateOptions<WorkflowOptions>, WorkflowOptionsValidator>()
             .AddSingleton<IRepositoryProjectCache, RepositoryProjectCache>()
             .AddSingleton<IGitHubRestClient, GitHubRestClient>()
             .AddSingleton<IGitHubGraphQlClient, GitHubGraphQlClient>()
@@ -85,6 +88,8 @@ public static class GitHubSetup
             .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
+            .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
+            .AddSingleton<ILeakChecker, LeakChecker>()
             .AddTransient<CallerTokenForwardingHandler>()
             .AddHttpClient(name: HttpClientName, configureClient: ConfigureHttpClient)
             .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)

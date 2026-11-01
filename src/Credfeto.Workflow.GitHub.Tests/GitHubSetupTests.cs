@@ -5,6 +5,7 @@ using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Status;
 using FunFair.Test.Common;
@@ -26,7 +27,8 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     {
         return services
             .AddGitHub()
-            .AddMockedService<IOptions<GitHubOptions>>(static o => o.Value.Returns(new GitHubOptions()));
+            .AddMockedService<IOptions<GitHubOptions>>(static o => o.Value.Returns(new GitHubOptions()))
+            .AddMockedService<IOptions<WorkflowOptions>>(static o => o.Value.Returns(new WorkflowOptions()));
     }
 
     [Fact]
@@ -135,6 +137,36 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void RequiredChecksReaderShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IRequiredChecksReader, RequiredChecksReader>();
+    }
+
+    [Fact]
+    public void RepositoryVisibilityLookupShouldBeRegistered()
+    {
+        this.RequireService<IRepositoryVisibilityLookup>();
+    }
+
+    [Fact]
+    public void RepositoryVisibilityLookupShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>();
+    }
+
+    [Fact]
+    public void WorkflowOptionsValidatorShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IValidateOptions<WorkflowOptions>, WorkflowOptionsValidator>();
+    }
+
+    [Fact]
+    public void LeakCheckerShouldBeRegistered()
+    {
+        this.RequireService<ILeakChecker>();
+    }
+
+    [Fact]
+    public void LeakCheckerShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ILeakChecker, LeakChecker>();
     }
 
     [Fact]
