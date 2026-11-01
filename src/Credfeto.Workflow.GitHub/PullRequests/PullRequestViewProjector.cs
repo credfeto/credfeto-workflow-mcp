@@ -18,7 +18,7 @@ internal sealed class PullRequestViewProjector
     }
 
     // Unrequested fields stay null so they are left out of the serialised result
-    public static PullRequestView Empty(string reference)
+    private static PullRequestView Empty(string reference)
     {
         return new(
             Pr: reference,
