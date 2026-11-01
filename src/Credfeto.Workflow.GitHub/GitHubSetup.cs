@@ -12,6 +12,7 @@ using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Status;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,6 +86,7 @@ public static class GitHubSetup
             .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
+            .AddSingleton<ILeakChecker, LeakChecker>()
             .AddTransient<CallerTokenForwardingHandler>()
             .AddHttpClient(name: HttpClientName, configureClient: ConfigureHttpClient)
             .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
