@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Credfeto.Workflow.GitHub.Interfaces;
 
@@ -51,25 +53,11 @@ public static class PullRequestViewFields
     ];
 
     // Files and body can be large, so they are only returned when asked for on their own
+    // Declared after All, so All is already initialised when this is built
     public static IReadOnlyList<string> Default { get; } =
     [
-        State,
-        Draft,
-        Title,
-        Url,
-        Base,
-        Head,
-        HeadSha,
-        AutoMerge,
-        ReviewDecision,
-        MergeState,
-        Mergeable,
-        CreatedAt,
-        MergedAt,
-        MergeCommit,
-        Labels,
-        Assignees,
-        Author,
-        CommitAuthors,
+        .. All.Where(field =>
+            !StringComparer.Ordinal.Equals(x: field, y: Files) && !StringComparer.Ordinal.Equals(x: field, y: Body)
+        ),
     ];
 }
