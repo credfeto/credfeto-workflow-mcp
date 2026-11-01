@@ -13,6 +13,7 @@ using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Status;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
@@ -81,6 +82,7 @@ public static class GitHubSetup
             .AddSingleton<IWorkflowBoardResolver, WorkflowBoardResolver>()
             .AddSingleton<IWorkflowBoardReader, WorkflowBoardReader>()
             .AddSingleton<IBoardWriter, BoardWriter>()
+            .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddTransient<CallerTokenForwardingHandler>()

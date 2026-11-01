@@ -158,6 +158,23 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: the Workflow board's single-select fields and their options (board_set_status)
+# A legacy "Workflow Status" field takes precedence over the built-in "Status" field. Fields of other
+# types arrive as empty objects because they do not match the inline fragment.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($projectId:ID!){node(id:$projectId){... on ProjectV2{fields(first:100){nodes{... on ProjectV2SingleSelectField{id name options{id name}}}}}}}",
+  "variables": {
+    "projectId": "PVT_kwDOA"
+  }
+}
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.

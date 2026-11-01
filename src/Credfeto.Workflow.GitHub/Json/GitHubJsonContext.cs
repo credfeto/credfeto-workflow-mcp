@@ -4,6 +4,7 @@ using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Status;
 
 namespace Credfeto.Workflow.GitHub.Json;
 
@@ -25,4 +26,6 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(AddItemMutationData))]
 [JsonSerializable(typeof(UpdateItemMutationVariables))]
 [JsonSerializable(typeof(UpdateItemMutationData))]
+[JsonSerializable(typeof(FieldsQueryVariables))]
+[JsonSerializable(typeof(FieldsQueryData))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;
