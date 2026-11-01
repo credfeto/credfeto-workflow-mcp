@@ -90,25 +90,28 @@ public sealed class PullRequestService : IPullRequestService
             request.Fields
         );
 
-        // The commit pages and the file list come from separate requests, so they are read at the same time
-        bool readCommitAuthors = request.Fields.Contains(PullRequestViewFields.CommitAuthors, StringComparer.Ordinal);
-        bool readFiles = request.Fields.Contains(PullRequestViewFields.Files, StringComparer.Ordinal);
-
-        Task<string>? commitAuthors = readCommitAuthors
-            ? this.ReadCommitAuthorsAsync(request: request, first: node, cancellationToken: cancellationToken).AsTask()
-            : null;
-
-        Task<IReadOnlyList<string>>? files = readFiles
-            ? this.ReadFilesAsync(request: request, node: node, cancellationToken: cancellationToken).AsTask()
-            : null;
-
-        await Task.WhenAll(commitAuthors ?? Task.CompletedTask, files ?? Task.CompletedTask);
-
-        return view with
+        // Files is only ever requested on its own, so at most one of these follow-up reads runs
+        if (request.Fields.Contains(PullRequestViewFields.CommitAuthors, StringComparer.Ordinal))
         {
-            CommitAuthors = commitAuthors is null ? view.CommitAuthors : await commitAuthors,
-            Files = files is null ? view.Files : await files,
-        };
+            view = view with
+            {
+                CommitAuthors = await this.ReadCommitAuthorsAsync(
+                    request: request,
+                    first: node,
+                    cancellationToken: cancellationToken
+                ),
+            };
+        }
+
+        if (request.Fields.Contains(PullRequestViewFields.Files, StringComparer.Ordinal))
+        {
+            view = view with
+            {
+                Files = await this.ReadFilesAsync(request: request, node: node, cancellationToken: cancellationToken),
+            };
+        }
+
+        return view;
     }
 
     private async ValueTask<string> ReadCommitAuthorsAsync(
