@@ -87,6 +87,7 @@ public static class GitHubSetup
             .AddSingleton<IBoardWriter, BoardWriter>()
             .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
+            .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
             .AddSingleton<ILeakChecker, LeakChecker>()

@@ -6,6 +6,7 @@ namespace Credfeto.Workflow.Data.Models.Json;
 [JsonSerializable(typeof(BranchRequiredChecksResponse))]
 [JsonSerializable(typeof(PingResponse))]
 [JsonSerializable(typeof(PullRequestComments))]
+[JsonSerializable(typeof(PullRequestView))]
 [JsonSerializable(typeof(int))]
 [JsonSourceGenerationOptions(
     PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase,
