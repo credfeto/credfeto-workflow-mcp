@@ -24,7 +24,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Workflow status resolver (IWorkflowStatusResolver / WorkflowStatusResolver) that resolves a workflow state name from WorkflowStates (the ten board states in board order) to the project's Status or Workflow Status field id and matching option id, caching results per repository and re-resolving once when the cached field or option is stale, so board status updates no longer rely on hard-coded ids; plus a fields query example in docs/github.http (#5)
 - Title rules for issue and pull request titles, checked before any GitHub call: no control characters, a visible character required (invisible characters do not count), a 256 character limit, owner-aware issue prefixes, and Conventional Commits pull request titles, with labels limited to 50 characters and no commas, so malformed titles are refused early with a fixed message (#10)
 - Leak checker service refusing tokens, host paths, control characters, invalid UTF-8, over-long bodies and private repository references in outgoing text
-- Added read-only pr_view MCP tool (repo, pr, optional fields) returning selected fields of a pull request via GitHub GraphQL and REST (#26)
+- Added read-only pr_view MCP tool (repo, pr, optional fields) that returns a pull request's metadata, so workflows can read a pull request's state through the server instead of calling GitHub directly (#26)
 ### Fixed
 ### Changed
 ### Deprecated
