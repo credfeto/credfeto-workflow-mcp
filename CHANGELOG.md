@@ -22,7 +22,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Workflow board reader (IWorkflowBoardReader) that reads the workflow status of an issue or pull request from the Workflow board via GraphQL, falling back to a paged listing of board items when a direct lookup is not available (#7)
 - Board writer (IBoardWriter / BoardWriter) that adds an issue or pull request to the Workflow project board and sets its Status field via GraphQL, so board status can be updated programmatically (#6)
 - Workflow status resolver (IWorkflowStatusResolver / WorkflowStatusResolver) that resolves a workflow state name from WorkflowStates (the ten board states in board order) to the project's Status or Workflow Status field id and matching option id, caching results per repository and re-resolving once when the cached field or option is stale, so board status updates no longer rely on hard-coded ids; plus a fields query example in docs/github.http (#5)
-- Title validator: issue-title shape (owner-aware), Conventional Commits pull request title, and shared visible-text/length checks (#10)
+- Title rules for issue and pull request titles, checked before any GitHub call: no control characters, a visible character required (invisible characters do not count), a 256 character limit, owner-aware issue prefixes, and Conventional Commits pull request titles, with labels limited to 50 characters and no commas, so malformed titles are refused early with a fixed message (#10)
 ### Fixed
 ### Changed
 ### Deprecated
