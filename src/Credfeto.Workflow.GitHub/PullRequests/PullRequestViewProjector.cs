@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
@@ -120,12 +121,18 @@ internal sealed class PullRequestViewProjector
         };
     }
 
-    // Every pull request has an absolute url, so anything else means the response was not usable
+    // Every pull request has an absolute http(s) url, so anything else means the response was not usable
     private Uri Url()
     {
-        return Uri.TryCreate(uriString: this._node.Url, uriKind: UriKind.Absolute, out Uri? url)
-            ? url
-            : throw PullRequestViewFailure.Incomplete(this._reference);
+        if (
+            !Uri.TryCreate(uriString: this._node.Url, uriKind: UriKind.Absolute, out Uri? url)
+            || !UriSchemes.IsHttp(url)
+        )
+        {
+            throw PullRequestViewFailure.Incomplete(this._reference);
+        }
+
+        return url;
     }
 
     private string Join<TNode>(GraphQlConnection<TNode>? connection, Func<TNode, string?> value)

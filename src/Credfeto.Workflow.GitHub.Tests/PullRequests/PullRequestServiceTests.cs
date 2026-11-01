@@ -375,6 +375,8 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
     [Theory]
     [InlineData("\"url\":\"not a url\"")]
     [InlineData("\"url\":null")]
+    [InlineData("\"url\":\"javascript:alert(1)\"")]
+    [InlineData("\"url\":\"file:///etc/passwd\"")]
     public Task InvalidUrlIsIncompleteAsync(string url)
     {
         return this.AssertIncompleteAsync(node: "{" + url + "}", fields: [PullRequestViewFields.Url]);
