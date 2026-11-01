@@ -134,6 +134,31 @@ An agent's comment that contains one of the two accepted plan-approval keywords 
 - A Markdown quote line (a `>` after at most three leading spaces) is ignored, so a human's own words can be quoted. A `>` after four or more spaces, or after a tab, is Markdown code rather than a quote, so a keyword on that line still counts.
 - A refusal reports the rule name and the 1-based line number of the first matching line, never the matched text.
 
+### Title rules
+
+Issue and pull request titles are checked before any GitHub call is made, matching cfwf's rules.
+
+Every title must:
+
+- contain no control characters (`U+0000`-`U+001F`, `U+007F`-`U+009F`), so a title is always one line;
+- contain at least one visible character: a title made only of whitespace (including Unicode spaces such as `U+3000`) or invisible characters is refused;
+- be at most 256 characters, counted as Unicode scalar values (an emoji counts once). Invisible characters still count towards the limit.
+
+Invisible characters are code points that render as nothing or as blank space: `U+00A0`, `U+00AD`, `U+034F`, `U+061C`, `U+115F`-`U+1160`, `U+17B4`-`U+17B5`, `U+180B`-`U+180F`, `U+2007`, `U+200B`-`U+200F`, `U+202A`-`U+202F`, `U+2060`-`U+206F`, `U+2800`, `U+3164`, `U+FE00`-`U+FE0F`, `U+FEFF`, `U+FFA0`, `U+FFF0`-`U+FFF8`, `U+1BCA0`-`U+1BCA3`, `U+1D173`-`U+1D17A` and `U+E0000`-`U+E0FFF`.
+
+On top of that:
+
+- **Issue titles** in repositories owned by `credfeto` or `funfair-tech` (in any case) must be `prefix: text` or `prefix(name): text`. The prefix is lower-case letters and digits, starting with a letter, in `-`-separated parts (for example `oneshot` or `tool-1`). The optional name is in brackets, has no `(`, `)` or `:`, and does not start or end with whitespace. One or more spaces follow the `:`, and the text after them must contain a visible character. Issue titles for other owners get only the common checks.
+- **Pull request titles** must be Conventional Commits titles, `<type>[(<scope>)][!]: <description>`: a lower-case type, an optional non-empty scope in brackets without nested brackets, an optional `!`, then a `:` followed by a space and a description that starts with a non-whitespace character and contains a visible character.
+
+The same visible-text, control-character and length checks apply to labels, with a 50 character limit and no `,`.
+
+A refused title is reported with a fixed message that never echoes the title:
+
+- `invalid value for --title: it must not be blank or longer than 256 characters`
+- `invalid value for --title: it must be "prefix: text" or "prefix(name): text" with a lower-case prefix, for example "oneshot: ..." or "tool(cfwf): ..."`
+- `invalid value for --title: it must be a Conventional Commits title, <type>[(<scope>)][!]: <description>`
+
 ### Configuration
 
 Settings are read, in order, from `appsettings.json`, an optional `appsettings-local.json` beside it, environment variables (use `__` as the section separator, for example `Logging__LogLevel__Default`), and command-line arguments (use `:` as the section separator, for example `--GitHub:ApiBaseUrl=https://ghe.example.com/api/v3/`).
