@@ -1,17 +1,12 @@
-using System.Linq;
+using Credfeto.Workflow.GitHub.Http;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
 
 internal static class PullRequestViewText
 {
-    // Values are printed one per line by callers, so a control character could forge or split a line
+    // Values are printed one per line by callers, so anything that could forge or split a line is flattened
     public static string Clean(string? value)
     {
-        if (string.IsNullOrEmpty(value))
-        {
-            return string.Empty;
-        }
-
-        return value.Any(char.IsControl) ? new([.. value.Select(c => char.IsControl(c) ? ' ' : c)]) : value;
+        return string.IsNullOrEmpty(value) ? string.Empty : UpstreamText.ReplaceLineBreaking(value);
     }
 }
