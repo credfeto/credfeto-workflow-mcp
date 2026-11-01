@@ -46,12 +46,7 @@ public sealed class PullRequestService : IPullRequestService
             parameterName: nameof(fields)
         );
 
-        PullRequestViewRequest request = new(
-            Repository: validRepository,
-            PullRequest: pullRequest,
-            Reference: $"{validRepository}#{pullRequest}",
-            Fields: requested
-        );
+        PullRequestViewRequest request = new(Repository: validRepository, PullRequest: pullRequest, Fields: requested);
 
         try
         {
@@ -95,27 +90,25 @@ public sealed class PullRequestService : IPullRequestService
             request.Fields
         );
 
-        if (request.Fields.Contains(PullRequestViewFields.CommitAuthors, StringComparer.Ordinal))
-        {
-            view = view with
-            {
-                CommitAuthors = await this.ReadCommitAuthorsAsync(
-                    request: request,
-                    first: node,
-                    cancellationToken: cancellationToken
-                ),
-            };
-        }
+        // The commit pages and the file list come from separate requests, so they are read at the same time
+        bool readCommitAuthors = request.Fields.Contains(PullRequestViewFields.CommitAuthors, StringComparer.Ordinal);
+        bool readFiles = request.Fields.Contains(PullRequestViewFields.Files, StringComparer.Ordinal);
 
-        if (request.Fields.Contains(PullRequestViewFields.Files, StringComparer.Ordinal))
-        {
-            view = view with
-            {
-                Files = await this.ReadFilesAsync(request: request, node: node, cancellationToken: cancellationToken),
-            };
-        }
+        Task<string>? commitAuthors = readCommitAuthors
+            ? this.ReadCommitAuthorsAsync(request: request, first: node, cancellationToken: cancellationToken).AsTask()
+            : null;
 
-        return view;
+        Task<IReadOnlyList<string>>? files = readFiles
+            ? this.ReadFilesAsync(request: request, node: node, cancellationToken: cancellationToken).AsTask()
+            : null;
+
+        await Task.WhenAll(commitAuthors ?? Task.CompletedTask, files ?? Task.CompletedTask);
+
+        return view with
+        {
+            CommitAuthors = commitAuthors is null ? view.CommitAuthors : await commitAuthors,
+            Files = files is null ? view.Files : await files,
+        };
     }
 
     private async ValueTask<string> ReadCommitAuthorsAsync(
@@ -128,11 +121,13 @@ public sealed class PullRequestService : IPullRequestService
         string? cursor = collector.Accept(first.Commits);
 
         // The first page arrived with the main query, so the cap counts it too
-        for (int page = 1; page < MAX_PAGES; page++)
+        int pages = 1;
+
+        while (cursor is not null)
         {
-            if (cursor is null)
+            if (pages == MAX_PAGES)
             {
-                return collector.Result;
+                throw PullRequestViewFailure.Incomplete(request.Reference);
             }
 
             PullRequestViewNode next = await this.QueryAsync(
@@ -143,9 +138,10 @@ public sealed class PullRequestService : IPullRequestService
             );
 
             cursor = collector.Accept(next.Commits);
+            pages++;
         }
 
-        return cursor is null ? collector.Result : throw PullRequestViewFailure.Incomplete(request.Reference);
+        return collector.Result;
     }
 
     private async ValueTask<IReadOnlyList<string>> ReadFilesAsync(
