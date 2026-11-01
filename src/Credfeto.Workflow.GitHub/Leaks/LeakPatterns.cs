@@ -1,5 +1,4 @@
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -91,21 +90,7 @@ public static partial class LeakPatterns
     // character a decoder substituted for the invalid bytes
     public static bool HasInvalidUtf8(string line)
     {
-        ReadOnlySpan<char> remaining = line;
-
-        while (!remaining.IsEmpty)
-        {
-            OperationStatus status = Rune.DecodeFromUtf16(source: remaining, out Rune rune, out int consumed);
-
-            if (status != OperationStatus.Done || rune == Rune.ReplacementChar)
-            {
-                return true;
-            }
-
-            remaining = remaining[consumed..];
-        }
-
-        return false;
+        return line.EnumerateRunes().Any(rune => rune == Rune.ReplacementChar);
     }
 
     // GitHub limits a body in characters, which a surrogate pair counts as one of

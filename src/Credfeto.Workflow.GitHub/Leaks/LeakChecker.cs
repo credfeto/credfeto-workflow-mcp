@@ -158,7 +158,7 @@ public sealed class LeakChecker : ILeakChecker
 
     private static int? FindLine(Func<string, bool> isRefused, string[] lines)
     {
-        int index = Array.FindIndex(array: lines, match: line => isRefused(line));
+        int index = Array.FindIndex(array: lines, match: isRefused.Invoke);
 
         return index < 0 ? null : index + 1;
     }
