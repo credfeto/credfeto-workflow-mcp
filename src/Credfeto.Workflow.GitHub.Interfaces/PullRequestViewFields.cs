@@ -52,12 +52,12 @@ public static class PullRequestViewFields
         Body,
     ];
 
-    // Files and body can be large, so they are only returned when asked for on their own
     // Declared after All, so All is already initialised when this is built
-    public static IReadOnlyList<string> Default { get; } =
-    [
-        .. All.Where(field =>
-            !StringComparer.Ordinal.Equals(x: field, y: Files) && !StringComparer.Ordinal.Equals(x: field, y: Body)
-        ),
-    ];
+    public static IReadOnlyList<string> Default { get; } = [.. All.Where(field => !IsStandalone(field))];
+
+    // Files and body can be large, so they are only returned when asked for on their own
+    public static bool IsStandalone(string field)
+    {
+        return StringComparer.Ordinal.Equals(x: field, y: Files) || StringComparer.Ordinal.Equals(x: field, y: Body);
+    }
 }

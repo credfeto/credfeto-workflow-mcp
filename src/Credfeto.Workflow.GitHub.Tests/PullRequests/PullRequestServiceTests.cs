@@ -216,6 +216,16 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
         );
     }
 
+    [Theory]
+    [InlineData(PullRequestViewFields.Files, true)]
+    [InlineData(PullRequestViewFields.Body, true)]
+    [InlineData(PullRequestViewFields.State, false)]
+    [InlineData(PullRequestViewFields.CommitAuthors, false)]
+    public static void OnlyFilesAndBodyAreStandalone(string field, bool expected)
+    {
+        Assert.Equal(expected: expected, actual: PullRequestViewFields.IsStandalone(field));
+    }
+
     [Fact]
     public void DefaultFieldsAreEverythingExceptFilesAndBody()
     {

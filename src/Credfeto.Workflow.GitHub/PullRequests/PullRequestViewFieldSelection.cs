@@ -26,10 +26,7 @@ internal static class PullRequestViewFieldSelection
 
         HashSet<string> requested = new(collection: fields, comparer: StringComparer.Ordinal);
 
-        if (
-            requested.Count > 1
-            && (requested.Contains(PullRequestViewFields.Files) || requested.Contains(PullRequestViewFields.Body))
-        )
+        if (requested.Count > 1 && requested.Any(PullRequestViewFields.IsStandalone))
         {
             throw ParameterValidationException.For(
                 parameterName: parameterName,
