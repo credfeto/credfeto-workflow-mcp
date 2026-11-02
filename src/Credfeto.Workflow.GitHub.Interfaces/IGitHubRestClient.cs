@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
@@ -16,6 +17,13 @@ public interface IGitHubRestClient
     ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TItem>(
         string relativeUri,
         JsonTypeInfo<TItem[]> pageTypeInfo,
+        CancellationToken cancellationToken
+    );
+
+    ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TPage, TItem>(
+        string relativeUri,
+        JsonTypeInfo<TPage> pageTypeInfo,
+        Func<TPage, IReadOnlyList<TItem>?> items,
         CancellationToken cancellationToken
     );
 }

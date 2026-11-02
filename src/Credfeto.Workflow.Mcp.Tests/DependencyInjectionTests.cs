@@ -24,7 +24,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name).Order(StringComparer.Ordinal)];
 
         Assert.Equal(
-            expected: ["branch_required_checks", "issue_view", "ping", "pr_comments", "pr_view"],
+            expected: ["branch_required_checks", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view"],
             actual: names
         );
     }
@@ -34,6 +34,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_view")]
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
+    [InlineData("pr_checks")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -62,6 +63,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["issue", "repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrChecksTakesRepoAndOptionalTargets()
+    {
+        JsonElement schema = this.GetTool("pr_checks").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["all", "branch", "pr", "repo", "sha"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
     private static string[] PropertyNames(JsonElement schema)
@@ -103,6 +113,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IRequiredChecksReader>()
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IIssueService>()
+            .AddMockedService<IPrChecksService>()
             .AddMcpTools();
     }
 }

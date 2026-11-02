@@ -51,15 +51,30 @@ public sealed class GitHubRestClient : IGitHubRestClient
         );
     }
 
-    public async ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TItem>(
+    public ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TItem>(
         string relativeUri,
         JsonTypeInfo<TItem[]> pageTypeInfo,
         CancellationToken cancellationToken
     )
     {
+        return this.GetAllPagesAsync<TItem[], TItem>(
+            relativeUri: relativeUri,
+            pageTypeInfo: pageTypeInfo,
+            items: page => page,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public async ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TPage, TItem>(
+        string relativeUri,
+        JsonTypeInfo<TPage> pageTypeInfo,
+        Func<TPage, IReadOnlyList<TItem>?> items,
+        CancellationToken cancellationToken
+    )
+    {
         HttpClient httpClient = this.CreateHttpClient();
         Uri baseAddress = GitHubBaseAddress.From(httpClient);
-        List<TItem> items = [];
+        List<TItem> collected = [];
         HashSet<Uri> fetched = [];
         Uri? requestUri = ResolveOnConfiguredHost(baseAddress: baseAddress, relativeUri: relativeUri);
 
@@ -73,12 +88,14 @@ public sealed class GitHubRestClient : IGitHubRestClient
                 cancellationToken: cancellationToken
             );
 
-            items.AddRange(
-                await ReadContentAsync(
-                    content: response.Content,
-                    typeInfo: pageTypeInfo,
-                    cancellationToken: cancellationToken
-                )
+            TPage page = await ReadContentAsync(
+                content: response.Content,
+                typeInfo: pageTypeInfo,
+                cancellationToken: cancellationToken
+            );
+
+            collected.AddRange(
+                items(page) ?? throw new GitHubInvalidResponseException("GitHub returned a page with no items list")
             );
 
             // Redirects are not followed, so the page that answered is the one requested and a relative next link
@@ -90,7 +107,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
             );
         }
 
-        return items;
+        return collected;
     }
 
     // The next link comes from the upstream, so a repeated or endless chain must fail rather than loop forever.
