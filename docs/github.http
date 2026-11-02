@@ -300,3 +300,12 @@ Authorization: Bearer {{token}}
 Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
+
+### REST: an issue's title, state, labels, assignees and body (issue_view)
+# GitHub serves pull requests from this endpoint too; a response with a pull_request link is reported as
+# no such issue. A 404 means the issue or the repository is missing, or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/16
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp

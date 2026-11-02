@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Http;
+using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
@@ -21,6 +22,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(PullRequestViewQueryVariables))]
 [JsonSerializable(typeof(PullRequestViewQueryData))]
 [JsonSerializable(typeof(PullRequestFileResponse[]))]
+[JsonSerializable(typeof(IssueResponse))]
 [JsonSerializable(typeof(StatusQueryVariables))]
 [JsonSerializable(typeof(StatusQueryData))]
 [JsonSerializable(typeof(BoardItemsQueryVariables))]

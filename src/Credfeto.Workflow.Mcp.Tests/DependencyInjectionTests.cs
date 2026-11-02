@@ -23,13 +23,17 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name).Order(StringComparer.Ordinal)];
 
-        Assert.Equal(expected: ["branch_required_checks", "ping", "pr_comments", "pr_view"], actual: names);
+        Assert.Equal(
+            expected: ["branch_required_checks", "issue_view", "ping", "pr_comments", "pr_view"],
+            actual: names
+        );
     }
 
     [Theory]
     [InlineData("pr_comments")]
     [InlineData("pr_view")]
     [InlineData("branch_required_checks")]
+    [InlineData("issue_view")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -42,7 +46,27 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     {
         JsonElement schema = this.GetTool("pr_view").ProtocolTool.InputSchema;
 
-        string[] properties =
+        Assert.Equal(expected: ["fields", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+        Assert.Contains(
+            expectedSubstring: "\"array\"",
+            actualString: schema.GetProperty("properties").GetProperty("fields").GetProperty("type").GetRawText(),
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void IssueViewTakesRepoAndIssue()
+    {
+        JsonElement schema = this.GetTool("issue_view").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["issue", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    private static string[] PropertyNames(JsonElement schema)
+    {
+        return
         [
             .. schema
                 .GetProperty("properties")
@@ -50,7 +74,11 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 .Select(static p => p.Name)
                 .Order(StringComparer.Ordinal),
         ];
-        string[] required =
+    }
+
+    private static string[] RequiredNames(JsonElement schema)
+    {
+        return
         [
             .. schema
                 .GetProperty("required")
@@ -58,14 +86,6 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 .Select(static r => r.GetString() ?? string.Empty)
                 .Order(StringComparer.Ordinal),
         ];
-
-        Assert.Equal(expected: ["fields", "pr", "repo"], actual: properties);
-        Assert.Equal(expected: ["pr", "repo"], actual: required);
-        Assert.Contains(
-            expectedSubstring: "\"array\"",
-            actualString: schema.GetProperty("properties").GetProperty("fields").GetProperty("type").GetRawText(),
-            comparisonType: StringComparison.Ordinal
-        );
     }
 
     private McpServerTool GetTool(string name)
@@ -82,6 +102,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPullRequestCommentsReader>()
             .AddMockedService<IRequiredChecksReader>()
             .AddMockedService<IPullRequestService>()
+            .AddMockedService<IIssueService>()
             .AddMcpTools();
     }
 }

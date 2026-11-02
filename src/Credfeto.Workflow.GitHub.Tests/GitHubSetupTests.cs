@@ -5,6 +5,7 @@ using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Status;
@@ -137,6 +138,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void PullRequestServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IPullRequestService, PullRequestService>();
+    }
+
+    [Fact]
+    public void IssueServiceShouldBeRegistered()
+    {
+        this.RequireService<IIssueService>();
+    }
+
+    [Fact]
+    public void IssueServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IIssueService, IssueService>();
     }
 
     [Fact]
