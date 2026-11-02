@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "ping", "pr_comments" and "pr_view" tools
+### List tools; expects the "branch_required_checks", "issue_view", "ping", "pr_comments" and "pr_view" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -237,6 +237,63 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 0
+    }
+  }
+}
+
+### Call the issue_view tool; expects the issue's title, state, labels, assignees and body
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 13,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 16
+    }
+  }
+}
+
+### Call the issue_view tool with a pull request number; expects a tool error saying the issue was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 14,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 41
+    }
+  }
+}
+
+### Call the issue_view tool with issue 0; expects a tool error naming the "issue" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 15,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 0
     }
   }
 }

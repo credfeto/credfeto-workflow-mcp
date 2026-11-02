@@ -19,9 +19,12 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private const string REPOSITORY = "credfeto/credfeto-workflow-mcp";
     private const int PULL_REQUEST = 41;
 
+    private const int ISSUE = 16;
+
     private const string BRANCH = "main";
 
     private readonly IRequiredChecksReader _checksReader;
+    private readonly IIssueService _issueService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
 
@@ -30,6 +33,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._reader = GetSubstitute<IPullRequestCommentsReader>();
         this._checksReader = GetSubstitute<IRequiredChecksReader>();
         this._viewService = GetSubstitute<IPullRequestService>();
+        this._issueService = GetSubstitute<IIssueService>();
     }
 
     [Fact]
@@ -236,6 +240,96 @@ public sealed class WorkflowMcpToolsTests : TestBase
         GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() => this.ViewAsync(null));
 
         Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task IssueViewReturnsWhatTheServiceReadAsync()
+    {
+        IssueViewResponse expected = new(
+            Issue: REPOSITORY + "#16",
+            Title: "Add the issue_view tool",
+            State: "OPEN",
+            Labels: ["feature"],
+            Assignees: ["credfeto"],
+            Body: "Body text"
+        );
+        this._issueService.ViewAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueViewResponse actual = await this.IssueViewAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task IssueViewIssueNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueViewFailureReportedAsync(
+            new IssueNotFoundException("issue " + REPOSITORY + "#16 was not found")
+        );
+    }
+
+    [Fact]
+    public Task IssueViewFailedReadIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueViewFailureReportedAsync(
+            new IssueViewFailedException("could not read issue " + REPOSITORY + "#16")
+        );
+    }
+
+    [Fact]
+    public Task IssueViewInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueViewFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "issue", rule: "must be above 0")
+        );
+    }
+
+    [Fact]
+    public async Task IssueViewOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueServiceFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueViewAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private async Task AssertIssueViewFailureReportedAsync(Exception failure)
+    {
+        this.IssueServiceFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueViewAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void IssueServiceFailsWith(Exception failure)
+    {
+        this._issueService.ViewAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueViewResponse> IssueViewAsync()
+    {
+        return WorkflowMcpTools.IssueViewAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
     }
 
     private static PullRequestView CreateView(string title, string state)

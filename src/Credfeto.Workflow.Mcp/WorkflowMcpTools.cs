@@ -119,4 +119,26 @@ public sealed class WorkflowMcpTools
             throw new McpException(message: exception.Message, innerException: exception);
         }
     }
+
+    [McpServerTool(Name = "issue_view", Title = "Issue view", ReadOnly = true)]
+    [Description("Reads the title, state, labels, assignees and body of an issue")]
+    public static async Task<IssueViewResponse> IssueViewAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        IIssueService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ViewAsync(repository: repo, issue: issue, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is IssueNotFoundException or IssueViewFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
 }
