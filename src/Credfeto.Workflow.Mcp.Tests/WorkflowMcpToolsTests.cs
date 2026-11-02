@@ -23,8 +23,11 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string BRANCH = "main";
 
+    private const string SHA = "0123456789abcdef0123456789abcdef01234567";
+
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueService _issueService;
+    private readonly IPrChecksService _prChecksService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
 
@@ -34,6 +37,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._checksReader = GetSubstitute<IRequiredChecksReader>();
         this._viewService = GetSubstitute<IPullRequestService>();
         this._issueService = GetSubstitute<IIssueService>();
+        this._prChecksService = GetSubstitute<IPrChecksService>();
     }
 
     [Fact]
@@ -300,6 +304,173 @@ public sealed class WorkflowMcpToolsTests : TestBase
         );
 
         Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task PrChecksReturnsWhatTheServiceReadAsync()
+    {
+        PrChecksResponse expected = new(
+            Repo: REPOSITORY,
+            Sha: SHA,
+            Verdict: PrChecksVerdict.Passed,
+            Passed: 1,
+            Failed: 0,
+            Pending: 0,
+            Checks: []
+        );
+        this._prChecksService.ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                sha: null,
+                branch: null,
+                all: false,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PrChecksResponse actual = await this.PrChecksAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrChecksPassesShaBranchAndAllThroughAsync()
+    {
+        PrChecksResponse expected = new(
+            Repo: REPOSITORY,
+            Sha: SHA,
+            Verdict: PrChecksVerdict.Pending,
+            Passed: 0,
+            Failed: 0,
+            Pending: 1,
+            Checks: []
+        );
+        this._prChecksService.ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: null,
+                sha: SHA,
+                branch: BRANCH,
+                all: true,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PrChecksResponse actual = await WorkflowMcpTools.PrChecksAsync(
+            repo: REPOSITORY,
+            service: this._prChecksService,
+            sha: SHA,
+            branch: BRANCH,
+            all: true,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task PrChecksPullRequestNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            new PullRequestNotFoundException("pull request " + REPOSITORY + "#41 was not found")
+        );
+    }
+
+    [Fact]
+    public Task PrChecksCommitNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            new CommitNotFoundException("the commit " + SHA + " was not found in " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task PrChecksBranchNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            new BranchNotFoundException("the branch " + BRANCH + " was not found in " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task PrChecksRepositoryNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            new RepositoryNotFoundException(
+                "the repository " + REPOSITORY + " was not found, or the caller cannot see it"
+            )
+        );
+    }
+
+    [Fact]
+    public Task PrChecksUnreadableRequiredChecksAreReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            new RequiredChecksUnreadableException(
+                "could not read the required checks of " + REPOSITORY + " branch " + BRANCH
+            )
+        );
+    }
+
+    [Fact]
+    public Task PrChecksUnreadableChecksAreReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            new PrChecksUnreadableException("could not read the checks of " + REPOSITORY + " commit " + SHA)
+        );
+    }
+
+    [Fact]
+    public Task PrChecksInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertPrChecksFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "pr", rule: "give exactly one of pr, sha or branch")
+        );
+    }
+
+    [Fact]
+    public async Task PrChecksOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrChecksServiceFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrChecksAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private async Task AssertPrChecksFailureReportedAsync(Exception failure)
+    {
+        this.PrChecksServiceFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.PrChecksAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void PrChecksServiceFailsWith(Exception failure)
+    {
+        this._prChecksService.ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                sha: null,
+                branch: null,
+                all: false,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<PrChecksResponse> PrChecksAsync()
+    {
+        return WorkflowMcpTools.PrChecksAsync(
+            repo: REPOSITORY,
+            service: this._prChecksService,
+            pr: PULL_REQUEST,
+            cancellationToken: this.CancellationToken()
+        );
     }
 
     private async Task AssertIssueViewFailureReportedAsync(Exception failure)

@@ -9,6 +9,7 @@ using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
+using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
@@ -91,6 +92,7 @@ public static class GitHubSetup
             .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
+            .AddSingleton<IPrChecksService, PrChecksService>()
             .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
             .AddSingleton<ILeakChecker, LeakChecker>()
             .AddTransient<CallerTokenForwardingHandler>()

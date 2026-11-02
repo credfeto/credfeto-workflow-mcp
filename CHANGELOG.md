@@ -26,6 +26,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Leak checker service refusing tokens, host paths, control characters, invalid UTF-8, over-long bodies and private repository references in outgoing text
 - Added read-only pr_view MCP tool (repo, pr, optional fields) that returns a pull request's metadata, so workflows can read a pull request's state through the server instead of calling GitHub directly (#26)
 - Added read-only issue_view MCP tool (repo, issue) that returns an issue's title, state, labels, assignees and body, treating pull request numbers as not found (#16)
+- Added read-only pr_checks MCP tool (repo, one of pr/sha/branch, optional all) that judges the checks on a head commit in a single read and returns a verdict (passed, failed, pending, no checks) with per-check lines and counts (#25)
 ### Fixed
 ### Changed
 ### Deprecated

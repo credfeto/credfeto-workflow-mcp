@@ -2,6 +2,7 @@ using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
+using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
@@ -162,6 +163,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void RequiredChecksReaderShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IRequiredChecksReader, RequiredChecksReader>();
+    }
+
+    [Fact]
+    public void PrChecksServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrChecksService>();
+    }
+
+    [Fact]
+    public void PrChecksServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrChecksService, PrChecksService>();
     }
 
     [Fact]

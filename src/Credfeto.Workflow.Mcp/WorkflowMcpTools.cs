@@ -120,6 +120,49 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "pr_checks", Title = "Pull request checks", ReadOnly = true)]
+    [Description(
+        "Judges the checks of a pull request, commit or branch head against the required checks of the branch whose rules apply, giving a passed, failed, pending or no-checks verdict with each check's outcome"
+    )]
+    public static async Task<PrChecksResponse> PrChecksAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IPrChecksService service,
+        [Description("The pull request number; give exactly one of pr, sha or branch")] int? pr = null,
+        [Description("The full 40 character commit id; give exactly one of pr, sha or branch")] string? sha = null,
+        [Description("The branch name, whose head is judged; give exactly one of pr, sha or branch")]
+            string? branch = null,
+        [Description("Judge every check that reported, not only the required ones")] bool all = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(
+                repository: repo,
+                pullRequest: pr,
+                sha: sha,
+                branch: branch,
+                all: all,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is PullRequestNotFoundException
+                        or CommitNotFoundException
+                        or BranchNotFoundException
+                        or RepositoryNotFoundException
+                        or RequiredChecksUnreadableException
+                        or PrChecksUnreadableException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_view", Title = "Issue view", ReadOnly = true)]
     [Description("Reads the title, state, labels, assignees and body of an issue")]
     public static async Task<IssueViewResponse> IssueViewAsync(
