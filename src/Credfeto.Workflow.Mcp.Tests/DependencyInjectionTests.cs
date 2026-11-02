@@ -33,6 +33,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_comments",
                 "pr_view",
                 "workflow_status_check",
+                "workflow_status_set",
             ],
             actual: names
         );
@@ -93,6 +94,28 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
+    [Fact]
+    public void WorkflowStatusSetTakesRepoAndStatusAndOptionalWorkItems()
+    {
+        JsonElement schema = this.GetTool("workflow_status_set").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["issue", "pr", "repo", "status"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "status"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void WorkflowStatusSetIsAnIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("workflow_status_set");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "workflow_status_set writes the board");
+        Assert.False(
+            tool.ProtocolTool.Annotations?.DestructiveHint,
+            userMessage: "workflow_status_set is not destructive"
+        );
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "workflow_status_set is idempotent");
+    }
+
     private static string[] PropertyNames(JsonElement schema)
     {
         return
@@ -134,6 +157,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()
+            .AddMockedService<IWorkflowStatusSetService>()
             .AddMcpTools();
     }
 }

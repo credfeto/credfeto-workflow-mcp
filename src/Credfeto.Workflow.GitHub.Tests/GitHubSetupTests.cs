@@ -190,6 +190,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void WorkflowStatusSetServiceShouldBeRegistered()
+    {
+        this.RequireService<IWorkflowStatusSetService>();
+    }
+
+    [Fact]
+    public void WorkflowStatusSetServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IWorkflowStatusSetService, WorkflowStatusSetService>();
+    }
+
+    [Fact]
     public void RepositoryVisibilityLookupShouldBeRegistered()
     {
         this.RequireService<IRepositoryVisibilityLookup>();
