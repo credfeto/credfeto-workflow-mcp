@@ -22,6 +22,7 @@ public sealed class McpSetupTests : TestBase
         _ = builder
             .Services.AddMockedService<IPullRequestCommentsReader>()
             .AddMockedService<IRequiredChecksReader>()
+            .AddMockedService<IPullRequestService>()
             .AddMcpTools();
 
         await using WebApplication app = builder.Build();

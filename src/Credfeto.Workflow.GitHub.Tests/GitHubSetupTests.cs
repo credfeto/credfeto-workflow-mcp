@@ -128,6 +128,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PullRequestServiceShouldBeRegistered()
+    {
+        this.RequireService<IPullRequestService>();
+    }
+
+    [Fact]
+    public void PullRequestServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPullRequestService, PullRequestService>();
+    }
+
+    [Fact]
     public void RequiredChecksReaderShouldBeRegistered()
     {
         this.RequireService<IRequiredChecksReader>();

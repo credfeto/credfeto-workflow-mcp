@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
@@ -22,11 +23,13 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private readonly IRequiredChecksReader _checksReader;
     private readonly IPullRequestCommentsReader _reader;
+    private readonly IPullRequestService _viewService;
 
     public WorkflowMcpToolsTests()
     {
         this._reader = GetSubstitute<IPullRequestCommentsReader>();
         this._checksReader = GetSubstitute<IRequiredChecksReader>();
+        this._viewService = GetSubstitute<IPullRequestService>();
     }
 
     [Fact]
@@ -158,6 +161,140 @@ public sealed class WorkflowMcpToolsTests : TestBase
         );
 
         Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task PrViewReturnsWhatTheServiceReadAsync()
+    {
+        IReadOnlyList<string> fields = [PullRequestViewFields.Title, PullRequestViewFields.State];
+        PullRequestView expected = CreateView(title: "Add the pr_view tool", state: "OPEN");
+        this._viewService.ViewAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                fields: fields,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestView actual = await this.ViewAsync(fields);
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrViewPassesNoFieldsWhenNoneAreGivenAsync()
+    {
+        PullRequestView expected = CreateView(title: "Add the pr_view tool", state: "OPEN");
+        this._viewService.ViewAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                fields: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestView actual = await WorkflowMcpTools.PrViewAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task PrViewPullRequestNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertViewFailureReportedAsync(
+            new PullRequestNotFoundException("pull request " + REPOSITORY + "#41 was not found")
+        );
+    }
+
+    [Fact]
+    public Task PrViewIncompleteReadIsReportedToTheCallerAsync()
+    {
+        return this.AssertViewFailureReportedAsync(
+            new PullRequestViewFailedException("could not read all of " + REPOSITORY + "#41")
+        );
+    }
+
+    [Fact]
+    public Task PrViewInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertViewFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "fields", rule: "must only contain known field names")
+        );
+    }
+
+    [Fact]
+    public async Task PrViewOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubGraphQlException failure = new("upstream detail");
+        this.ViewServiceFailsWith(failure);
+
+        GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() => this.ViewAsync(null));
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static PullRequestView CreateView(string title, string state)
+    {
+        return new(
+            Pr: REPOSITORY + "#41",
+            State: state,
+            Draft: null,
+            Title: title,
+            Url: null,
+            Base: null,
+            Head: null,
+            HeadSha: null,
+            AutoMerge: null,
+            ReviewDecision: null,
+            MergeState: null,
+            Mergeable: null,
+            CreatedAt: null,
+            MergedAt: null,
+            MergeCommit: null,
+            Labels: null,
+            Assignees: null,
+            Author: null,
+            CommitAuthors: null,
+            Files: null,
+            Body: null
+        );
+    }
+
+    private async Task AssertViewFailureReportedAsync(Exception failure)
+    {
+        this.ViewServiceFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(() => this.ViewAsync(null));
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void ViewServiceFailsWith(Exception failure)
+    {
+        this._viewService.ViewAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                fields: Arg.Any<IReadOnlyList<string>?>(),
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<PullRequestView> ViewAsync(IReadOnlyList<string>? fields)
+    {
+        return WorkflowMcpTools.PrViewAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            cancellationToken: this.CancellationToken(),
+            fields: fields
+        );
     }
 
     private async Task AssertChecksFailureReportedAsync(Exception failure)

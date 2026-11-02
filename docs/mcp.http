@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "ping" and "pr_comments" tools
+### List tools; expects the "branch_required_checks", "ping", "pr_comments" and "pr_view" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -139,6 +139,104 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "branch": "-bad"
+    }
+  }
+}
+
+### Call the pr_view tool with no fields; expects every field except files and body, in canonical order
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 8,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41
+    }
+  }
+}
+
+### Call the pr_view tool with a subset of fields; expects only the state, title and head-sha fields
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 9,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41,
+      "fields": ["title", "head-sha", "state"]
+    }
+  }
+}
+
+### Call the pr_view tool for files on their own; expects every changed file path, or a tool error if the list is incomplete
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 10,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41,
+      "fields": ["files"]
+    }
+  }
+}
+
+### Call the pr_view tool with body and another field; expects a tool error naming the "fields" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 11,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41,
+      "fields": ["body", "title"]
+    }
+  }
+}
+
+### Call the pr_view tool with pull request 0; expects a tool error naming the "pullRequest" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 12,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 0
     }
   }
 }

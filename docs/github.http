@@ -68,6 +68,78 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: a pull request's default fields, every field except files and body (pr_view)
+# The query only selects the requested fields; $after is declared only when commit-authors is requested.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!,$after:String){repository(owner:$o,name:$r){pullRequest(number:$n){state isDraft title url baseRefName headRefName headRefOid autoMergeRequest{enabledAt} reviewDecision mergeStateStatus mergeable createdAt merged mergedAt merged mergeCommit{oid} labels(first:100){totalCount nodes{name}} assignees(first:100){totalCount nodes{login}} author{login} commits(first:100,after:$after){totalCount pageInfo{hasNextPage endCursor} nodes{commit{authors(first:100){totalCount nodes{user{login}}}}}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 41,
+    "after": null
+  }
+}
+
+### GraphQL: the next page of a pull request's commit authors (pr_view commit-authors)
+# Repeat with "after" set to commits.pageInfo.endCursor while commits.pageInfo.hasNextPage is true.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!,$after:String){repository(owner:$o,name:$r){pullRequest(number:$n){commits(first:100,after:$after){totalCount pageInfo{hasNextPage endCursor} nodes{commit{authors(first:100){totalCount nodes{user{login}}}}}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 41,
+    "after": "replace-with-the-previous-end-cursor"
+  }
+}
+
+### GraphQL: a pull request's changed file count, read before listing the files (pr_view files)
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){changedFiles}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 41
+  }
+}
+
+### GraphQL: a pull request's body, which can only be asked for on its own (pr_view body)
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){pullRequest(number:$n){body}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 41
+  }
+}
+
 ### GraphQL: an issue's or pull request's status on the Workflow board (board_read_status)
 # For a pull request use item:pullRequest(number:$n) in place of item:issue(number:$n). The node whose project id is
 # the board's gives the status: the legacy "Workflow Status" field wins, else "Status" when it is a workflow state.
@@ -215,6 +287,15 @@ User-Agent: credfeto-workflow-mcp
 ### REST: the repository, only after the branch request returned 404 (branch_required_checks)
 # A 200 means the branch is missing; a 404 means the repository is missing or the caller cannot see it.
 GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: a pull request's changed files, after reading the changed file count (pr_view files)
+# Follow the Link header's rel="next" URL until there is none. The call fails rather than return a partial
+# list when fewer files are listed than the changedFiles count.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/pulls/41/files?per_page=100
 Authorization: Bearer {{token}}
 Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
