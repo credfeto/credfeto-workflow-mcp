@@ -7,7 +7,7 @@ WORKDIR /usr/src/app
 COPY Credfeto.Workflow.Mcp.Server .
 COPY appsettings.json .
 
-USER $APP_UID
+USER 1654
 
 # HTTPS only listens when server.pfx is mounted at /usr/src/app/server.pfx; plain HTTP on 8080 is loopback-only
 EXPOSE 8081/tcp
