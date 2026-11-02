@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view" and "workflow_status_check" tools
+### List tools; expects the "branch_required_checks", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -389,6 +389,87 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 0
+    }
+  }
+}
+
+### Call the workflow_status_set tool for a pull request; expects its itemUrl and the canonical status "Development"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 21,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_set",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 82,
+      "status": "Development"
+    }
+  }
+}
+
+### Call the workflow_status_set tool for an issue with a lower-case status; expects its itemUrl and the canonical status "AI Review"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 22,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_set",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 12,
+      "status": "ai review"
+    }
+  }
+}
+
+### Call the workflow_status_set tool with both pr and issue; expects a tool error naming the "pr" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 23,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_set",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 82,
+      "issue": 12,
+      "status": "Development"
+    }
+  }
+}
+
+### Call the workflow_status_set tool with an unknown status; expects a tool error listing the valid workflow states
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 24,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_set",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 82,
+      "status": "Testing"
     }
   }
 }

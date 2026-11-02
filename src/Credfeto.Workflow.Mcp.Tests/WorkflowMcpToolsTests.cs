@@ -25,16 +25,20 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string SHA = "0123456789abcdef0123456789abcdef01234567";
 
+    private const string STATUS = "Development";
+
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueService _issueService;
     private readonly IPrChecksService _prChecksService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
     private readonly IWorkflowStatusCheckService _workflowStatusCheckService;
+    private readonly IWorkflowStatusSetService _workflowStatusSetService;
 
     public WorkflowMcpToolsTests()
     {
         this._workflowStatusCheckService = GetSubstitute<IWorkflowStatusCheckService>();
+        this._workflowStatusSetService = GetSubstitute<IWorkflowStatusSetService>();
         this._reader = GetSubstitute<IPullRequestCommentsReader>();
         this._checksReader = GetSubstitute<IRequiredChecksReader>();
         this._viewService = GetSubstitute<IPullRequestService>();
@@ -564,6 +568,186 @@ public sealed class WorkflowMcpToolsTests : TestBase
         return WorkflowMcpTools.WorkflowStatusCheckAsync(
             repo: REPOSITORY,
             service: this._workflowStatusCheckService,
+            pr: PULL_REQUEST,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task WorkflowStatusSetReturnsWhatTheServiceSetForAPullRequestAsync()
+    {
+        WorkflowStatusSetResponse expected = new(
+            ItemUrl: new(
+                uriString: "https://github.com/credfeto/credfeto-workflow-mcp/pull/41",
+                uriKind: UriKind.Absolute
+            ),
+            Status: STATUS
+        );
+        this._workflowStatusSetService.SetAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                status: STATUS,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        WorkflowStatusSetResponse actual = await this.WorkflowStatusSetAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task WorkflowStatusSetPassesTheIssueThroughAsync()
+    {
+        WorkflowStatusSetResponse expected = new(
+            ItemUrl: new(
+                uriString: "https://github.com/credfeto/credfeto-workflow-mcp/issues/16",
+                uriKind: UriKind.Absolute
+            ),
+            Status: STATUS
+        );
+        this._workflowStatusSetService.SetAsync(
+                repository: REPOSITORY,
+                pullRequest: null,
+                issue: ISSUE,
+                status: STATUS,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        WorkflowStatusSetResponse actual = await WorkflowMcpTools.WorkflowStatusSetAsync(
+            repo: REPOSITORY,
+            status: STATUS,
+            service: this._workflowStatusSetService,
+            issue: ISSUE,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "pr", rule: "exactly one of pr or issue must be given")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetUnknownStateIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new UnknownWorkflowStateException("unknown --status (valid: Development)")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetBoardNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new WorkflowBoardNotFoundException("no Workflow board is linked to " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetAmbiguousBoardIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new WorkflowBoardAmbiguousException("more than one Workflow board is linked to " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetInvalidBoardIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new WorkflowBoardInvalidException("the Workflow board linked to " + REPOSITORY + " is invalid")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetMissingStatusFieldIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new WorkflowStatusFieldNotFoundException("the Workflow board has no Status field")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetStatusFieldReadFailureIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new StatusFieldReadFailedException("could not read the Workflow board Status field")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetMissingStatusOptionIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new StatusOptionMissingException("the Workflow board has no Development option")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetAmbiguousStatusOptionIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new AmbiguousStatusOptionException("the Workflow board has more than one Development option")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusSetBoardWriteFailureIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusSetFailureReportedAsync(
+            new BoardWriteException("could not set the Workflow board status of " + REPOSITORY + "#41")
+        );
+    }
+
+    [Fact]
+    public async Task WorkflowStatusSetOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.WorkflowStatusSetServiceFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.WorkflowStatusSetAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private async Task AssertWorkflowStatusSetFailureReportedAsync(Exception failure)
+    {
+        this.WorkflowStatusSetServiceFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.WorkflowStatusSetAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void WorkflowStatusSetServiceFailsWith(Exception failure)
+    {
+        this._workflowStatusSetService.SetAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                status: STATUS,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<WorkflowStatusSetResponse> WorkflowStatusSetAsync()
+    {
+        return WorkflowMcpTools.WorkflowStatusSetAsync(
+            repo: REPOSITORY,
+            status: STATUS,
+            service: this._workflowStatusSetService,
             pr: PULL_REQUEST,
             cancellationToken: this.CancellationToken()
         );
