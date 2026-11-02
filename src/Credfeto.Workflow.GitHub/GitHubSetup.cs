@@ -93,6 +93,7 @@ public static class GitHubSetup
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()
+            .AddSingleton<IWorkflowStatusCheckService, WorkflowStatusCheckService>()
             .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
             .AddSingleton<ILeakChecker, LeakChecker>()
             .AddTransient<CallerTokenForwardingHandler>()

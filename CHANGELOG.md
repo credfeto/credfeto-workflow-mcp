@@ -27,6 +27,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only pr_view MCP tool (repo, pr, optional fields) that returns a pull request's metadata, so workflows can read a pull request's state through the server instead of calling GitHub directly (#26)
 - Added read-only issue_view MCP tool (repo, issue) that returns an issue's title, state, labels, assignees and body, treating pull request numbers as not found (#16)
 - Added read-only pr_checks MCP tool (repo, one of pr/sha/branch, optional all) that judges the checks on a head commit in a single read and returns a verdict (passed, failed, pending, no checks) with per-check lines and counts (#25)
+- Added read-only workflow_status_check MCP tool (repo, pr or issue) that returns the Workflow board state of an issue or pull request, with distinct unset and not-on-board outcomes (#13)
 ### Fixed
 ### Changed
 ### Deprecated

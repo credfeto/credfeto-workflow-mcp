@@ -24,7 +24,16 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name).Order(StringComparer.Ordinal)];
 
         Assert.Equal(
-            expected: ["branch_required_checks", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view"],
+            expected:
+            [
+                "branch_required_checks",
+                "issue_view",
+                "ping",
+                "pr_checks",
+                "pr_comments",
+                "pr_view",
+                "workflow_status_check",
+            ],
             actual: names
         );
     }
@@ -35,6 +44,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
     [InlineData("pr_checks")]
+    [InlineData("workflow_status_check")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -71,6 +81,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         JsonElement schema = this.GetTool("pr_checks").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["all", "branch", "pr", "repo", "sha"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void WorkflowStatusCheckTakesRepoAndOptionalWorkItems()
+    {
+        JsonElement schema = this.GetTool("workflow_status_check").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["issue", "pr", "repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
@@ -114,6 +133,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IPrChecksService>()
+            .AddMockedService<IWorkflowStatusCheckService>()
             .AddMcpTools();
     }
 }

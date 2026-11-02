@@ -140,7 +140,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: an issue's or pull request's status on the Workflow board (board_read_status)
+### GraphQL: an issue's or pull request's status on the Workflow board (board_read_status, workflow_status_check)
 # For a pull request use item:pullRequest(number:$n) in place of item:issue(number:$n). The node whose project id is
 # the board's gives the status: the legacy "Workflow Status" field wins, else "Status" when it is a workflow state.
 POST {{apiBaseUrl}}graphql
@@ -159,7 +159,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: list the Workflow board's items, only after the direct status read failed (board_read_status)
+### GraphQL: list the Workflow board's items, only after the direct status read failed (board_read_status, workflow_status_check)
 # Repeat with "c" set to pageInfo.endCursor while pageInfo.hasNextPage is true and the work item is not yet found.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}

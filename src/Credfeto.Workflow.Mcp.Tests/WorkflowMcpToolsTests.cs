@@ -30,9 +30,11 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPrChecksService _prChecksService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
+    private readonly IWorkflowStatusCheckService _workflowStatusCheckService;
 
     public WorkflowMcpToolsTests()
     {
+        this._workflowStatusCheckService = GetSubstitute<IWorkflowStatusCheckService>();
         this._reader = GetSubstitute<IPullRequestCommentsReader>();
         this._checksReader = GetSubstitute<IRequiredChecksReader>();
         this._viewService = GetSubstitute<IPullRequestService>();
@@ -438,6 +440,133 @@ public sealed class WorkflowMcpToolsTests : TestBase
         );
 
         Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task WorkflowStatusCheckReturnsWhatTheServiceReadForAPullRequestAsync()
+    {
+        WorkflowStatusCheckResult expected = new(
+            Outcome: WorkflowStatusCheckOutcome.Found,
+            State: "Development",
+            Message: null
+        );
+        this._workflowStatusCheckService.CheckAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        WorkflowStatusCheckResult actual = await this.WorkflowStatusCheckAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task WorkflowStatusCheckPassesTheIssueThroughAsync()
+    {
+        WorkflowStatusCheckResult expected = new(Outcome: WorkflowStatusCheckOutcome.Unset, State: null, Message: null);
+        this._workflowStatusCheckService.CheckAsync(
+                repository: REPOSITORY,
+                pullRequest: null,
+                issue: ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        WorkflowStatusCheckResult actual = await WorkflowMcpTools.WorkflowStatusCheckAsync(
+            repo: REPOSITORY,
+            service: this._workflowStatusCheckService,
+            issue: ISSUE,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task WorkflowStatusCheckBoardNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusCheckFailureReportedAsync(
+            new WorkflowBoardNotFoundException("no Workflow board is linked to " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusCheckAmbiguousBoardIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusCheckFailureReportedAsync(
+            new WorkflowBoardAmbiguousException("more than one Workflow board is linked to " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusCheckInvalidBoardIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusCheckFailureReportedAsync(
+            new WorkflowBoardInvalidException("the Workflow board linked to " + REPOSITORY + " is invalid")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusCheckBoardReadFailureIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusCheckFailureReportedAsync(
+            new BoardReadFailedException("could not read the Workflow board status of " + REPOSITORY + "#41")
+        );
+    }
+
+    [Fact]
+    public Task WorkflowStatusCheckInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertWorkflowStatusCheckFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "pr", rule: "exactly one of pr or issue must be given")
+        );
+    }
+
+    [Fact]
+    public async Task WorkflowStatusCheckOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.WorkflowStatusCheckServiceFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.WorkflowStatusCheckAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private async Task AssertWorkflowStatusCheckFailureReportedAsync(Exception failure)
+    {
+        this.WorkflowStatusCheckServiceFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.WorkflowStatusCheckAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void WorkflowStatusCheckServiceFailsWith(Exception failure)
+    {
+        this._workflowStatusCheckService.CheckAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<WorkflowStatusCheckResult> WorkflowStatusCheckAsync()
+    {
+        return WorkflowMcpTools.WorkflowStatusCheckAsync(
+            repo: REPOSITORY,
+            service: this._workflowStatusCheckService,
+            pr: PULL_REQUEST,
+            cancellationToken: this.CancellationToken()
+        );
     }
 
     private async Task AssertPrChecksFailureReportedAsync(Exception failure)
