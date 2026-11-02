@@ -313,6 +313,81 @@ public sealed class WorkflowMcpToolsTests : TestBase
     }
 
     [Fact]
+    public async Task IssueCommentsReturnsWhatTheServiceReadAsync()
+    {
+        IssueComments expected = new(
+            Issue: REPOSITORY + "#16",
+            Url: new("https://github.com/" + REPOSITORY + "/issues/16"),
+            Comments: [],
+            Summary: new(Printed: 0, Matched: 0, Total: 0, Omitted: 0)
+        );
+        this._issueService.CommentsAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                since: "2026-01-02T03:04:05Z",
+                author: "credfeto",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueComments actual = await WorkflowMcpTools.IssueCommentsAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueService,
+            since: "2026-01-02T03:04:05Z",
+            author: "credfeto",
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task IssueCommentsIssueNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueCommentsFailureReportedAsync(
+            new IssueNotFoundException("issue " + REPOSITORY + "#16 was not found")
+        );
+    }
+
+    [Fact]
+    public Task IssueCommentsFailedReadIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueCommentsFailureReportedAsync(
+            new IssueViewFailedException("could not read issue " + REPOSITORY + "#16")
+        );
+    }
+
+    [Fact]
+    public Task IssueCommentsIncompleteReadIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueCommentsFailureReportedAsync(
+            new IssueCommentsIncompleteException("could not read all the comments of " + REPOSITORY + "#16")
+        );
+    }
+
+    [Fact]
+    public Task IssueCommentsInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssueCommentsFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "since", rule: "must be a UTC time")
+        );
+    }
+
+    [Fact]
+    public async Task IssueCommentsOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueCommentsFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueCommentsAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
     public async Task PrChecksReturnsWhatTheServiceReadAsync()
     {
         PrChecksResponse expected = new(
@@ -809,6 +884,38 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private Task<IssueViewResponse> IssueViewAsync()
     {
         return WorkflowMcpTools.IssueViewAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    private async Task AssertIssueCommentsFailureReportedAsync(Exception failure)
+    {
+        this.IssueCommentsFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueCommentsAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void IssueCommentsFailsWith(Exception failure)
+    {
+        this._issueService.CommentsAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                since: null,
+                author: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueComments> IssueCommentsAsync()
+    {
+        return WorkflowMcpTools.IssueCommentsAsync(
             repo: REPOSITORY,
             issue: ISSUE,
             service: this._issueService,

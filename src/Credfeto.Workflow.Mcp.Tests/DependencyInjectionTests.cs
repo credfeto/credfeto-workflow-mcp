@@ -27,6 +27,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             expected:
             [
                 "branch_required_checks",
+                "issue_comments",
                 "issue_view",
                 "ping",
                 "pr_checks",
@@ -44,6 +45,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_view")]
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
+    [InlineData("issue_comments")]
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
     public void ReadingToolsMustBeReadOnly(string name)
@@ -73,6 +75,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         JsonElement schema = this.GetTool("issue_view").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["issue", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssueCommentsTakesRepoAndIssueAndOptionalFilters()
+    {
+        JsonElement schema = this.GetTool("issue_comments").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["author", "issue", "repo", "since"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
     }
 
