@@ -184,4 +184,40 @@ public sealed class WorkflowMcpTools
             throw new McpException(message: exception.Message, innerException: exception);
         }
     }
+
+    [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
+    [Description(
+        "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
+    )]
+    public static async Task<WorkflowStatusCheckResult> WorkflowStatusCheckAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IWorkflowStatusCheckService service,
+        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
+        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CheckAsync(
+                repository: repo,
+                pullRequest: pr,
+                issue: issue,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is WorkflowBoardNotFoundException
+                        or WorkflowBoardAmbiguousException
+                        or WorkflowBoardInvalidException
+                        or BoardReadFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
 }

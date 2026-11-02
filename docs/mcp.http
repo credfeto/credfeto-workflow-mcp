@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_view", "ping", "pr_comments" and "pr_view" tools
+### List tools; expects the "branch_required_checks", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view" and "workflow_status_check" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -291,6 +291,101 @@ Accept: application/json, text/event-stream
   "method": "tools/call",
   "params": {
     "name": "issue_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 0
+    }
+  }
+}
+
+### Call the workflow_status_check tool for a pull request; expects outcome "Found" and its Workflow board status, "Unset", or "NotOnBoard" with a message
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 16,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 81
+    }
+  }
+}
+
+### Call the workflow_status_check tool for an issue; expects outcome "Found" and its Workflow board status, "Unset", or "NotOnBoard" with a message
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 17,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 13
+    }
+  }
+}
+
+### Call the workflow_status_check tool with both pr and issue; expects a tool error naming the "pr" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 18,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 81,
+      "issue": 13
+    }
+  }
+}
+
+### Call the workflow_status_check tool with neither pr nor issue; expects a tool error naming the "pr" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 19,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp"
+    }
+  }
+}
+
+### Call the workflow_status_check tool with issue 0; expects a tool error naming the "issue" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 20,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_check",
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 0
