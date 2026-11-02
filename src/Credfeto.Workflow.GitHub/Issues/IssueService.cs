@@ -22,8 +22,6 @@ public sealed class IssueService : IIssueService
 
     private const string APP_PREFIX = "app/";
 
-    private const string BOT_SUFFIX = "[bot]";
-
     private const int MAX_COMMENTS_READ = 10000;
 
     private readonly IGitHubRestClient _restClient;
@@ -161,7 +159,10 @@ public sealed class IssueService : IIssueService
         );
 
         // A bot is printed as app/<slug>, so a '[bot]' login or a name GitHub cannot issue would never match
-        if (name.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal) || name[0] == '-')
+        if (
+            name.EndsWith(value: IssueCommentsProjector.BOT_SUFFIX, comparisonType: StringComparison.Ordinal)
+            || name[0] == '-'
+        )
         {
             throw ParameterValidationException.For(
                 parameterName: nameof(author),

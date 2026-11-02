@@ -18,7 +18,7 @@ internal sealed class IssueCommentsProjector
 
     private const int MAX_BODY_LINES = 500;
 
-    private const string BOT_SUFFIX = "[bot]";
+    internal const string BOT_SUFFIX = "[bot]";
 
     private readonly string _reference;
 
