@@ -220,4 +220,57 @@ public sealed class WorkflowMcpTools
             throw new McpException(message: exception.Message, innerException: exception);
         }
     }
+
+    // Setting a state the item already holds leaves the board unchanged, and nothing is ever removed from the board
+    [McpServerTool(
+        Name = "workflow_status_set",
+        Title = "Workflow status set",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true
+    )]
+    [Description(
+        "Moves a pull request or issue to a workflow state on the repository's Workflow board, adding it to the board first if it is not on it"
+    )]
+    public static async Task<WorkflowStatusSetResponse> WorkflowStatusSetAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description(
+            "The workflow state, in any case: Not Started, Planning, Approved, Development, AI Simplify, AI Review, AI Security Review, AI Coverage, Human Review or Complete"
+        )]
+            string status,
+        IWorkflowStatusSetService service,
+        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
+        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.SetAsync(
+                repository: repo,
+                pullRequest: pr,
+                issue: issue,
+                status: status,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is ParameterValidationException
+                        or UnknownWorkflowStateException
+                        or WorkflowBoardNotFoundException
+                        or WorkflowBoardAmbiguousException
+                        or WorkflowBoardInvalidException
+                        or WorkflowStatusFieldNotFoundException
+                        or StatusFieldReadFailedException
+                        or StatusOptionMissingException
+                        or AmbiguousStatusOptionException
+                        or BoardWriteException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
 }

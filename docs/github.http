@@ -176,7 +176,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: a work item's node id, only when its board item id is not cached (board_set_status)
+### GraphQL: a work item's node id, only when its board item id is not cached (board_set_status, workflow_status_set)
 # For a pull request use item:pullRequest(number:$n) in place of item:issue(number:$n).
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
@@ -194,7 +194,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: add a work item to the Workflow board (board_set_status)
+### GraphQL: add a work item to the Workflow board (board_set_status, workflow_status_set)
 # Adding an item that is already on the board returns its existing item id.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
@@ -211,7 +211,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: set a board item's status (board_set_status)
+### GraphQL: set a board item's status (board_set_status, workflow_status_set)
 # An error saying "Could not resolve to a node" means the cached item id is stale, so the item is added again.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
@@ -230,7 +230,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: the Workflow board's single-select fields and their options (board_set_status)
+### GraphQL: the Workflow board's single-select fields and their options (board_set_status, workflow_status_set)
 # A legacy "Workflow Status" field takes precedence over the built-in "Status" field. Fields of other
 # types arrive as empty objects because they do not match the inline fragment.
 POST {{apiBaseUrl}}graphql
