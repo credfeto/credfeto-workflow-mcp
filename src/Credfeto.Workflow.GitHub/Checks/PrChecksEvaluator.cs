@@ -158,21 +158,22 @@ internal static class PrChecksEvaluator
                 comparer: StringComparer.Ordinal
             );
 
-            return required.Concat(
-                seen.Where(name => !requiredNames.Contains(name))
-                    .Select(name => new RequiredCheck(Name: name, AppId: null))
-            );
+            return required.Concat(seen.Where(name => !requiredNames.Contains(name)).Select(ByName));
         }
 
         // With nothing required every check that reported is judged, so an unprotected branch still gets a verdict
-        return required.Count != 0 ? required : seen.Select(name => new RequiredCheck(Name: name, AppId: null));
+        return required.Count != 0 ? required : seen.Select(ByName);
+    }
+
+    private static RequiredCheck ByName(string name)
+    {
+        return new(Name: name, AppId: null);
     }
 
     private static PrCheckResult Judge(RequiredCheck requirement, IReadOnlyList<PrCheckEntry> latest)
     {
-        string name = requirement.AppId is { } appId
-            ? $"{UpstreamText.ReplaceLineBreaking(requirement.Name)} (app {appId})"
-            : UpstreamText.ReplaceLineBreaking(requirement.Name);
+        string baseName = UpstreamText.ReplaceLineBreaking(requirement.Name);
+        string name = requirement.AppId is { } appId ? $"{baseName} (app {appId})" : baseName;
 
         PrCheckEntry? worst = latest
             .Where(entry => Satisfies(entry: entry, requirement: requirement))
