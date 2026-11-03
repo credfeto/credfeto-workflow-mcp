@@ -475,6 +475,125 @@ public sealed class WorkflowMcpToolsTests : TestBase
     }
 
     [Fact]
+    public async Task IssueCloseReturnsWhatTheServiceClosedAsync()
+    {
+        IssueCloseResponse expected = CreateCloseResponse();
+        this._issueService.CloseAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                reason: "not-planned",
+                comment: "Superseded by #17",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueCloseResponse actual = await WorkflowMcpTools.IssueCloseAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            reason: "not-planned",
+            service: this._issueService,
+            comment: "Superseded by #17",
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueClosePassesNoCommentWhenNoneIsGivenAsync()
+    {
+        IssueCloseResponse expected = CreateCloseResponse();
+        this._issueService.CloseAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                reason: "completed",
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueCloseResponse actual = await this.IssueCloseAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueCloseFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueCloseFailures())
+        {
+            await this.AssertIssueCloseFailureReportedAsync(failure);
+        }
+    }
+
+    [Fact]
+    public async Task IssueCloseOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueCloseFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueCloseAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> IssueCloseFailures()
+    {
+        return
+        [
+            new IssueNotFoundException("issue " + REPOSITORY + "#16 was not found"),
+            new IssueCloseRefusedException("closing issue " + REPOSITORY + "#16 was refused"),
+            new IssueCloseFailedException("could not close issue " + REPOSITORY + "#16"),
+            ParameterValidationException.For(parameterName: "reason", rule: "must be completed or not-planned"),
+        ];
+    }
+
+    private static IssueCloseResponse CreateCloseResponse()
+    {
+        return new(
+            Issue: REPOSITORY + "#16",
+            Outcome: "closed",
+            Reason: "completed",
+            Url: new("https://github.com/" + REPOSITORY + "/issues/16")
+        );
+    }
+
+    private async Task AssertIssueCloseFailureReportedAsync(Exception failure)
+    {
+        this.IssueCloseFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueCloseAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void IssueCloseFailsWith(Exception failure)
+    {
+        this._issueService.CloseAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                reason: "completed",
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueCloseResponse> IssueCloseAsync()
+    {
+        return WorkflowMcpTools.IssueCloseAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            reason: "completed",
+            service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
     public async Task PrChecksReturnsWhatTheServiceReadAsync()
     {
         PrChecksResponse expected = new(

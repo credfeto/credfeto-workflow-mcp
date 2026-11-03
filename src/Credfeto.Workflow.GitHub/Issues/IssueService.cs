@@ -31,6 +31,8 @@ public sealed partial class IssueService : IIssueService
 
     private const string REASON_NOT_PLANNED = "not_planned";
 
+    private const string REASON_NOT_PLANNED_INPUT = "not-planned";
+
     private const string OUTCOME_CLOSED = "closed";
 
     private const string OUTCOME_ALREADY_CLOSED = "already-closed";
@@ -437,10 +439,10 @@ public sealed partial class IssueService : IIssueService
         return reason switch
         {
             REASON_COMPLETED => REASON_COMPLETED,
-            REASON_NOT_PLANNED => REASON_NOT_PLANNED,
+            REASON_NOT_PLANNED or REASON_NOT_PLANNED_INPUT => REASON_NOT_PLANNED,
             _ => throw ParameterValidationException.For(
                 parameterName: nameof(reason),
-                rule: "must be completed or not_planned"
+                rule: "must be completed or not-planned"
             ),
         };
     }

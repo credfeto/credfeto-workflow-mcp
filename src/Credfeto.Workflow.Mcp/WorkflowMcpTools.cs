@@ -260,6 +260,49 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(
+        Name = "issue_close",
+        Title = "Issue close",
+        ReadOnly = false,
+        Destructive = true,
+        Idempotent = true
+    )]
+    [Description(
+        "Closes an issue as completed or not planned, posting the optional comment first; an issue that is already closed is left unchanged"
+    )]
+    public static async Task<IssueCloseResponse> IssueCloseAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        [Description("Why the issue is closed: completed or not-planned")] string reason,
+        IIssueService service,
+        [Description("A comment to post on the issue before closing it")] string? comment = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CloseAsync(
+                repository: repo,
+                issue: issue,
+                reason: reason,
+                comment: comment,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueNotFoundException
+                        or IssueCloseRefusedException
+                        or IssueCloseFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
