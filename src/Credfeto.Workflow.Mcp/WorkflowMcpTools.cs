@@ -348,4 +348,82 @@ public sealed class WorkflowMcpTools
             throw new McpException(message: exception.Message, innerException: exception);
         }
     }
+
+    [McpServerTool(Name = "label_add", Title = "Label add", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [Description(
+        "Adds standard labels to one pull request or issue, one label per call so existing labels are kept, refusing priority labels, and returns the labels it now carries"
+    )]
+    public static async Task<LabelChangeResponse> LabelAddAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The standard labels to add")] IReadOnlyList<string> labels,
+        ILabelService service,
+        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
+        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.AddAsync(
+                repository: repo,
+                pullRequest: pr,
+                issue: issue,
+                labels: labels,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsLabelChangeError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(
+        Name = "label_remove",
+        Title = "Label remove",
+        ReadOnly = false,
+        Destructive = true,
+        Idempotent = true
+    )]
+    [Description(
+        "Removes standard labels from one pull request or issue, one label per call, refusing priority labels, On Hold, and Blocked unless this agent added it last, and returns the labels it still carries"
+    )]
+    public static async Task<LabelChangeResponse> LabelRemoveAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The standard labels to remove")] IReadOnlyList<string> labels,
+        ILabelService service,
+        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
+        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.RemoveAsync(
+                repository: repo,
+                pullRequest: pr,
+                issue: issue,
+                labels: labels,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsLabelChangeError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    private static bool IsLabelChangeError(Exception exception)
+    {
+        return exception
+            is LabelRefusedException
+                or LabelChangeFailedException
+                or PullRequestNotFoundException
+                or IssueNotFoundException
+                or ParameterValidationException;
+    }
 }

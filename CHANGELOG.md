@@ -31,6 +31,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added workflow_status_set MCP tool (repo, one of pr/issue, status) that sets the Workflow board status of an issue or pull request, so agents can move work through the board without manual updates, with input validation and documentation (#12)
 - Added read-only issue_comments MCP tool (repo, issue, optional since and author filters) that returns the comment bodies of an issue or pull request, oldest first, keeping the most recent 100 matches, so workflows can read the discussion on an issue or pull request through the server (#58)
 - Added read-only pr_list MCP tool (repo, optional issue, head and labels filters) that lists open pull requests, mirroring cfwf pr list, so workflows can find the pull request for an issue, head branch or label set through the server (#61)
+- Added label_add and label_remove MCP tools that add and remove labels on issues and pull requests, with the same validation and refusals as cfwf, so workflows can manage labels through the server (#64)
 ### Fixed
 ### Changed
 ### Deprecated

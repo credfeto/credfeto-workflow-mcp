@@ -248,6 +248,28 @@ public sealed class GitHubNamesTests : TestBase
     }
 
     [Theory]
+    [InlineData("Bug", "Bug")]
+    [InlineData("bug", "Bug")]
+    [InlineData("TECH DEBT", "Tech Debt")]
+    [InlineData("on hold", "On Hold")]
+    public static void StandardLabelReturnsTheStandardSpelling(string value, string expected)
+    {
+        Assert.Equal(expected: expected, actual: GitHubNames.StandardLabel(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("a,b")]
+    [InlineData("a\tb")]
+    [InlineData("Type: Feature")]
+    [InlineData("credfeto-workflow-ready")]
+    [InlineData(" On Hold ")]
+    public static void StandardLabelRejectsInvalidValues(string value)
+    {
+        AssertRejected(() => GitHubNames.StandardLabel(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
     [InlineData("credfeto")]
     [InlineData("dependabot[bot]")]
     [InlineData("user_name-1")]

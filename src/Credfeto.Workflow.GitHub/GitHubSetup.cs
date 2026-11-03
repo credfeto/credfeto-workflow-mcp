@@ -14,6 +14,7 @@ using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Issues;
+using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Status;
@@ -91,6 +92,7 @@ public static class GitHubSetup
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IPullRequestListService, PullRequestListService>()
+            .AddSingleton<ILabelService, LabelService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()

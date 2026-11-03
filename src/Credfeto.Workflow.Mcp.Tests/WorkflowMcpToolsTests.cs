@@ -29,6 +29,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueService _issueService;
+    private readonly ILabelService _labelService;
     private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
     private readonly IPullRequestCommentsReader _reader;
@@ -45,6 +46,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._viewService = GetSubstitute<IPullRequestService>();
         this._listService = GetSubstitute<IPullRequestListService>();
         this._issueService = GetSubstitute<IIssueService>();
+        this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
     }
 
@@ -1032,6 +1034,170 @@ public sealed class WorkflowMcpToolsTests : TestBase
             CommitAuthors: null,
             Files: null,
             Body: null
+        );
+    }
+
+    [Fact]
+    public async Task LabelAddReturnsWhatTheServiceChangedAsync()
+    {
+        IReadOnlyList<string> labels = ["Bug"];
+        LabelChangeResponse expected = new(Repository: REPOSITORY, Number: PULL_REQUEST, Labels: ["Bug"]);
+        this._labelService.AddAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                labels: labels,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        LabelChangeResponse actual = await WorkflowMcpTools.LabelAddAsync(
+            repo: REPOSITORY,
+            labels: labels,
+            service: this._labelService,
+            pr: PULL_REQUEST,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task LabelRemoveReturnsWhatTheServiceChangedAsync()
+    {
+        IReadOnlyList<string> labels = ["Bug"];
+        LabelChangeResponse expected = new(Repository: REPOSITORY, Number: ISSUE, Labels: []);
+        this._labelService.RemoveAsync(
+                repository: REPOSITORY,
+                pullRequest: null,
+                issue: ISSUE,
+                labels: labels,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        LabelChangeResponse actual = await WorkflowMcpTools.LabelRemoveAsync(
+            repo: REPOSITORY,
+            labels: labels,
+            service: this._labelService,
+            issue: ISSUE,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task LabelFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in LabelFailures())
+        {
+            await this.AssertLabelAddFailureReportedAsync(failure);
+            await this.AssertLabelRemoveFailureReportedAsync(failure);
+        }
+    }
+
+    [Fact]
+    public async Task LabelAddOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.LabelAddFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.LabelAddAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task LabelRemoveOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.LabelRemoveFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.LabelRemoveAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> LabelFailures()
+    {
+        return
+        [
+            new LabelRefusedException("the label Urgent was refused: a priority label may only be changed by a human"),
+            new LabelChangeFailedException("could not change the labels of " + REPOSITORY + "#41"),
+            new PullRequestNotFoundException("pull request " + REPOSITORY + "#41 was not found"),
+            new IssueNotFoundException("issue " + REPOSITORY + "#16 was not found"),
+            ParameterValidationException.For(parameterName: "labels", rule: "at least one label must be given"),
+        ];
+    }
+
+    private async Task AssertLabelAddFailureReportedAsync(Exception failure)
+    {
+        this.LabelAddFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.LabelAddAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private async Task AssertLabelRemoveFailureReportedAsync(Exception failure)
+    {
+        this.LabelRemoveFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.LabelRemoveAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void LabelAddFailsWith(Exception failure)
+    {
+        this._labelService.AddAsync(
+                repository: REPOSITORY,
+                pullRequest: Arg.Any<int?>(),
+                issue: Arg.Any<int?>(),
+                labels: Arg.Any<IReadOnlyList<string>>(),
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private void LabelRemoveFailsWith(Exception failure)
+    {
+        this._labelService.RemoveAsync(
+                repository: REPOSITORY,
+                pullRequest: Arg.Any<int?>(),
+                issue: Arg.Any<int?>(),
+                labels: Arg.Any<IReadOnlyList<string>>(),
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<LabelChangeResponse> LabelAddAsync()
+    {
+        return WorkflowMcpTools.LabelAddAsync(
+            repo: REPOSITORY,
+            labels: ["Bug"],
+            service: this._labelService,
+            pr: PULL_REQUEST,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    private Task<LabelChangeResponse> LabelRemoveAsync()
+    {
+        return WorkflowMcpTools.LabelRemoveAsync(
+            repo: REPOSITORY,
+            labels: ["Bug"],
+            service: this._labelService,
+            pr: PULL_REQUEST,
+            cancellationToken: this.CancellationToken()
         );
     }
 

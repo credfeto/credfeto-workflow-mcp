@@ -29,6 +29,8 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "branch_required_checks",
                 "issue_comments",
                 "issue_view",
+                "label_add",
+                "label_remove",
                 "ping",
                 "pr_checks",
                 "pr_comments",
@@ -143,6 +145,37 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "workflow_status_set is idempotent");
     }
 
+    [Theory]
+    [InlineData("label_add")]
+    [InlineData("label_remove")]
+    public void LabelToolsTakeRepoAndLabelsAndOptionalTarget(string name)
+    {
+        JsonElement schema = this.GetTool(name).ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["issue", "labels", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["labels", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void LabelAddIsAnIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("label_add");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "label_add writes labels");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "label_add is not destructive");
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "label_add is idempotent");
+    }
+
+    [Fact]
+    public void LabelRemoveIsAnIdempotentDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("label_remove");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "label_remove writes labels");
+        Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "label_remove is destructive");
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "label_remove is idempotent");
+    }
+
     private static string[] PropertyNames(JsonElement schema)
     {
         return
@@ -182,6 +215,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IRequiredChecksReader>()
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IPullRequestListService>()
+            .AddMockedService<ILabelService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()

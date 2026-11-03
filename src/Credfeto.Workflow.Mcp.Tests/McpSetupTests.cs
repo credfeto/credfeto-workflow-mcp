@@ -24,6 +24,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IRequiredChecksReader>()
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IPullRequestListService>()
+            .AddMockedService<ILabelService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()

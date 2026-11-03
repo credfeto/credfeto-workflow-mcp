@@ -14,6 +14,20 @@ public interface IGitHubRestClient
         CancellationToken cancellationToken
     );
 
+    ValueTask<TResponse> PostAsync<TRequest, TResponse>(
+        string relativeUri,
+        TRequest body,
+        JsonTypeInfo<TRequest> requestTypeInfo,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    );
+
+    ValueTask<TResponse> DeleteAsync<TResponse>(
+        string relativeUri,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    );
+
     ValueTask<IReadOnlyList<TItem>> GetAllPagesAsync<TItem>(
         string relativeUri,
         JsonTypeInfo<TItem[]> pageTypeInfo,
