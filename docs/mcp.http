@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -430,6 +430,67 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 58,
       "since": "2026-01-01"
+    }
+  }
+}
+
+### Call the issue_close tool with reason not-planned and a comment; expects outcome "closed" (or "already-closed"), reason "not_planned" and the issue URL
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 32,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_close",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 1,
+      "reason": "not-planned",
+      "comment": "Closing as not planned."
+    }
+  }
+}
+
+### Call the issue_close tool with issue 0; expects a tool error naming the "issue" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 33,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_close",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 0,
+      "reason": "completed"
+    }
+  }
+}
+
+### Call the issue_close tool with an invalid reason; expects a tool error naming the "reason" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 34,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_close",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 1,
+      "reason": "duplicate"
     }
   }
 }

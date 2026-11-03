@@ -1,11 +1,14 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.BodyRules;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -14,7 +17,7 @@ using Credfeto.Workflow.GitHub.Json;
 
 namespace Credfeto.Workflow.GitHub.Issues;
 
-public sealed class IssueService : IIssueService
+public sealed partial class IssueService : IIssueService
 {
     private const string OPEN = "OPEN";
 
@@ -24,11 +27,32 @@ public sealed class IssueService : IIssueService
 
     private const int MAX_COMMENTS_READ = 10000;
 
+    private const string REASON_COMPLETED = "completed";
+
+    private const string REASON_NOT_PLANNED = "not_planned";
+
+    private const string REASON_NOT_PLANNED_INPUT = "not-planned";
+
+    private const string OUTCOME_CLOSED = "closed";
+
+    private const string OUTCOME_ALREADY_CLOSED = "already-closed";
+
+    private const string ON_HOLD_RULE = "an issue labelled On Hold may only be closed by a human";
+
+    private const string CLOSING_PULL_REQUEST_RULE = "an open pull request will close the issue when it merges";
+
+    private const string APPROVAL_KEYWORD_RULE = "the comment must not contain an approval keyword";
+
+    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
+
+    private readonly ILeakChecker _leakChecker;
+
     private readonly IGitHubRestClient _restClient;
 
-    public IssueService(IGitHubRestClient restClient)
+    public IssueService(IGitHubRestClient restClient, ILeakChecker leakChecker)
     {
         this._restClient = restClient;
+        this._leakChecker = leakChecker;
     }
 
     public async ValueTask<IssueViewResponse> ViewAsync(
@@ -65,6 +89,59 @@ public sealed class IssueService : IIssueService
             // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
             throw new IssueViewFailedException(message: $"could not read issue {reference}", innerException: exception);
         }
+    }
+
+    public async ValueTask<IssueCloseResponse> CloseAsync(
+        string repository,
+        int issue,
+        string reason,
+        string? comment,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+
+        if (issue <= 0)
+        {
+            throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0");
+        }
+
+        string validReason = CloseReason(reason);
+        string? validComment = string.IsNullOrWhiteSpace(comment) ? null : this.CheckComment(comment);
+        string reference = $"{validRepository}#{issue}";
+        string issueUri = $"repos/{validRepository}/issues/{issue.ToString(CultureInfo.InvariantCulture)}";
+
+        IssueResponse current = await this.ReadForCloseAsync(
+            issueUri: issueUri,
+            reference: reference,
+            issue: issue,
+            cancellationToken: cancellationToken
+        );
+
+        if (StringComparer.Ordinal.Equals(x: State(current.State), y: CLOSED))
+        {
+            return new(
+                Issue: reference,
+                Outcome: OUTCOME_ALREADY_CLOSED,
+                Reason: validReason,
+                Url: IssueUrl(current.HtmlUrl)
+            );
+        }
+
+        if (Labels(current.Labels).Contains(value: StandardLabels.ON_HOLD, comparer: StringComparer.OrdinalIgnoreCase))
+        {
+            throw new IssueCloseRefusedException($"closing issue {reference} was refused") { Rule = ON_HOLD_RULE };
+        }
+
+        return await this.CloseOpenIssueAsync(
+            validRepository: validRepository,
+            issueUri: issueUri,
+            reference: reference,
+            issue: issue,
+            reason: validReason,
+            comment: validComment,
+            cancellationToken: cancellationToken
+        );
     }
 
     public async ValueTask<IssueComments> CommentsAsync(
@@ -263,4 +340,190 @@ public sealed class IssueService : IIssueService
             ),
         ];
     }
+
+    private async ValueTask<IssueCloseResponse> CloseOpenIssueAsync(
+        string validRepository,
+        string issueUri,
+        string reference,
+        int issue,
+        string reason,
+        string? comment,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            IReadOnlyList<IssueTimelineEventResponse> timeline = await this._restClient.GetAllPagesAsync(
+                relativeUri: $"{issueUri}/timeline?per_page=100",
+                pageTypeInfo: GitHubJsonContext.Default.IssueTimelineEventResponseArray,
+                cancellationToken: cancellationToken
+            );
+
+            if (HasOpenClosingPullRequest(timeline: timeline, validRepository: validRepository, issue: issue))
+            {
+                throw new IssueCloseRefusedException($"closing issue {reference} was refused")
+                {
+                    Rule = CLOSING_PULL_REQUEST_RULE,
+                };
+            }
+
+            if (comment is not null)
+            {
+                await this._restClient.PostAsync(
+                    relativeUri: $"{issueUri}/comments",
+                    body: new IssueCommentCreateRequest(Body: comment),
+                    requestTypeInfo: GitHubJsonContext.Default.IssueCommentCreateRequest,
+                    responseTypeInfo: GitHubJsonContext.Default.IssueCommentResponse,
+                    cancellationToken: cancellationToken
+                );
+            }
+
+            IssueResponse closed = await this._restClient.PatchAsync(
+                relativeUri: issueUri,
+                body: new IssueCloseRequest(State: "closed", StateReason: reason),
+                requestTypeInfo: GitHubJsonContext.Default.IssueCloseRequest,
+                responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
+                cancellationToken: cancellationToken
+            );
+
+            return new(Issue: reference, Outcome: OUTCOME_CLOSED, Reason: reason, Url: IssueUrl(closed.HtmlUrl));
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
+            throw new IssueCloseFailedException(
+                message: $"could not close issue {reference}",
+                innerException: exception
+            );
+        }
+    }
+
+    private async ValueTask<IssueResponse> ReadForCloseAsync(
+        string issueUri,
+        string reference,
+        int issue,
+        CancellationToken cancellationToken
+    )
+    {
+        IssueResponse response;
+
+        try
+        {
+            response = await this._restClient.GetAsync(
+                relativeUri: issueUri,
+                responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw new IssueNotFoundException(message: NotFoundMessage(reference), innerException: exception);
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
+            throw new IssueCloseFailedException(
+                message: $"could not close issue {reference}",
+                innerException: exception
+            );
+        }
+
+        // GitHub serves pull requests from the issues endpoint too, so one is reported as no such issue
+        return IsPullRequest(issue: issue, response: response)
+            ? throw new IssueNotFoundException(NotFoundMessage(reference))
+            : response;
+    }
+
+    private static string CloseReason(string reason)
+    {
+        return reason switch
+        {
+            REASON_COMPLETED => REASON_COMPLETED,
+            REASON_NOT_PLANNED or REASON_NOT_PLANNED_INPUT => REASON_NOT_PLANNED,
+            _ => throw ParameterValidationException.For(
+                parameterName: nameof(reason),
+                rule: "must be completed or not-planned"
+            ),
+        };
+    }
+
+    private string CheckComment(string comment)
+    {
+        // The comment text is never echoed back: only the rule and line number are reported
+        if (this._leakChecker.CheckBody(comment) is { } leak)
+        {
+            throw new IssueCloseRefusedException("the closing comment was refused")
+            {
+                Rule = $"the comment must not contain {leak.Rule}",
+                LineNumber = leak.LineNumber,
+            };
+        }
+
+        if (ApprovalKeywordMatcher.FindFirstKeywordLine(comment) is { } approval)
+        {
+            throw new IssueCloseRefusedException("the closing comment was refused")
+            {
+                Rule = APPROVAL_KEYWORD_RULE,
+                LineNumber = approval.LineNumber,
+            };
+        }
+
+        return comment;
+    }
+
+    private static bool HasOpenClosingPullRequest(
+        IReadOnlyList<IssueTimelineEventResponse> timeline,
+        string validRepository,
+        int issue
+    )
+    {
+        return timeline.Any(timelineEvent =>
+            StringComparer.Ordinal.Equals(x: timelineEvent.Event, y: "cross-referenced")
+            && timelineEvent.Source?.Issue is { PullRequest: not null } source
+            && StringComparer.Ordinal.Equals(x: source.State, y: "open")
+            && ClosesIssue(source: source, validRepository: validRepository, issue: issue)
+        );
+    }
+
+    private static bool ClosesIssue(IssueTimelineSourceIssueResponse source, string validRepository, int issue)
+    {
+        if (string.IsNullOrEmpty(source.Body))
+        {
+            return false;
+        }
+
+        string? sourceRepository = SourceRepository(source.RepositoryUrl);
+        string expectedNumber = issue.ToString(CultureInfo.InvariantCulture);
+
+        return ClosingKeyword()
+            .Matches(source.Body)
+            .Any(match =>
+                StringComparer.Ordinal.Equals(x: match.Groups["number"].Value, y: expectedNumber)
+                && StringComparer.OrdinalIgnoreCase.Equals(
+                    x: match.Groups["repo"].Success ? match.Groups["repo"].Value : sourceRepository,
+                    y: validRepository
+                )
+            );
+    }
+
+    private static string? SourceRepository(string? repositoryUrl)
+    {
+        const string marker = "/repos/";
+
+        if (string.IsNullOrEmpty(repositoryUrl))
+        {
+            return null;
+        }
+
+        int index = repositoryUrl.IndexOf(value: marker, comparisonType: StringComparison.Ordinal);
+
+        return index < 0 ? null : repositoryUrl[(index + marker.Length)..];
+    }
+
+    [GeneratedRegex(
+        pattern: @"\b(close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)[\s:]+(?<repo>[\w.-]+/[\w.-]+)?#(?<number>\d+)\b",
+        options: RegexOptions.IgnoreCase | RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
+        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
+    )]
+    private static partial Regex ClosingKeyword();
 }
