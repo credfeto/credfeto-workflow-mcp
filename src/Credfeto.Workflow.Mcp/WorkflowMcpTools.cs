@@ -303,6 +303,52 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: every successful call creates a new issue
+    [McpServerTool(
+        Name = "issue_create",
+        Title = "Issue create",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Creates an issue with a priority label and optional labels, creating any missing label, and puts it on the repository's Workflow board as Not Started; everything is checked before anything is created"
+    )]
+    public static async Task<IssueCreateResponse> IssueCreateAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The priority, in any case: Security, Urgent, High, Medium or Low")] string priority,
+        [Description(
+            "The issue title; in credfeto and funfair-tech repositories it must be \"prefix: text\" or \"prefix(name): text\" with a lower-case prefix"
+        )]
+            string title,
+        [Description("The issue body, in Markdown")] string body,
+        IIssueCreateService service,
+        [Description(
+            "Labels to add besides the priority; a standard label is written in its standard spelling, and a priority is refused"
+        )]
+            IReadOnlyList<string>? labels = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CreateAsync(
+                repository: repo,
+                priority: priority,
+                title: title,
+                body: body,
+                labels: labels,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsIssueCreateError(exception))
+        {
+            // Every one of these messages is fixed text, validated caller input or, once the issue exists, its URL,
+            // never upstream detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
@@ -458,6 +504,24 @@ public sealed class WorkflowMcpTools
             // safe to return
             throw new McpException(message: exception.Message, innerException: exception);
         }
+    }
+
+    private static bool IsIssueCreateError(Exception exception)
+    {
+        return exception
+            is ParameterValidationException
+                or IssueCreateRefusedException
+                or IssueCreateFailedException
+                or IssueCreateBoardWriteException
+                or RepositoryNotFoundException
+                or RepositoryVisibilityLookupFailedException
+                or WorkflowBoardNotFoundException
+                or WorkflowBoardAmbiguousException
+                or WorkflowBoardInvalidException
+                or WorkflowStatusFieldNotFoundException
+                or StatusFieldReadFailedException
+                or StatusOptionMissingException
+                or AmbiguousStatusOptionException;
     }
 
     private static bool IsLabelChangeError(Exception exception)

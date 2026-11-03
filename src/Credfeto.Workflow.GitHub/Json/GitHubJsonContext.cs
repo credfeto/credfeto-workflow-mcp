@@ -33,6 +33,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(IssueCommentResponse))]
 [JsonSerializable(typeof(IssueCommentCreateRequest))]
 [JsonSerializable(typeof(IssueCloseRequest))]
+[JsonSerializable(typeof(IssueCreateRequest))]
 [JsonSerializable(typeof(IssueTimelineEventResponse[]))]
 [JsonSerializable(typeof(StatusQueryVariables))]
 [JsonSerializable(typeof(StatusQueryData))]
@@ -48,7 +49,9 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(VisibilityQueryVariables))]
 [JsonSerializable(typeof(VisibilityQueryData))]
 [JsonSerializable(typeof(IssueLabelResponse[]))]
+[JsonSerializable(typeof(IssueLabelResponse))]
 [JsonSerializable(typeof(IssueUserResponse))]
 [JsonSerializable(typeof(LabelTimelineEventResponse[]))]
 [JsonSerializable(typeof(LabelAddRequest))]
+[JsonSerializable(typeof(LabelCreateRequest))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

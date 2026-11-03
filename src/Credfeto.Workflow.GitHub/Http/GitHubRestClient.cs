@@ -229,18 +229,19 @@ public sealed class GitHubRestClient : IGitHubRestClient
         {
             this._logger.LogRequestFailed(path: requestUri.PathAndQuery, statusCode: (int)response.StatusCode);
 
-            // Only a 403 is told apart by its message, so any other failure is reported without reading the body
-            if (response.StatusCode != HttpStatusCode.Forbidden)
+            // Only a 403 is told apart by its message, and a 422 by its error codes, so any other failure is reported
+            // without reading the body
+            if (response.StatusCode is not (HttpStatusCode.Forbidden or HttpStatusCode.UnprocessableEntity))
             {
                 throw GitHubHttpFailure.FromResponse(response);
             }
 
-            string? upstreamMessage = await GitHubHttpFailure.ReadUpstreamMessageAsync(
+            GitHubErrorResponse? upstreamError = await GitHubHttpFailure.ReadUpstreamErrorAsync(
                 content: response.Content,
                 cancellationToken: cancellationToken
             );
 
-            throw GitHubHttpFailure.FromResponse(response: response, upstreamMessage: upstreamMessage);
+            throw GitHubHttpFailure.FromResponse(response: response, upstreamError: upstreamError);
         }
     }
 

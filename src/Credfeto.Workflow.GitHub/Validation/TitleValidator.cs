@@ -4,7 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 
-namespace Credfeto.Workflow.Mcp.Validation;
+namespace Credfeto.Workflow.GitHub.Validation;
 
 public static partial class TitleValidator
 {

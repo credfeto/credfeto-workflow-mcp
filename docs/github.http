@@ -176,7 +176,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: a work item's node id, only when its board item id is not cached (board_set_status, workflow_status_set)
+### GraphQL: a work item's node id, only when its board item id is not cached (board_set_status, workflow_status_set, issue_create)
 # For a pull request use item:pullRequest(number:$n) in place of item:issue(number:$n).
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
@@ -194,7 +194,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: add a work item to the Workflow board (board_set_status, workflow_status_set)
+### GraphQL: add a work item to the Workflow board (board_set_status, workflow_status_set, issue_create)
 # Adding an item that is already on the board returns its existing item id.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
@@ -211,7 +211,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: set a board item's status (board_set_status, workflow_status_set)
+### GraphQL: set a board item's status (board_set_status, workflow_status_set, issue_create)
 # An error saying "Could not resolve to a node" means the cached item id is stale, so the item is added again.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
@@ -230,7 +230,7 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: the Workflow board's single-select fields and their options (board_set_status, workflow_status_set)
+### GraphQL: the Workflow board's single-select fields and their options (board_set_status, workflow_status_set, issue_create)
 # A legacy "Workflow Status" field takes precedence over the built-in "Status" field. Fields of other
 # types arrive as empty objects because they do not match the inline fragment.
 POST {{apiBaseUrl}}graphql
@@ -319,3 +319,35 @@ Authorization: Bearer {{token}}
 Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
+
+### REST: a repository's labels, before creating the missing ones (issue_create)
+# Read in full, following the Link header's next page; a label is matched without regard to case.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/labels?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: create a missing standard label with its standard colour and description (issue_create)
+# A label that is not a standard one is sent with only its name, so GitHub picks the colour. A 422 whose errors
+# include the code already_exists means another caller created it meanwhile, which is not an error.
+POST {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/labels
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{"name":"Read Me","color":"5319e7","description":"Repository readme file"}
+
+### REST: create the issue with its priority label first, then the other labels (issue_create)
+# Its html_url must match https://<host>[:<port>]/<owner>/<repo>/issues/<number>; neither the host nor the
+# repository is compared. It is then put on the Workflow board as Not Started with the GraphQL requests above.
+POST {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{"title":"docs: try the issue_create tool","body":"## Summary\n\nCreated from docs/github.http.","labels":["Medium","Enhancement","Read Me"]}
