@@ -319,3 +319,26 @@ Authorization: Bearer {{token}}
 Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
+
+### REST: an inline review comment, read before replying to it (pr_reply)
+# pull_request_url names the pull request the comment belongs to; in_reply_to_id, when present, is the
+# thread's top comment, which the reply goes to. A 404 means the comment or the repository is missing.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/pulls/comments/1
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: reply in an inline review comment's thread (pr_reply; never retried)
+# The comment id is the thread's top comment. A 400, 401, 403, 404, 410 or 422 means the reply was not
+# posted; any other failure means it may have been posted, so check with pr_comments before trying again.
+POST {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/pulls/87/comments/1/replies
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "body": "Fixed in abc1234: the reply text."
+}

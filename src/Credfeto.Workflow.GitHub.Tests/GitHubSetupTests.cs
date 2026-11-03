@@ -155,6 +155,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrReplyServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrReplyService>();
+    }
+
+    [Fact]
+    public void PrReplyServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrReplyService, PrReplyService>();
+    }
+
+    [Fact]
     public void LabelServiceShouldBeRegistered()
     {
         this.RequireService<ILabelService>();
