@@ -32,6 +32,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "ping",
                 "pr_checks",
                 "pr_comments",
+                "pr_list",
                 "pr_view",
                 "workflow_status_check",
                 "workflow_status_set",
@@ -43,6 +44,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [Theory]
     [InlineData("pr_comments")]
     [InlineData("pr_view")]
+    [InlineData("pr_list")]
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
     [InlineData("issue_comments")]
@@ -65,6 +67,20 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.Contains(
             expectedSubstring: "\"array\"",
             actualString: schema.GetProperty("properties").GetProperty("fields").GetProperty("type").GetRawText(),
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void PrListTakesRepoAndOptionalFilters()
+    {
+        JsonElement schema = this.GetTool("pr_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["head", "issue", "labels", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+        Assert.Contains(
+            expectedSubstring: "\"array\"",
+            actualString: schema.GetProperty("properties").GetProperty("labels").GetProperty("type").GetRawText(),
             comparisonType: StringComparison.Ordinal
         );
     }
@@ -165,6 +181,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPullRequestCommentsReader>()
             .AddMockedService<IRequiredChecksReader>()
             .AddMockedService<IPullRequestService>()
+            .AddMockedService<IPullRequestListService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()

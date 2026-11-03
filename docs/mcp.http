@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -237,6 +237,82 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 0
+    }
+  }
+}
+
+### Call the pr_list tool with no filters; expects every open pull request, sorted by number
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 28,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp"
+    }
+  }
+}
+
+### Call the pr_list tool with every filter; expects only the open pull requests from that head branch that link the issue and carry every label, in any case
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 29,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 61,
+      "head": "feat/61-mcp-pr-list-label-filter",
+      "labels": ["Type: Feature"]
+    }
+  }
+}
+
+### Call the pr_list tool with a label containing a comma; expects a tool error naming the "labels" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 30,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "labels": ["a,b"]
+    }
+  }
+}
+
+### Call the pr_list tool for a missing repository; expects a tool error saying the repository was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 31,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_list",
+    "arguments": {
+      "repo": "credfeto/does-not-exist"
     }
   }
 }

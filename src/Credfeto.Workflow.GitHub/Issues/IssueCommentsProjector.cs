@@ -151,7 +151,7 @@ internal sealed class IssueCommentsProjector
         };
     }
 
-    private static string StripBotSuffix(string login)
+    internal static string StripBotSuffix(string login)
     {
         return login.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal)
             ? login[..^BOT_SUFFIX.Length]

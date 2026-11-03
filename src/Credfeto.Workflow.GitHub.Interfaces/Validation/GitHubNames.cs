@@ -159,6 +159,20 @@ public static class GitHubNames
         return value;
     }
 
+    // A list filter is the same label as cfwf matches, which also refuses a quote or backslash in it
+    public static string ListLabel(string value, string parameterName)
+    {
+        string label = Label(value: value, parameterName: parameterName);
+
+        ThrowIf(
+            invalid: label.AsSpan().ContainsAny('"', '\\'),
+            parameterName: parameterName,
+            rule: "it must not contain '\"' or '\\'"
+        );
+
+        return label;
+    }
+
     public static string Login(string value, string parameterName)
     {
         ReadOnlySpan<char> name = value.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal)

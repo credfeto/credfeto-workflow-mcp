@@ -87,6 +87,43 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "pr_list", Title = "Pull request list", ReadOnly = true)]
+    [Description(
+        "Lists the open pull requests of a repository in number order, keeping only those on the given head branch and carrying every given label, or fails rather than return a partial list"
+    )]
+    public static async Task<PullRequestListResponse> PrListAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IPullRequestListService service,
+        [Description("The issue number; a pull request whose head branch names it is flagged issue")] int? issue = null,
+        [Description("Only pull requests whose head branch is exactly this name")] string? head = null,
+        [Description("Only pull requests carrying every one of these labels; compared case-insensitively")]
+            IReadOnlyList<string>? labels = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(
+                repository: repo,
+                issue: issue,
+                head: head,
+                labels: labels,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is RepositoryNotFoundException
+                        or PullRequestListFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "branch_required_checks", Title = "Branch required checks", ReadOnly = true)]
     [Description(
         "Lists the status check names a branch requires before a merge, from branch protection and rulesets combined, or fails rather than return a partial list"

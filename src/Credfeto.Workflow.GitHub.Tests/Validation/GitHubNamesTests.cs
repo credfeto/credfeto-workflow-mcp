@@ -226,6 +226,28 @@ public sealed class GitHubNamesTests : TestBase
     }
 
     [Theory]
+    [InlineData("bug")]
+    [InlineData("Type: Feature")]
+    [InlineData("12345678901234567890123456789012345678901234567890")]
+    public static void ListLabelAcceptsValidValues(string value)
+    {
+        Assert.Equal(expected: value, actual: GitHubNames.ListLabel(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("a,b")]
+    [InlineData("a\tb")]
+    [InlineData("a\"b")]
+    [InlineData("a\\b")]
+    [InlineData("123456789012345678901234567890123456789012345678901")]
+    public static void ListLabelRejectsInvalidValues(string value)
+    {
+        AssertRejected(() => GitHubNames.ListLabel(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
     [InlineData("credfeto")]
     [InlineData("dependabot[bot]")]
     [InlineData("user_name-1")]

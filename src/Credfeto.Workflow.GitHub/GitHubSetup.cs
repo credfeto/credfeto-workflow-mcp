@@ -90,6 +90,7 @@ public static class GitHubSetup
             .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IPullRequestService, PullRequestService>()
+            .AddSingleton<IPullRequestListService, PullRequestListService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()
