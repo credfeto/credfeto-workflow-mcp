@@ -26,6 +26,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(PullRequestViewQueryVariables))]
 [JsonSerializable(typeof(PullRequestViewQueryData))]
 [JsonSerializable(typeof(PullRequestFileResponse[]))]
+[JsonSerializable(typeof(PullRequestListItemResponse[]))]
 [JsonSerializable(typeof(IssueResponse))]
 [JsonSerializable(typeof(IssueCommentResponse[]))]
 [JsonSerializable(typeof(StatusQueryVariables))]

@@ -29,6 +29,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueService _issueService;
+    private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
@@ -42,6 +43,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._reader = GetSubstitute<IPullRequestCommentsReader>();
         this._checksReader = GetSubstitute<IRequiredChecksReader>();
         this._viewService = GetSubstitute<IPullRequestService>();
+        this._listService = GetSubstitute<IPullRequestListService>();
         this._issueService = GetSubstitute<IIssueService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
     }
@@ -248,6 +250,89 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this.ViewServiceFailsWith(failure);
 
         GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() => this.ViewAsync(null));
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task PrListReturnsWhatTheServiceListedAsync()
+    {
+        IReadOnlyList<string> labels = ["bug", "Type: Feature"];
+        PullRequestListResponse expected = new(Repository: REPOSITORY, PullRequests: []);
+        this._listService.ListAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                head: BRANCH,
+                labels: labels,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestListResponse actual = await WorkflowMcpTools.PrListAsync(
+            repo: REPOSITORY,
+            service: this._listService,
+            issue: ISSUE,
+            head: BRANCH,
+            labels: labels,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrListPassesNoFiltersWhenNoneAreGivenAsync()
+    {
+        PullRequestListResponse expected = new(Repository: REPOSITORY, PullRequests: []);
+        this._listService.ListAsync(
+                repository: REPOSITORY,
+                issue: null,
+                head: null,
+                labels: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestListResponse actual = await this.ListAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task PrListRepositoryNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertListFailureReportedAsync(
+            new RepositoryNotFoundException(
+                "the repository " + REPOSITORY + " was not found, or the caller cannot see it"
+            )
+        );
+    }
+
+    [Fact]
+    public Task PrListFailureIsReportedToTheCallerAsync()
+    {
+        return this.AssertListFailureReportedAsync(
+            new PullRequestListFailedException("could not list the pull requests of " + REPOSITORY)
+        );
+    }
+
+    [Fact]
+    public Task PrListInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertListFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "issue", rule: "must be above 0")
+        );
+    }
+
+    [Fact]
+    public async Task PrListOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.ListServiceFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.ListAsync
+        );
 
         Assert.Same(expected: failure, actual: exception);
     }
@@ -947,6 +1032,37 @@ public sealed class WorkflowMcpToolsTests : TestBase
             CommitAuthors: null,
             Files: null,
             Body: null
+        );
+    }
+
+    private async Task AssertListFailureReportedAsync(Exception failure)
+    {
+        this.ListServiceFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.ListAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void ListServiceFailsWith(Exception failure)
+    {
+        this._listService.ListAsync(
+                repository: REPOSITORY,
+                issue: Arg.Any<int?>(),
+                head: Arg.Any<string?>(),
+                labels: Arg.Any<IReadOnlyList<string>?>(),
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<PullRequestListResponse> ListAsync()
+    {
+        return WorkflowMcpTools.PrListAsync(
+            repo: REPOSITORY,
+            service: this._listService,
+            cancellationToken: this.CancellationToken()
         );
     }
 
