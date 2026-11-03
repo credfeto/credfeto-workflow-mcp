@@ -37,6 +37,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly ILabelService _labelService;
     private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
+    private readonly IPrReplyService _prReplyService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
     private readonly IWorkflowStatusCheckService _workflowStatusCheckService;
@@ -54,6 +55,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._issueCreateService = GetSubstitute<IIssueCreateService>();
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
+        this._prReplyService = GetSubstitute<IPrReplyService>();
     }
 
     [Fact]
@@ -720,6 +722,76 @@ public sealed class WorkflowMcpToolsTests : TestBase
             title: ISSUE_TITLE,
             body: ISSUE_BODY,
             service: this._issueCreateService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrReplyReturnsWhatTheServiceAnsweredAsync()
+    {
+        PrReplyResult expected = new(
+            Outcome: PrReplyOutcome.Posted,
+            Message: "the reply was posted to the thread of comment 123",
+            CommentId: 456,
+            InReplyToId: 123,
+            Url: new("https://github.com/" + REPOSITORY + "/pull/41#discussion_r456"),
+            Rule: null,
+            LineNumber: null
+        );
+        this.PrReplyServiceCallAsync().Returns(expected);
+
+        PrReplyResult actual = await this.PrReplyAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrReplyValidationFailuresAreReportedToTheCallerAsync()
+    {
+        ParameterValidationException failure = ParameterValidationException.For(
+            parameterName: "body",
+            rule: "it must not be empty or whitespace"
+        );
+        this.PrReplyServiceCallAsync().ThrowsAsync(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.PrReplyAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    [Fact]
+    public async Task PrReplyOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrReplyServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrReplyAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private ValueTask<PrReplyResult> PrReplyServiceCallAsync()
+    {
+        return this._prReplyService.ReplyAsync(
+            repository: REPOSITORY,
+            pullRequest: PULL_REQUEST,
+            commentId: "123",
+            body: "Thanks",
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<PrReplyResult> PrReplyAsync()
+    {
+        return WorkflowMcpTools.PrReplyAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            commentId: "123",
+            body: "Thanks",
+            service: this._prReplyService,
             cancellationToken: this.CancellationToken()
         );
     }

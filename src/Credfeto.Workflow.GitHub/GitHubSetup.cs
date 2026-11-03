@@ -92,6 +92,7 @@ public static class GitHubSetup
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
             .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IPullRequestListService, PullRequestListService>()
+            .AddSingleton<IPrReplyService, PrReplyService>()
             .AddSingleton<ILabelService, LabelService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()

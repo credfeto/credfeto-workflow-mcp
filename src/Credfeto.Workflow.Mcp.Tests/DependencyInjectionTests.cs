@@ -37,6 +37,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_checks",
                 "pr_comments",
                 "pr_list",
+                "pr_reply",
                 "pr_view",
                 "workflow_status_check",
                 "workflow_status_set",
@@ -148,6 +149,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_create writes an issue");
         Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_create is not destructive");
         Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_create is not idempotent");
+    }
+
+    [Fact]
+    public void PrReplyTakesRepoAndPrAndCommentIdAndBody()
+    {
+        JsonElement schema = this.GetTool("pr_reply").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "commentId", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "commentId", "pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrReplyIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("pr_reply");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "pr_reply writes a comment");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "pr_reply is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "pr_reply is not idempotent");
     }
 
     [Fact]
@@ -263,6 +283,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ILabelService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
+            .AddMockedService<IPrReplyService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()
