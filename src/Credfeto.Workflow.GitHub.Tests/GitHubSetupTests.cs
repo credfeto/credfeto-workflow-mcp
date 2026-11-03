@@ -7,6 +7,7 @@ using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Issues;
+using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Status;
@@ -151,6 +152,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void PullRequestListServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IPullRequestListService, PullRequestListService>();
+    }
+
+    [Fact]
+    public void LabelServiceShouldBeRegistered()
+    {
+        this.RequireService<ILabelService>();
+    }
+
+    [Fact]
+    public void LabelServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ILabelService, LabelService>();
     }
 
     [Fact]

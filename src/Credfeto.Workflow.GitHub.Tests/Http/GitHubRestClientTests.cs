@@ -126,6 +126,83 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task PostSendsJsonBodyAndDeserialisesResponseAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":3,"name":"created"}"""));
+        TestItem body = new(Id: 2, Name: "body");
+
+        TestItem item = await this.CreateClient(upstream)
+            .PostAsync(
+                relativeUri: "repos/owner/repo/issues/1/labels",
+                body: body,
+                requestTypeInfo: TestJsonContext.Default.TestItem,
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: new TestItem(Id: 3, Name: "created"), actual: item);
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Post, actual: request.Method);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues/1/labels"),
+            actual: request.RequestUri
+        );
+        Assert.Equal(
+            expected: body,
+            actual: JsonSerializer.Deserialize(
+                json: request.Body ?? string.Empty,
+                jsonTypeInfo: TestJsonContext.Default.TestItem
+            )
+        );
+    }
+
+    [Fact]
+    public async Task PostFailureStatusThrowsAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Status(HttpStatusCode.UnprocessableEntity)
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .PostAsync(
+                    relativeUri: "repos/owner/repo/issues/1/labels",
+                    body: new TestItem(Id: 2, Name: "body"),
+                    requestTypeInfo: TestJsonContext.Default.TestItem,
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.UnprocessableEntity, actual: exception.StatusCode);
+    }
+
+    [Fact]
+    public async Task DeleteDeserialisesResponseAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":4,"name":"remaining"}"""));
+
+        TestItem item = await this.CreateClient(upstream)
+            .DeleteAsync(
+                relativeUri: "repos/owner/repo/issues/1/labels/bug",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: new TestItem(Id: 4, Name: "remaining"), actual: item);
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Delete, actual: request.Method);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues/1/labels/bug"),
+            actual: request.RequestUri
+        );
+        Assert.Null(request.Body);
+    }
+
+    [Fact]
     public async Task ResilienceTimeoutIsAnHttpRequestFailureAsync()
     {
         TimeoutRejectedException rejection = new();

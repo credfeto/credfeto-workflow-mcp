@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,8 +27,57 @@ public sealed class GitHubRestClient : IGitHubRestClient
         this._logger = logger;
     }
 
-    public async ValueTask<TResponse> GetAsync<TResponse>(
+    public ValueTask<TResponse> GetAsync<TResponse>(
         string relativeUri,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ExchangeAsync(
+            method: HttpMethod.Get,
+            relativeUri: relativeUri,
+            content: null,
+            responseTypeInfo: responseTypeInfo,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public ValueTask<TResponse> PostAsync<TRequest, TResponse>(
+        string relativeUri,
+        TRequest body,
+        JsonTypeInfo<TRequest> requestTypeInfo,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ExchangeAsync(
+            method: HttpMethod.Post,
+            relativeUri: relativeUri,
+            content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
+            responseTypeInfo: responseTypeInfo,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public ValueTask<TResponse> DeleteAsync<TResponse>(
+        string relativeUri,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ExchangeAsync(
+            method: HttpMethod.Delete,
+            relativeUri: relativeUri,
+            content: null,
+            responseTypeInfo: responseTypeInfo,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    private async ValueTask<TResponse> ExchangeAsync<TResponse>(
+        HttpMethod method,
+        string relativeUri,
+        HttpContent? content,
         JsonTypeInfo<TResponse> responseTypeInfo,
         CancellationToken cancellationToken
     )
@@ -40,7 +90,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
         using HttpResponseMessage response = await this.SendAsync(
             httpClient: httpClient,
+            method: method,
             requestUri: requestUri,
+            content: content,
             cancellationToken: cancellationToken
         );
 
@@ -84,7 +136,9 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
             using HttpResponseMessage response = await this.SendAsync(
                 httpClient: httpClient,
+                method: HttpMethod.Get,
                 requestUri: requestUri,
+                content: null,
                 cancellationToken: cancellationToken
             );
 
@@ -134,11 +188,14 @@ public sealed class GitHubRestClient : IGitHubRestClient
     // The caller owns and disposes the returned successful response; a failed one is disposed here
     private async ValueTask<HttpResponseMessage> SendAsync(
         HttpClient httpClient,
+        HttpMethod method,
         Uri requestUri,
+        HttpContent? content,
         CancellationToken cancellationToken
     )
     {
-        using HttpRequestMessage request = new(method: HttpMethod.Get, requestUri: requestUri);
+        using HttpRequestMessage request = new(method: method, requestUri: requestUri);
+        request.Content = content;
 
         HttpResponseMessage response = await GitHubHttpSender.SendAsync(
             httpClient: httpClient,

@@ -4,6 +4,7 @@ using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Issues;
+using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
@@ -42,4 +43,8 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(FieldsQueryData))]
 [JsonSerializable(typeof(VisibilityQueryVariables))]
 [JsonSerializable(typeof(VisibilityQueryData))]
+[JsonSerializable(typeof(IssueLabelResponse[]))]
+[JsonSerializable(typeof(IssueUserResponse))]
+[JsonSerializable(typeof(LabelTimelineEventResponse[]))]
+[JsonSerializable(typeof(LabelAddRequest))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

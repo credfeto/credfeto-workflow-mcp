@@ -173,6 +173,18 @@ public static class GitHubNames
         return label;
     }
 
+    // The label is returned in its standard spelling, so a write never creates a near-duplicate label
+    public static string StandardLabel(string value, string parameterName)
+    {
+        string label = Label(value: value, parameterName: parameterName);
+
+        return StandardLabels.FindStandard(label)
+            ?? throw ParameterValidationException.For(
+                parameterName: parameterName,
+                rule: "it must be a standard label"
+            );
+    }
+
     public static string Login(string value, string parameterName)
     {
         ReadOnlySpan<char> name = value.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal)
