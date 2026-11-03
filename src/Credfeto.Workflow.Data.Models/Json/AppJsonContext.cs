@@ -4,6 +4,7 @@ using Credfeto.Workflow.Data.Models.Models;
 namespace Credfeto.Workflow.Data.Models.Json;
 
 [JsonSerializable(typeof(BranchRequiredChecksResponse))]
+[JsonSerializable(typeof(IssueComments))]
 [JsonSerializable(typeof(IssueViewResponse))]
 [JsonSerializable(typeof(PingResponse))]
 [JsonSerializable(typeof(PrChecksResponse))]

@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `issue_view`, `branch_required_checks`, `pr_checks`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `issue_view`, `issue_comments`, `branch_required_checks`, `pr_checks`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -48,6 +48,7 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | Tool                     | Description                                                                                                                                                                                                                                   |
 |--------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `branch_required_checks` | Read only. Takes `repo` (`owner/repo`) and `branch`; returns the repository, the branch and the names of the status checks it requires before a merge, from branch protection and rulesets combined. Fails rather than return a partial list. |
+| `issue_comments`         | Read only. Takes `repo` (`owner/repo`), `issue` or pull request number, optional `since` (`yyyy-MM-ddTHH:mm:ssZ`) and `author`; returns the 100 most recent matching comments, oldest first, bodies capped at 500 lines, and a summary.       |
 | `issue_view`             | Read only. Takes `repo` (`owner/repo`) and `issue`; returns the issue number, title, state (`OPEN` or `CLOSED`), label names, assignee logins and body. A pull request number is reported as not found.                                       |
 | `ping`                   | Returns `{"value":"pong"}`, the same payload as `GET /ping`.                                                                                                                                                                                  |
 | `pr_comments`            | Read only. Takes `repo` (`owner/repo`) and `pr`; returns the review decision, every top-level comment, review and inline review thread, and a summary of counts. Fails rather than return a partial list.                                     |

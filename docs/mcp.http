@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -294,6 +294,66 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 0
+    }
+  }
+}
+
+### Call the issue_comments tool; expects the comments oldest first and a summary of counts
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 25,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_comments",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 58
+    }
+  }
+}
+
+### Call the issue_comments tool for a pull request with since and author filters; expects only that author's comments created at or after the time
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 26,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_comments",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 83,
+      "since": "2026-01-01T00:00:00Z",
+      "author": "credfeto"
+    }
+  }
+}
+
+### Call the issue_comments tool with an invalid since; expects a tool error naming the "since" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 27,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_comments",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 58,
+      "since": "2026-01-01"
     }
   }
 }

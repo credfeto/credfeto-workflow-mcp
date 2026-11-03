@@ -185,6 +185,44 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "issue_comments", Title = "Issue comments", ReadOnly = true)]
+    [Description(
+        "Reads the comments of an issue or pull request, oldest first, keeping the most recent 100 that match the filters"
+    )]
+    public static async Task<IssueComments> IssueCommentsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue or pull request number")] int issue,
+        IIssueService service,
+        [Description("Only comments created at or after this UTC time, as yyyy-MM-ddTHH:mm:ssZ")] string? since = null,
+        [Description("Only comments by this author, as a login or app/<slug>; compared case-insensitively")]
+            string? author = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CommentsAsync(
+                repository: repo,
+                issue: issue,
+                since: since,
+                author: author,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueNotFoundException
+                        or IssueViewFailedException
+                        or IssueCommentsIncompleteException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
