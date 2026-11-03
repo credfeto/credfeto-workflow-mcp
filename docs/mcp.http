@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -491,6 +491,71 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 1,
       "reason": "duplicate"
+    }
+  }
+}
+
+### Call the issue_create tool with a priority and labels; creates any missing label and the issue, puts it on the Workflow board as Not Started and expects the issue URL
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 35,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_create",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "priority": "medium",
+      "title": "docs: try the issue_create tool",
+      "body": "## Summary\n\nCreated from docs/mcp.http.",
+      "labels": ["enhancement", "Read Me"]
+    }
+  }
+}
+
+### Call the issue_create tool with a priority given as a label; expects the tool error "'high' is a priority; use --priority High, not --label" and creates nothing
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 36,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_create",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "priority": "Medium",
+      "title": "docs: try the issue_create tool",
+      "body": "Created from docs/mcp.http.",
+      "labels": ["high"]
+    }
+  }
+}
+
+### Call the issue_create tool with a title that is not "prefix: text" in a credfeto repository; expects an "invalid value for --title" tool error and creates nothing
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 37,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_create",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "priority": "Low",
+      "title": "Try the issue_create tool",
+      "body": "Created from docs/mcp.http."
     }
   }
 }

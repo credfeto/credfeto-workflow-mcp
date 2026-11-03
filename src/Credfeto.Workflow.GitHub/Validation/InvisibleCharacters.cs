@@ -1,6 +1,6 @@
 using System.Text;
 
-namespace Credfeto.Workflow.Mcp.Validation;
+namespace Credfeto.Workflow.GitHub.Validation;
 
 public static class InvisibleCharacters
 {

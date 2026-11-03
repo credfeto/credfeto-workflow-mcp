@@ -27,7 +27,12 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string STATUS = "Development";
 
+    private const string ISSUE_TITLE = "feat(mcp): add issue create";
+
+    private const string ISSUE_BODY = "Create an issue.";
+
     private readonly IRequiredChecksReader _checksReader;
+    private readonly IIssueCreateService _issueCreateService;
     private readonly IIssueService _issueService;
     private readonly ILabelService _labelService;
     private readonly IPullRequestListService _listService;
@@ -46,6 +51,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._viewService = GetSubstitute<IPullRequestService>();
         this._listService = GetSubstitute<IPullRequestListService>();
         this._issueService = GetSubstitute<IIssueService>();
+        this._issueCreateService = GetSubstitute<IIssueCreateService>();
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
     }
@@ -589,6 +595,131 @@ public sealed class WorkflowMcpToolsTests : TestBase
             issue: ISSUE,
             reason: "completed",
             service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task IssueCreateReturnsWhatTheServiceCreatedAsync()
+    {
+        IssueCreateResponse expected = new(new Uri("https://github.com/" + REPOSITORY + "/issues/90"));
+        IReadOnlyList<string> labels = ["Bug"];
+        this._issueCreateService.CreateAsync(
+                repository: REPOSITORY,
+                priority: "High",
+                title: ISSUE_TITLE,
+                body: ISSUE_BODY,
+                labels: labels,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueCreateResponse actual = await WorkflowMcpTools.IssueCreateAsync(
+            repo: REPOSITORY,
+            priority: "High",
+            title: ISSUE_TITLE,
+            body: ISSUE_BODY,
+            service: this._issueCreateService,
+            labels: labels,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueCreatePassesNoLabelsWhenNoneAreGivenAsync()
+    {
+        IssueCreateResponse expected = new(new Uri("https://github.com/" + REPOSITORY + "/issues/91"));
+        this._issueCreateService.CreateAsync(
+                repository: REPOSITORY,
+                priority: "Medium",
+                title: ISSUE_TITLE,
+                body: ISSUE_BODY,
+                labels: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueCreateResponse actual = await this.IssueCreateAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueCreateFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueCreateFailures())
+        {
+            this.IssueCreateFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueCreateAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task IssueCreateOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueCreateFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueCreateAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> IssueCreateFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "labels", rule: "it must contain a visible character"),
+            new IssueCreateRefusedException("body refused: token (line 2)"),
+            new IssueCreateFailedException("could not create the issue in " + REPOSITORY),
+            new IssueCreateBoardWriteException(
+                "could not put the issue on the board; the issue was already created: https://github.com/"
+                    + REPOSITORY
+                    + "/issues/90"
+            ),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new WorkflowBoardNotFoundException("no Workflow board"),
+            new WorkflowBoardAmbiguousException("more than one Workflow board"),
+            new WorkflowBoardInvalidException("unexpected project id/number"),
+            new WorkflowStatusFieldNotFoundException("no Status field"),
+            new StatusFieldReadFailedException("could not read the status fields of project 7"),
+            new StatusOptionMissingException("no Not Started option"),
+            new AmbiguousStatusOptionException("more than one Not Started option"),
+        ];
+    }
+
+    private void IssueCreateFailsWith(Exception failure)
+    {
+        this._issueCreateService.CreateAsync(
+                repository: REPOSITORY,
+                priority: "Medium",
+                title: ISSUE_TITLE,
+                body: ISSUE_BODY,
+                labels: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueCreateResponse> IssueCreateAsync()
+    {
+        return WorkflowMcpTools.IssueCreateAsync(
+            repo: REPOSITORY,
+            priority: "Medium",
+            title: ISSUE_TITLE,
+            body: ISSUE_BODY,
+            service: this._issueCreateService,
             cancellationToken: this.CancellationToken()
         );
     }
