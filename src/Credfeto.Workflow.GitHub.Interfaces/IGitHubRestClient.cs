@@ -22,6 +22,14 @@ public interface IGitHubRestClient
         CancellationToken cancellationToken
     );
 
+    ValueTask<TResponse> PatchAsync<TRequest, TResponse>(
+        string relativeUri,
+        TRequest body,
+        JsonTypeInfo<TRequest> requestTypeInfo,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    );
+
     ValueTask<TResponse> DeleteAsync<TResponse>(
         string relativeUri,
         JsonTypeInfo<TResponse> responseTypeInfo,

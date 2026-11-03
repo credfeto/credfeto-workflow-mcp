@@ -15,4 +15,12 @@ public interface IIssueService
         string? author,
         CancellationToken cancellationToken
     );
+
+    ValueTask<IssueCloseResponse> CloseAsync(
+        string repository,
+        int issue,
+        string reason,
+        string? comment,
+        CancellationToken cancellationToken
+    );
 }

@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Http;
+using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using Credfeto.Workflow.GitHub.Issues;
@@ -110,7 +111,7 @@ public sealed class IssueServiceCommentsTests : GitHubClientTestBase
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 
-        return new(rest);
+        return new(restClient: rest, leakChecker: GetSubstitute<ILeakChecker>());
     }
 
     private async Task<IssueComments> CommentsAsync(

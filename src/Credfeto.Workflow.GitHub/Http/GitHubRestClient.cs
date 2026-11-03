@@ -59,6 +59,23 @@ public sealed class GitHubRestClient : IGitHubRestClient
         );
     }
 
+    public ValueTask<TResponse> PatchAsync<TRequest, TResponse>(
+        string relativeUri,
+        TRequest body,
+        JsonTypeInfo<TRequest> requestTypeInfo,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ExchangeAsync(
+            method: HttpMethod.Patch,
+            relativeUri: relativeUri,
+            content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
+            responseTypeInfo: responseTypeInfo,
+            cancellationToken: cancellationToken
+        );
+    }
+
     public ValueTask<TResponse> DeleteAsync<TResponse>(
         string relativeUri,
         JsonTypeInfo<TResponse> responseTypeInfo,
