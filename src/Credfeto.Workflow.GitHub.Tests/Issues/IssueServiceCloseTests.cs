@@ -156,6 +156,22 @@ public sealed class IssueServiceCloseTests : GitHubClientTestBase
         );
     }
 
+    [Fact]
+    public async Task CloseNotPlannedClosesAsNotPlannedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(index => CloseFlow(index: index, timeline: EMPTY_TIMELINE));
+
+        IssueCloseResponse result = await this.CloseAsync(upstream: upstream, reason: "not-planned", comment: null);
+
+        Assert.Equal(expected: "not_planned", actual: result.Reason);
+        Assert.Equal(expected: 3, actual: upstream.Requests.Count);
+        Assert.Contains(
+            expectedSubstring: "\"state_reason\":\"not_planned\"",
+            actualString: upstream.Requests[2].Body,
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("")]

@@ -27,6 +27,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             expected:
             [
                 "branch_required_checks",
+                "issue_close",
                 "issue_comments",
                 "issue_view",
                 "label_add",
@@ -103,6 +104,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["author", "issue", "repo", "since"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssueCloseTakesRepoAndIssueAndReasonAndOptionalComment()
+    {
+        JsonElement schema = this.GetTool("issue_close").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["comment", "issue", "reason", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["issue", "reason", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssueCloseIsAnIdempotentDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("issue_close");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_close writes the issue");
+        Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_close is destructive");
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_close is idempotent");
     }
 
     [Fact]
