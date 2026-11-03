@@ -30,6 +30,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only workflow_status_check MCP tool (repo, pr or issue) that returns the Workflow board state of an issue or pull request, with distinct unset and not-on-board outcomes (#13)
 - Added workflow_status_set MCP tool (repo, one of pr/issue, status) that sets the Workflow board status of an issue or pull request, so agents can move work through the board without manual updates, with input validation and documentation (#12)
 - Added read-only issue_comments MCP tool (repo, issue, optional since and author filters) that returns the comment bodies of an issue or pull request, oldest first, keeping the most recent 100 matches, so workflows can read the discussion on an issue or pull request through the server (#58)
+- Added read-only pr_list MCP tool (repo, issue, head, labels) that lists open pull requests, optionally filtered to those carrying every given label (#61)
 ### Fixed
 ### Changed
 ### Deprecated
