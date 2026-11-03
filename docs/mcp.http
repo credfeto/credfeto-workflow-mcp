@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -491,6 +491,69 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 1,
       "reason": "duplicate"
+    }
+  }
+}
+
+### Call the pr_reply tool on an inline review comment; expects outcome "Posted" with the new comment id, the root comment id it replied to and its URL
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 35,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_reply",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "commentId": "1",
+      "body": "Fixed in the latest commit."
+    }
+  }
+}
+
+### Call the pr_reply tool with a body containing a token; expects outcome "Refused" naming the leak rule and nothing posted
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 36,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_reply",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "commentId": "1",
+      "body": "token ghp_000000000000000000000000000000000000"
+    }
+  }
+}
+
+### Call the pr_reply tool with an invalid commentId; expects a tool error naming the "commentId" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 37,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_reply",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "commentId": "abc",
+      "body": "Fixed."
     }
   }
 }

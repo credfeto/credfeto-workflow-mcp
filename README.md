@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_close`, `branch_required_checks`, `pr_checks`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_close`, `pr_reply`, `branch_required_checks`, `pr_checks`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -54,6 +54,7 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | `ping`                   | Returns `{"value":"pong"}`, the same payload as `GET /ping`.                                                                                                                                                                                  |
 | `pr_comments`            | Read only. Takes `repo` (`owner/repo`) and `pr`; returns the review decision, every top-level comment, review and inline review thread, and a summary of counts. Fails rather than return a partial list.                                     |
 | `pr_list`                | Read only. Takes `repo` (`owner/repo`) and optional `issue`, `head` and `labels`; returns the open pull requests matching every filter, sorted by number. Fails rather than return a partial list or more than 1000.                          |
+| `pr_reply`               | Takes `repo` (`owner/repo`), `pr`, `commentId` of an inline review comment and `body`; replies in its thread; returns the outcome (`Posted`, `Refused`, `NotFound`, `NotPosted` or `MayHaveBeenPosted`), a message, the reply's id and URL.   |
 | `pr_view`                | Read only. Takes `repo` (`owner/repo`), `pr` and optional `fields`; returns them in canonical order, by default every field except `files` and `body`, which can only be asked for on their own. Fails rather than return a partial result.   |
 | `workflow_status_check`  | Read only. Takes `repo` (`owner/repo`) and exactly one of `pr` or `issue`; returns the outcome (`Found`, `Unset` or `NotOnBoard`), the Workflow board status when one is set, and a message when the item is not on the board.                |
 | `workflow_status_set`    | Takes `repo` (`owner/repo`), `status` (a workflow state, in any case) and exactly one of `pr` or `issue`; moves the item to that status on the Workflow board, adding it to the board first, and returns its URL and the status set.          |
