@@ -72,6 +72,31 @@ public sealed class IssueSearchQueryTests : TestBase
     }
 
     [Theory]
+    [InlineData(1)]
+    [InlineData(30)]
+    [InlineData(100)]
+    public static void ValidNumericLimitIsAccepted(int value)
+    {
+        Assert.Equal(expected: value, actual: IssueSearchQuery.Limit(value: value, parameterName: LIMIT));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-1)]
+    [InlineData(101)]
+    [InlineData(int.MinValue)]
+    [InlineData(int.MaxValue)]
+    public static void NumericLimitOutOfRangeIsRefused(int value)
+    {
+        ParameterValidationException exception = Assert.Throws<ParameterValidationException>(() =>
+            IssueSearchQuery.Limit(value: value, parameterName: LIMIT)
+        );
+
+        Assert.Equal(expected: LIMIT, actual: exception.ParameterName);
+        Assert.Equal(expected: LIMIT_RULE, actual: exception.Rule);
+    }
+
+    [Theory]
     [InlineData(IssueSearchState.OPEN, "in:title,body crash repo:owner/name type:issue state:open")]
     [InlineData(IssueSearchState.CLOSED, "in:title,body crash repo:owner/name type:issue state:closed")]
     [InlineData(IssueSearchState.ALL, "in:title,body crash repo:owner/name type:issue")]

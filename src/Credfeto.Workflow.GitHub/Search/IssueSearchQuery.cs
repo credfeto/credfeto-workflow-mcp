@@ -41,8 +41,13 @@ public static class IssueSearchQuery
                 ? 0
                 : int.Parse(s: number, style: NumberStyles.None, provider: CultureInfo.InvariantCulture);
 
-        return limit is >= 1 and <= MAX_LIMIT
-            ? limit
+        return Limit(value: limit, parameterName: parameterName);
+    }
+
+    public static int Limit(int value, string parameterName)
+    {
+        return value is >= 1 and <= MAX_LIMIT
+            ? value
             : throw ParameterValidationException.For(parameterName: parameterName, rule: LIMIT_RULE);
     }
 

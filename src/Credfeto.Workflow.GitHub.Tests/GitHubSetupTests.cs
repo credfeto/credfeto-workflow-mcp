@@ -10,6 +10,7 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
 using FunFair.Test.Common;
 using FunFair.Test.Infrastructure;
@@ -212,6 +213,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void IssueCreateServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IIssueCreateService, IssueCreateService>();
+    }
+
+    [Fact]
+    public void IssueSearchServiceShouldBeRegistered()
+    {
+        this.RequireService<IIssueSearchService>();
+    }
+
+    [Fact]
+    public void IssueSearchServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IIssueSearchService, IssueSearchService>();
     }
 
     [Fact]
