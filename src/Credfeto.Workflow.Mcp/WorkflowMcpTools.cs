@@ -349,6 +349,43 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(
+        Name = "pr_reply",
+        Title = "Pull request reply",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Replies in the thread of an inline review comment on a pull request, refusing a reply that contains a secret; a reply to a reply goes to the top comment of its thread"
+    )]
+    public static async Task<PrReplyResult> PrReplyAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        [Description("The id of the inline review comment to reply to")] string commentId,
+        [Description("The reply text")] string body,
+        IPrReplyService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ReplyAsync(
+                repository: repo,
+                pullRequest: pr,
+                commentId: commentId,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (ParameterValidationException exception)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
