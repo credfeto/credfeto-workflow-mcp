@@ -10,6 +10,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 
 ## [Unreleased]
 ### Security
+- Moved to the .NET 11 rc.3 SDK (11.0.100-rc.3.26522.148) so the NativeAOT compiler package is no longer affected by GHSA-p3jp-9v83-76w9 (#90)
 ### Added
 - Credfeto.Workflow.Mcp.Server: a C# (.NET 11) MCP server skeleton replacing cfwf, exposing a /ping endpoint and an MCP ping tool
 - Dockerfile for building and running the MCP server
