@@ -40,11 +40,12 @@ public sealed class IssueSearchServiceTests : GitHubClientTestBase
 
     private static string Page(params string[] items)
     {
-        return "{\"total_count\":"
-            + items.Length.ToString(CultureInfo.InvariantCulture)
-            + ",\"items\":["
-            + string.Join(separator: ',', value: items)
-            + "]}";
+        return PageOf(totalCount: items.Length.ToString(CultureInfo.InvariantCulture), items: items);
+    }
+
+    private static string PageOf(string totalCount, params string[] items)
+    {
+        return "{\"total_count\":" + totalCount + ",\"items\":[" + string.Join(separator: ',', value: items) + "]}";
     }
 
     private static string[] Items(IEnumerable<int> numbers)
@@ -159,19 +160,74 @@ public sealed class IssueSearchServiceTests : GitHubClientTestBase
         Assert.Contains(expectedSubstring: "%2312", actualString: uri.AbsoluteUri, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public async Task LimitDecidesThePageSizeAsync()
+    [Theory]
+    [InlineData(1, "&per_page=2")]
+    [InlineData(99, "&per_page=100")]
+    [InlineData(100, "&per_page=100")]
+    public async Task LimitDecidesThePageSizeAsync(int limit, string perPage)
     {
         using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(Page()));
 
-        _ = await this.SearchAsync(upstream: upstream, limit: 100);
+        _ = await this.SearchAsync(upstream: upstream, limit: limit);
 
         RecordedRequest request = Assert.Single(upstream.Requests);
         Assert.EndsWith(
-            expectedEndString: "&per_page=101",
+            expectedEndString: perPage,
             actualString: Assert.IsType<Uri>(request.RequestUri).AbsoluteUri,
             StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task FullMaximumPageWithMoreMatchesIsTruncatedAsync()
+    {
+        int[] numbers = [.. Enumerable.Range(start: 1, count: IssueSearchQuery.MAX_LIMIT).Reverse()];
+
+        IssueSearchResult result = await this.SearchJsonAsync(
+            json: PageOf(totalCount: "101", items: Items(numbers)),
+            limit: IssueSearchQuery.MAX_LIMIT
+        );
+
+        Assert.Equal(expected: numbers, actual: Numbers(result));
+        Assert.True(condition: result.Truncated, userMessage: "More matches than the maximum should be truncated");
+    }
+
+    [Fact]
+    public async Task FullMaximumPageWithNoMoreMatchesIsNotTruncatedAsync()
+    {
+        int[] numbers = [.. Enumerable.Range(start: 1, count: IssueSearchQuery.MAX_LIMIT).Reverse()];
+
+        IssueSearchResult result = await this.SearchJsonAsync(
+            json: Page(Items(numbers)),
+            limit: IssueSearchQuery.MAX_LIMIT
+        );
+
+        Assert.Equal(expected: numbers, actual: Numbers(result));
+        Assert.False(condition: result.Truncated, userMessage: "Exactly the maximum should not be truncated");
+    }
+
+    [Fact]
+    public async Task TotalCountAboveTheLimitIsTruncatedAsync()
+    {
+        IssueSearchResult result = await this.SearchJsonAsync(
+            json: PageOf(totalCount: "4", Item(9), Item(3)),
+            limit: 3
+        );
+
+        Assert.Equal(expected: [9, 3], actual: Numbers(result));
+        Assert.True(condition: result.Truncated, userMessage: "A total count above the limit should be truncated");
+    }
+
+    [Fact]
+    public async Task MissingTotalCountFallsBackToTheItemsAsync()
+    {
+        IssueSearchResult result = await this.SearchJsonAsync(
+            json: PageOf(totalCount: "null", Item(9), Item(3), Item(5)),
+            limit: 3
+        );
+
+        Assert.Equal(expected: [9, 3, 5], actual: Numbers(result));
+        Assert.False(condition: result.Truncated, userMessage: "A missing total count should not be truncated");
     }
 
     [Fact]

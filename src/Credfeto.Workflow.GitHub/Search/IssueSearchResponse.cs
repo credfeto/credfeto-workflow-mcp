@@ -3,5 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace Credfeto.Workflow.GitHub.Search;
 
-[DebuggerDisplay("Items={Items}")]
-internal sealed record IssueSearchResponse([property: JsonPropertyName("items")] IssueSearchItemResponse?[]? Items);
+[DebuggerDisplay("TotalCount={TotalCount}, Items={Items}")]
+internal sealed record IssueSearchResponse(
+    [property: JsonPropertyName("total_count")] int? TotalCount,
+    [property: JsonPropertyName("items")] IssueSearchItemResponse?[]? Items
+);

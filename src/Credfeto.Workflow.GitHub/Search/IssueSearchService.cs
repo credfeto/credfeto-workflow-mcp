@@ -51,8 +51,10 @@ public sealed class IssueSearchService : IIssueSearchService
         CancellationToken cancellationToken
     )
     {
-        // One more than the limit is asked for, so a full page shows that further matches were left out
-        string perPage = (validLimit + 1).ToString(CultureInfo.InvariantCulture);
+        // One more than the limit is asked for, so a full page shows that further matches were left out; GitHub caps
+        // the page size, so at the cap the reported total count is what shows it instead
+        string perPage = Math.Min(val1: validLimit + 1, val2: IssueSearchQuery.MAX_LIMIT)
+            .ToString(CultureInfo.InvariantCulture);
 
         try
         {
@@ -68,7 +70,7 @@ public sealed class IssueSearchService : IIssueSearchService
             return new(
                 Repository: validRepository,
                 Issues: [.. items.Take(validLimit).Select(IssueSearchProjector.Project)],
-                Truncated: items.Length > validLimit
+                Truncated: items.Length > validLimit || response.TotalCount > validLimit
             );
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
