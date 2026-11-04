@@ -320,6 +320,17 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: search a repository's issue titles and bodies for text (issue_search)
+# q is "in:title,body <words> repo:<owner/repo> type:issue", plus "state:open" or "state:closed" unless every state
+# is wanted, URL-encoded as one value. per_page is the limit plus one, at most 100, so a further match shows the
+# result is truncated, as does a total_count above the limit. A 404 means the repository is missing, or the caller
+# cannot see it.
+GET {{apiBaseUrl}}search/issues?q=in%3Atitle%2Cbody%20issue%20search%20repo%3Acredfeto%2Fcredfeto-workflow-mcp%20type%3Aissue%20state%3Aopen&per_page=31
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a repository's labels, before creating the missing ones (issue_create)
 # Read in full, following the Link header's next page; a label is matched without regard to case.
 GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/labels?per_page=100
