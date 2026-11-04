@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -556,6 +556,105 @@ Accept: application/json, text/event-stream
       "priority": "Low",
       "title": "Try the issue_create tool",
       "body": "Created from docs/mcp.http."
+    }
+  }
+}
+
+### Call the issue_search tool with defaults; expects up to 30 open issues whose title or body matches, each with number, state, title and labels, and truncated
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 41,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "issue search"
+    }
+  }
+}
+
+### Call the issue_search tool for all issues with a limit; expects at most 5 open or closed matches, and truncated true when more matched
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 42,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "workflow",
+      "state": "all",
+      "limit": 5
+    }
+  }
+}
+
+### Call the issue_search tool with an invalid state; expects a tool error naming the "state" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 43,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "workflow",
+      "state": "merged"
+    }
+  }
+}
+
+### Call the issue_search tool with limit 0; expects a tool error naming the "limit" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 44,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "workflow",
+      "limit": 0
+    }
+  }
+}
+
+### Call the issue_search tool with a search operator in the text; expects a tool error naming the "text" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 45,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "workflow AND status"
     }
   }
 }

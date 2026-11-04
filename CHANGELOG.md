@@ -36,6 +36,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added issue_create MCP tool (repo, priority, title, body and optional labels) that checks everything first, creates any missing label (a standard one with its standard colour and description), creates the issue with its priority label first and puts it on the Workflow board as Not Started, returning the issue URL, which a board failure after creation still names, so workflows can create issues through the server (#15)
 - Added pr_reply MCP tool (repo, pr, commentId, body) that posts one reply in the review thread of an inline review comment, posting once and never retrying, so workflows can reply to inline review comments through the server (#30)
 - Added pr_create MCP tool (repo, head, title, body, optional base) that opens a draft pull request from a pushed branch and puts it on the Workflow board as Development, or returns the open pull request for that branch, checking the title and body before anything is created, so workflows can open pull requests through the server (#28)
+- Added issue_search MCP tool (repo, text, optional state, optional limit) that searches one repository's issues by sanitised words in title or body, refusing operators, tokens and host paths, returning typed results with a truncated flag (#19)
 ### Fixed
 ### Changed
 ### Deprecated
