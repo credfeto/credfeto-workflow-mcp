@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
+using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using FunFair.Test.Common;
 using ModelContextProtocol;
@@ -37,8 +38,11 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string PR_BODY = "Create a pull request.";
 
+    private const string SEARCH_TEXT = "issue search";
+
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueCreateService _issueCreateService;
+    private readonly IIssueSearchService _issueSearchService;
     private readonly IIssueService _issueService;
     private readonly ILabelService _labelService;
     private readonly IPullRequestListService _listService;
@@ -60,6 +64,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._listService = GetSubstitute<IPullRequestListService>();
         this._issueService = GetSubstitute<IIssueService>();
         this._issueCreateService = GetSubstitute<IIssueCreateService>();
+        this._issueSearchService = GetSubstitute<IIssueSearchService>();
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
@@ -730,6 +735,141 @@ public sealed class WorkflowMcpToolsTests : TestBase
             title: ISSUE_TITLE,
             body: ISSUE_BODY,
             service: this._issueCreateService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task IssueSearchSearchesOpenIssuesWithTheDefaultLimitWhenNeitherIsGivenAsync()
+    {
+        IssueSearchResult expected = SearchResult();
+        this._issueSearchService.SearchAsync(
+                repository: REPOSITORY,
+                text: SEARCH_TEXT,
+                state: IssueSearchState.OPEN,
+                limit: 30,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueSearchResult actual = await this.IssueSearchAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Theory]
+    [InlineData("open", IssueSearchState.OPEN)]
+    [InlineData("closed", IssueSearchState.CLOSED)]
+    [InlineData("all", IssueSearchState.ALL)]
+    public async Task IssueSearchPassesTheGivenStateAndLimitAsync(string state, IssueSearchState expectedState)
+    {
+        IssueSearchResult expected = SearchResult();
+        this._issueSearchService.SearchAsync(
+                repository: REPOSITORY,
+                text: SEARCH_TEXT,
+                state: expectedState,
+                limit: 5,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueSearchResult actual = await WorkflowMcpTools.IssueSearchAsync(
+            repo: REPOSITORY,
+            text: SEARCH_TEXT,
+            service: this._issueSearchService,
+            state: state,
+            limit: 5,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueSearchRejectsAnUnknownStateWithoutSearchingAsync()
+    {
+        McpException exception = await Assert.ThrowsAsync<McpException>(() =>
+            WorkflowMcpTools.IssueSearchAsync(
+                repo: REPOSITORY,
+                text: SEARCH_TEXT,
+                service: this._issueSearchService,
+                state: "merged",
+                cancellationToken: this.CancellationToken()
+            )
+        );
+
+        ParameterValidationException inner = Assert.IsType<ParameterValidationException>(exception.InnerException);
+        Assert.Equal(expected: inner.Message, actual: exception.Message);
+        Assert.Empty(this._issueSearchService.ReceivedCalls());
+    }
+
+    [Fact]
+    public async Task IssueSearchFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueSearchFailures())
+        {
+            this.IssueSearchFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueSearchAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task IssueSearchOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueSearchFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueSearchAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IssueSearchResult SearchResult()
+    {
+        return new(
+            Repository: REPOSITORY,
+            Issues: [new IssueSearchEntry(Number: 19, State: "OPEN", Title: "issue search", Labels: ["feature"])],
+            Truncated: true
+        );
+    }
+
+    private static IReadOnlyList<Exception> IssueSearchFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "limit", rule: "it must be from 1 to 100"),
+            new IssueSearchRefusedException("text refused: token"),
+            new IssueSearchFailedException("could not search the issues of " + REPOSITORY),
+            new RepositoryNotFoundException(
+                "the repository " + REPOSITORY + " was not found, or the caller cannot see it"
+            ),
+        ];
+    }
+
+    private void IssueSearchFailsWith(Exception failure)
+    {
+        this._issueSearchService.SearchAsync(
+                repository: REPOSITORY,
+                text: SEARCH_TEXT,
+                state: IssueSearchState.OPEN,
+                limit: 30,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueSearchResult> IssueSearchAsync()
+    {
+        return WorkflowMcpTools.IssueSearchAsync(
+            repo: REPOSITORY,
+            text: SEARCH_TEXT,
+            service: this._issueSearchService,
             cancellationToken: this.CancellationToken()
         );
     }

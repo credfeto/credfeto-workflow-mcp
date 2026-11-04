@@ -7,6 +7,7 @@ using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
+using Credfeto.Workflow.GitHub.Search;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -251,6 +252,43 @@ public sealed class WorkflowMcpTools
                     is IssueNotFoundException
                         or IssueViewFailedException
                         or IssueCommentsIncompleteException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "issue_search", Title = "Issue search", ReadOnly = true)]
+    [Description(
+        "Searches the titles and bodies of a repository's issues for text, returning the number, state, title and labels of each match; truncated is true when more matches exist than the limit"
+    )]
+    public static async Task<IssueSearchResult> IssueSearchAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The words to search for in issue titles and bodies")] string text,
+        IIssueSearchService service,
+        [Description("Which issues to search: open, closed or all; open when not given")] string? state = null,
+        [Description("The most matches to return, from 1 to 100")] int limit = IssueSearchQuery.DEFAULT_LIMIT,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.SearchAsync(
+                repository: repo,
+                text: text,
+                state: IssueSearchQuery.State(value: state, parameterName: nameof(state)),
+                limit: limit,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueSearchRefusedException
+                        or IssueSearchFailedException
+                        or RepositoryNotFoundException
                         or ParameterValidationException
             )
         {

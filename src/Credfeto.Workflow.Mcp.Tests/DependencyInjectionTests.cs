@@ -30,6 +30,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "issue_close",
                 "issue_comments",
                 "issue_create",
+                "issue_search",
                 "issue_view",
                 "label_add",
                 "label_remove",
@@ -54,6 +55,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
     [InlineData("issue_comments")]
+    [InlineData("issue_search")]
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
     public void ReadingToolsMustBeReadOnly(string name)
@@ -126,6 +128,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_close writes the issue");
         Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_close is destructive");
         Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_close is idempotent");
+    }
+
+    [Fact]
+    public void IssueSearchTakesRepoAndTextAndOptionalStateAndLimit()
+    {
+        JsonElement schema = this.GetTool("issue_search").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["limit", "repo", "state", "text"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "text"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -303,6 +314,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ILabelService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
+            .AddMockedService<IIssueSearchService>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<IPrChecksService>()
