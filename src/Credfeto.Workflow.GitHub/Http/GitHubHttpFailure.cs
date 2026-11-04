@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -12,13 +14,21 @@ internal static class GitHubHttpFailure
 {
     private const string UPSTREAM_MESSAGE_KEY = "Credfeto.Workflow.GitHub.UpstreamMessage";
 
+    private const string UPSTREAM_ERROR_CODES_KEY = "Credfeto.Workflow.GitHub.UpstreamErrorCodes";
+
+    private const string CODE_PROPERTY = "code";
+
     // An error body is only read to tell failures with the same status apart, so anything larger is not an
     // error message GitHub would send and is ignored rather than buffered
     private const int MAX_UPSTREAM_MESSAGE_BYTES = 16 * 1024;
 
-    // The upstream message is kept only in the exception's Data, never in its Message: it is upstream content that
-    // callers may surface, so it is there for readers that must tell failures with the same status apart
-    public static HttpRequestException FromResponse(HttpResponseMessage response, string? upstreamMessage = null)
+    // The upstream message and error codes are kept only in the exception's Data, never in its Message: they are
+    // upstream content that callers may surface, so they are there for readers that must tell failures with the same
+    // status apart
+    public static HttpRequestException FromResponse(
+        HttpResponseMessage response,
+        GitHubErrorResponse? upstreamError = null
+    )
     {
         HttpRequestException exception = new(
             message: $"GitHub request failed with status {response.StatusCode}",
@@ -26,9 +36,16 @@ internal static class GitHubHttpFailure
             statusCode: response.StatusCode
         );
 
-        if (upstreamMessage is not null)
+        if (upstreamError?.Message is { } upstreamMessage)
         {
             exception.Data[UPSTREAM_MESSAGE_KEY] = upstreamMessage;
+        }
+
+        string[] codes = ErrorCodes(upstreamError?.Errors);
+
+        if (codes.Length != 0)
+        {
+            exception.Data[UPSTREAM_ERROR_CODES_KEY] = codes;
         }
 
         return exception;
@@ -39,9 +56,38 @@ internal static class GitHubHttpFailure
         return exception.Data[UPSTREAM_MESSAGE_KEY] as string;
     }
 
+    // A validation failure names what went wrong in the code of each of its errors, such as already_exists
+    public static bool HasErrorCode(HttpRequestException exception, string code)
+    {
+        return exception.Data[UPSTREAM_ERROR_CODES_KEY] is IReadOnlyList<string> codes
+            && codes.Contains(value: code, comparer: StringComparer.Ordinal);
+    }
+
+    private static string[] ErrorCodes(JsonElement? errors)
+    {
+        if (errors is not { ValueKind: JsonValueKind.Array } items)
+        {
+            return [];
+        }
+
+        return
+        [
+            .. items
+                .EnumerateArray()
+                .Where(static item => item.ValueKind == JsonValueKind.Object)
+                .Select(static item =>
+                    item.TryGetProperty(propertyName: CODE_PROPERTY, value: out JsonElement code)
+                    && code.ValueKind == JsonValueKind.String
+                        ? code.GetString()
+                        : null
+                )
+                .OfType<string>(),
+        ];
+    }
+
     // Content-Length is not trusted, so one byte past the limit is read to detect an oversize body. A body that is
-    // empty, too large or not a GitHub error document has no usable message
-    public static async ValueTask<string?> ReadUpstreamMessageAsync(
+    // empty, too large or not a GitHub error document has no usable message or error codes
+    public static async ValueTask<GitHubErrorResponse?> ReadUpstreamErrorAsync(
         HttpContent content,
         CancellationToken cancellationToken
     )
@@ -64,12 +110,10 @@ internal static class GitHubHttpFailure
 
         try
         {
-            return JsonSerializer
-                .Deserialize(
-                    utf8Json: buffer.AsSpan(start: 0, length: length),
-                    jsonTypeInfo: GitHubJsonContext.Default.GitHubErrorResponse
-                )
-                ?.Message;
+            return JsonSerializer.Deserialize(
+                utf8Json: buffer.AsSpan(start: 0, length: length),
+                jsonTypeInfo: GitHubJsonContext.Default.GitHubErrorResponse
+            );
         }
         catch (JsonException)
         {

@@ -29,6 +29,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "branch_required_checks",
                 "issue_close",
                 "issue_comments",
+                "issue_create",
                 "issue_view",
                 "label_add",
                 "label_remove",
@@ -123,6 +124,30 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_close writes the issue");
         Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_close is destructive");
         Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_close is idempotent");
+    }
+
+    [Fact]
+    public void IssueCreateTakesRepoPriorityTitleBodyAndOptionalLabels()
+    {
+        JsonElement schema = this.GetTool("issue_create").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "labels", "priority", "repo", "title"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "priority", "repo", "title"], actual: RequiredNames(schema));
+        Assert.Contains(
+            expectedSubstring: "\"array\"",
+            actualString: schema.GetProperty("properties").GetProperty("labels").GetProperty("type").GetRawText(),
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public void IssueCreateIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("issue_create");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_create writes an issue");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_create is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_create is not idempotent");
     }
 
     [Fact]
@@ -237,6 +262,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPullRequestListService>()
             .AddMockedService<ILabelService>()
             .AddMockedService<IIssueService>()
+            .AddMockedService<IIssueCreateService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()

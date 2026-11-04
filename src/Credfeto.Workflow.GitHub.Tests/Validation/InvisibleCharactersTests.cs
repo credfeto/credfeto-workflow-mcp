@@ -1,9 +1,9 @@
 using System.Text;
-using Credfeto.Workflow.Mcp.Validation;
+using Credfeto.Workflow.GitHub.Validation;
 using FunFair.Test.Common;
 using Xunit;
 
-namespace Credfeto.Workflow.Mcp.Tests.Validation;
+namespace Credfeto.Workflow.GitHub.Tests.Validation;
 
 public sealed class InvisibleCharactersTests : TestBase
 {
