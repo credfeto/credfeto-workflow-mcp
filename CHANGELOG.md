@@ -37,6 +37,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added pr_reply MCP tool (repo, pr, commentId, body) that posts one reply in the review thread of an inline review comment, posting once and never retrying, so workflows can reply to inline review comments through the server (#30)
 ### Fixed
 ### Changed
+- SDK - Updated DotNet SDK to 11.0.100-rc.3.26522.148
 ### Deprecated
 ### Removed
 ### Deployment Changes
