@@ -95,6 +95,7 @@ public static class GitHubSetup
             .AddSingleton<ILabelService, LabelService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()
+            .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()
             .AddSingleton<IWorkflowStatusCheckService, WorkflowStatusCheckService>()

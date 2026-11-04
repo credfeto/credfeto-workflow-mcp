@@ -26,6 +26,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.Equal(
             expected:
             [
+                "body_check",
                 "branch_required_checks",
                 "issue_close",
                 "issue_comments",
@@ -54,6 +55,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("issue_comments")]
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
+    [InlineData("body_check")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -124,6 +126,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_close writes the issue");
         Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_close is destructive");
         Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_close is idempotent");
+    }
+
+    [Fact]
+    public void BodyCheckTakesRepoAndBody()
+    {
+        JsonElement schema = this.GetTool("body_check").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -263,6 +274,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ILabelService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
+            .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()

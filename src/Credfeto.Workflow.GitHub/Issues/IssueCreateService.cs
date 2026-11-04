@@ -16,6 +16,7 @@ using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using Credfeto.Workflow.GitHub.Json;
 using Credfeto.Workflow.GitHub.Labels;
+using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Validation;
 
 namespace Credfeto.Workflow.GitHub.Issues;
@@ -257,7 +258,7 @@ public sealed partial class IssueCreateService : IIssueCreateService
         }
 
         string subject = SubjectName(refusal.Subject);
-        string rule = RuleName(refusal.Rule);
+        string rule = LeakRuleNames.Name(refusal.Rule);
         int? lineNumber = refusal.Subject == LeakSubject.BODY ? refusal.LineNumber : null;
         string line = lineNumber is { } number
             ? $" (line {number.ToString(CultureInfo.InvariantCulture)})"
@@ -278,19 +279,6 @@ public sealed partial class IssueCreateService : IIssueCreateService
             LeakSubject.BODY => "body",
             LeakSubject.TITLE => "title",
             _ => "label",
-        };
-    }
-
-    private static string RuleName(LeakRule rule)
-    {
-        return rule switch
-        {
-            LeakRule.TOKEN => "token",
-            LeakRule.HOST_PATH => "host path",
-            LeakRule.CONTROL_CHARACTER => "control character",
-            LeakRule.INVALID_UTF8 => "invalid UTF-8",
-            LeakRule.TOO_LONG => "too long",
-            _ => "private repository",
         };
     }
 

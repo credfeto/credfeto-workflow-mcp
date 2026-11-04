@@ -34,6 +34,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added label_add and label_remove MCP tools that add and remove labels on issues and pull requests, with the same validation and refusals as cfwf, so workflows can manage labels through the server (#64)
 - Added issue_close MCP tool (repo, issue and reason of completed or not-planned) that closes an issue through the service layer, so workflows can close issues through the server (#66)
 - Added issue_create MCP tool (repo, priority, title, body and optional labels) that checks everything first, creates any missing label (a standard one with its standard colour and description), creates the issue with its priority label first and puts it on the Workflow board as Not Started, returning the issue URL, which a board failure after creation still names, so workflows can create issues through the server (#15)
+- Added read-only body_check MCP tool (repo, body) that runs the leak check on a body without posting it and returns passed, or refused with the rule and line but never the matched text, so workflows can test a body before using it (#20)
 ### Fixed
 ### Changed
 ### Deprecated
