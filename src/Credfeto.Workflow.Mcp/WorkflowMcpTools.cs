@@ -386,6 +386,49 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: a call for a branch with no open pull request creates one
+    [McpServerTool(
+        Name = "pr_create",
+        Title = "Pull request create",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Opens a draft pull request from a pushed branch and puts it on the repository's Workflow board as Development, or returns the open pull request for the branch, moving it forward to Development without changing its title or body; the title and body are checked before anything is created"
+    )]
+    public static async Task<PrCreateResponse> PrCreateAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pushed branch to open the pull request from")] string head,
+        [Description(
+            "The pull request title; in credfeto and funfair-tech repositories it must be \"prefix: text\" or \"prefix(name): text\" with a lower-case prefix"
+        )]
+            string title,
+        [Description("The pull request body, in Markdown")] string body,
+        IPrCreateService service,
+        [Description("The branch to merge into; the repository's default branch when not given")] string? @base = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CreateAsync(
+                repository: repo,
+                head: head,
+                baseBranch: @base,
+                title: title,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsPrCreateError(exception))
+        {
+            // Every one of these messages is fixed text, validated caller input or, once the pull request exists, its
+            // URL, never upstream detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
@@ -552,6 +595,25 @@ public sealed class WorkflowMcpTools
                 or IssueCreateBoardWriteException
                 or RepositoryNotFoundException
                 or RepositoryVisibilityLookupFailedException
+                or WorkflowBoardNotFoundException
+                or WorkflowBoardAmbiguousException
+                or WorkflowBoardInvalidException
+                or WorkflowStatusFieldNotFoundException
+                or StatusFieldReadFailedException
+                or StatusOptionMissingException
+                or AmbiguousStatusOptionException;
+    }
+
+    private static bool IsPrCreateError(Exception exception)
+    {
+        return exception
+            is ParameterValidationException
+                or PrCreateRefusedException
+                or PrCreateFailedException
+                or PrCreateBoardWriteException
+                or RepositoryNotFoundException
+                or RepositoryVisibilityLookupFailedException
+                or PullRequestListFailedException
                 or WorkflowBoardNotFoundException
                 or WorkflowBoardAmbiguousException
                 or WorkflowBoardInvalidException
