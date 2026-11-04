@@ -1,4 +1,3 @@
-using System.Globalization;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 
@@ -9,7 +8,6 @@ public static class IssueSearchQuery
     public const int DEFAULT_LIMIT = 30;
     public const int MAX_LIMIT = 100;
 
-    private const int MAX_LIMIT_DIGITS = 3;
     private const string LIMIT_RULE = "it must be a whole number from 1 to 100";
 
     public static IssueSearchState State(string? value, string parameterName)
@@ -24,24 +22,6 @@ public static class IssueSearchQuery
                 rule: "it must be open, closed or all"
             ),
         };
-    }
-
-    // The length is checked before the value is parsed, so a huge number is refused rather than overflowing
-    public static int Limit(string? value, string parameterName)
-    {
-        if (string.IsNullOrEmpty(value))
-        {
-            return DEFAULT_LIMIT;
-        }
-
-        string number = GitHubNames.Number(value: value, parameterName: parameterName);
-
-        int limit =
-            number.Length > MAX_LIMIT_DIGITS
-                ? 0
-                : int.Parse(s: number, style: NumberStyles.None, provider: CultureInfo.InvariantCulture);
-
-        return Limit(value: limit, parameterName: parameterName);
     }
 
     public static int Limit(int value, string parameterName)

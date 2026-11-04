@@ -38,40 +38,6 @@ public sealed class IssueSearchQueryTests : TestBase
     }
 
     [Theory]
-    [InlineData(null, 30)]
-    [InlineData("", 30)]
-    [InlineData("1", 1)]
-    [InlineData("100", 100)]
-    [InlineData("007", 7)]
-    [InlineData("0000000000000000000000100", 100)]
-    public static void ValidLimitIsAccepted(string? value, int expected)
-    {
-        Assert.Equal(expected: expected, actual: IssueSearchQuery.Limit(value: value, parameterName: LIMIT));
-    }
-
-    [Theory]
-    [InlineData("0")]
-    [InlineData("000")]
-    [InlineData("101")]
-    [InlineData("999")]
-    [InlineData("1000")]
-    [InlineData("99999999999999999999999999")]
-    public static void LimitOutOfRangeIsRefused(string value)
-    {
-        AssertLimitRefused(value: value, rule: LIMIT_RULE);
-    }
-
-    [Theory]
-    [InlineData("-1")]
-    [InlineData("+5")]
-    [InlineData("1.5")]
-    [InlineData("ten")]
-    public static void NonNumericLimitIsRefused(string value)
-    {
-        AssertLimitRefused(value: value, rule: "it must contain only the digits 0-9");
-    }
-
-    [Theory]
     [InlineData(1)]
     [InlineData(30)]
     [InlineData(100)]
@@ -119,15 +85,5 @@ public sealed class IssueSearchQueryTests : TestBase
         );
 
         Assert.Equal(expected: "repository", actual: exception.ParameterName);
-    }
-
-    private static void AssertLimitRefused(string value, string rule)
-    {
-        ParameterValidationException exception = Assert.Throws<ParameterValidationException>(() =>
-            IssueSearchQuery.Limit(value: value, parameterName: LIMIT)
-        );
-
-        Assert.Equal(expected: LIMIT, actual: exception.ParameterName);
-        Assert.Equal(expected: rule, actual: exception.Rule);
     }
 }
