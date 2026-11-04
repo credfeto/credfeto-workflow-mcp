@@ -26,8 +26,6 @@ public sealed partial class IssueCreateService : IIssueCreateService
 
     private const string LABELS_PARAMETER = "labels";
 
-    private const string NUMBER_GROUP = "number";
-
     private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     private readonly IBoardWriter _boardWriter;
@@ -399,23 +397,9 @@ public sealed partial class IssueCreateService : IIssueCreateService
         return Created(response.HtmlUrl ?? string.Empty);
     }
 
-    // Neither the host nor the repository in the URL is compared with anything: GitHub may be reached through a proxy
-    // that answers with its own host, and a renamed or transferred repository answers with its new name
     private static CreatedIssue Created(string url)
     {
-        Match match = IssueUrl().Match(url);
-
-        if (
-            match.Success
-            && int.TryParse(
-                s: match.Groups[NUMBER_GROUP].ValueSpan,
-                style: NumberStyles.None,
-                provider: CultureInfo.InvariantCulture,
-                result: out int number
-            )
-            && number > 0
-            && Uri.TryCreate(uriString: url, uriKind: UriKind.Absolute, result: out Uri? uri)
-        )
+        if (CreatedItemUrl.TryParse(pattern: IssueUrl(), url: url, out Uri? uri, out int number))
         {
             return new(Url: uri, Number: number);
         }
@@ -458,9 +442,10 @@ public sealed partial class IssueCreateService : IIssueCreateService
             )
         {
             // A board write failure is fixed text; anything else may carry upstream detail, so it gets a fixed message
-            string reason = exception is BoardWriteException
-                ? exception.Message
-                : $"could not put {created.Url} on the Workflow board";
+            string reason =
+                exception is BoardWriteException
+                    ? exception.Message
+                    : $"could not put {created.Url} on the Workflow board";
 
             throw new IssueCreateBoardWriteException(
                 message: $"{reason}; the issue was already created: {created.Url}",

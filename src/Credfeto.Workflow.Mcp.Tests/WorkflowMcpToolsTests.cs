@@ -31,12 +31,19 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string ISSUE_BODY = "Create an issue.";
 
+    private const string PR_HEAD = "feat/28-pr-create";
+
+    private const string PR_TITLE = "feat(mcp): add pr create";
+
+    private const string PR_BODY = "Create a pull request.";
+
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueCreateService _issueCreateService;
     private readonly IIssueService _issueService;
     private readonly ILabelService _labelService;
     private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
+    private readonly IPrCreateService _prCreateService;
     private readonly IPrReplyService _prReplyService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
@@ -55,6 +62,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._issueCreateService = GetSubstitute<IIssueCreateService>();
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
+        this._prCreateService = GetSubstitute<IPrCreateService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
     }
 
@@ -722,6 +730,139 @@ public sealed class WorkflowMcpToolsTests : TestBase
             title: ISSUE_TITLE,
             body: ISSUE_BODY,
             service: this._issueCreateService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrCreateReturnsWhatTheServiceCreatedAsync()
+    {
+        PrCreateResponse expected = new(
+            Url: new Uri("https://github.com/" + REPOSITORY + "/pull/93"),
+            Created: true,
+            Note: null
+        );
+        this._prCreateService.CreateAsync(
+                repository: REPOSITORY,
+                head: PR_HEAD,
+                baseBranch: BRANCH,
+                title: PR_TITLE,
+                body: PR_BODY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PrCreateResponse actual = await WorkflowMcpTools.PrCreateAsync(
+            repo: REPOSITORY,
+            head: PR_HEAD,
+            title: PR_TITLE,
+            body: PR_BODY,
+            service: this._prCreateService,
+            @base: BRANCH,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrCreatePassesNoBaseWhenNoneIsGivenAsync()
+    {
+        PrCreateResponse expected = new(
+            Url: new Uri("https://github.com/" + REPOSITORY + "/pull/94"),
+            Created: false,
+            Note: "an open pull request already exists for the branch"
+        );
+        this._prCreateService.CreateAsync(
+                repository: REPOSITORY,
+                head: PR_HEAD,
+                baseBranch: null,
+                title: PR_TITLE,
+                body: PR_BODY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PrCreateResponse actual = await this.PrCreateAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrCreateFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in PrCreateFailures())
+        {
+            this.PrCreateFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.PrCreateAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task PrCreateOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrCreateFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrCreateAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> PrCreateFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "head", rule: "it must be a valid branch name"),
+            new PrCreateRefusedException("body refused: token (line 2)"),
+            new PrCreateFailedException("could not create the pull request in " + REPOSITORY),
+            new PrCreateBoardWriteException(
+                "could not put the pull request on the board; the pull request was already created: https://github.com/"
+                    + REPOSITORY
+                    + "/pull/93"
+            ),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new PullRequestListFailedException("could not list the pull requests of " + REPOSITORY),
+            new WorkflowBoardNotFoundException("no Workflow board"),
+            new WorkflowBoardAmbiguousException("more than one Workflow board"),
+            new WorkflowBoardInvalidException("unexpected project id/number"),
+            new WorkflowStatusFieldNotFoundException("no Status field"),
+            new StatusFieldReadFailedException("could not read the status fields of project 7"),
+            new StatusOptionMissingException("no Development option"),
+            new AmbiguousStatusOptionException("more than one Development option"),
+        ];
+    }
+
+    private void PrCreateFailsWith(Exception failure)
+    {
+        this._prCreateService.CreateAsync(
+                repository: REPOSITORY,
+                head: PR_HEAD,
+                baseBranch: null,
+                title: PR_TITLE,
+                body: PR_BODY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<PrCreateResponse> PrCreateAsync()
+    {
+        return WorkflowMcpTools.PrCreateAsync(
+            repo: REPOSITORY,
+            head: PR_HEAD,
+            title: PR_TITLE,
+            body: PR_BODY,
+            service: this._prCreateService,
             cancellationToken: this.CancellationToken()
         );
     }
