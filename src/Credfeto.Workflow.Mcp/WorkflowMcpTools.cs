@@ -579,6 +579,35 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Writes nothing: the only GitHub calls are the visibility lookups the private repository rule makes
+    [McpServerTool(Name = "body_check", Title = "Body check", ReadOnly = true)]
+    [Description(
+        "Runs the leak check every write of a body runs, without posting anything, so a body can be tested before it is used; returns Passed, or Refused with the rule and line, never the matched text"
+    )]
+    public static async Task<BodyCheckResult> BodyCheckAsync(
+        [Description("The repository the body is for, as owner/name")] string repo,
+        [Description("The body to check, in Markdown")] string body,
+        IBodyCheckService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.CheckAsync(repository: repo, body: body, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is ParameterValidationException
+                        or RepositoryNotFoundException
+                        or RepositoryVisibilityLookupFailedException
+                        or LeakCheckFailedException
+            )
+        {
+            // Every one of these messages is fixed text, never the body or upstream detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "label_add", Title = "Label add", ReadOnly = false, Destructive = false, Idempotent = true)]
     [Description(
         "Adds standard labels to one pull request or issue, one label per call so existing labels are kept, refusing priority labels, and returns the labels it now carries"

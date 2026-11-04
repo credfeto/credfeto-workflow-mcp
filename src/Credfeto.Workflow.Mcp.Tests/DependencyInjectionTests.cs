@@ -26,6 +26,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.Equal(
             expected:
             [
+                "body_check",
                 "branch_required_checks",
                 "issue_close",
                 "issue_comments",
@@ -60,6 +61,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("issue_search")]
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
+    [InlineData("body_check")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -148,6 +150,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void BodyCheckTakesRepoAndBody()
+    {
+        JsonElement schema = this.GetTool("body_check").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -329,6 +340,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueListService>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrReplyService>()
+            .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()

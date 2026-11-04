@@ -40,6 +40,9 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string SEARCH_TEXT = "issue search";
 
+    private const string BODY_TO_CHECK = "## Summary\n\nCheck this body.";
+
+    private readonly IBodyCheckService _bodyCheckService;
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueCreateService _issueCreateService;
     private readonly IIssueListService _issueListService;
@@ -71,6 +74,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
+        this._bodyCheckService = GetSubstitute<IBodyCheckService>();
     }
 
     [Fact]
@@ -1161,6 +1165,104 @@ public sealed class WorkflowMcpToolsTests : TestBase
             commentId: "123",
             body: "Thanks",
             service: this._prReplyService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task BodyCheckReturnsAPassAsync()
+    {
+        BodyCheckResult expected = new(Outcome: BodyCheckOutcome.Passed, Rule: null, Line: null, Message: null);
+        this.BodyCheckReturns(expected);
+
+        BodyCheckResult actual = await this.BodyCheckAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task BodyCheckReturnsARefusalAsAResultAsync()
+    {
+        BodyCheckResult expected = new(
+            Outcome: BodyCheckOutcome.Refused,
+            Rule: "host path",
+            Line: 3,
+            Message: "body refused: host path (line 3)"
+        );
+        this.BodyCheckReturns(expected);
+
+        BodyCheckResult actual = await this.BodyCheckAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task BodyCheckFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in BodyCheckFailures())
+        {
+            this.BodyCheckFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.BodyCheckAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task BodyCheckOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.BodyCheckFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.BodyCheckAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> BodyCheckFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "repository", rule: "it must be in the form owner/repo"),
+            new ParameterValidationException("the body is empty"),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new LeakCheckFailedException("the text could not be checked for leaks in time"),
+        ];
+    }
+
+    private void BodyCheckReturns(BodyCheckResult result)
+    {
+        this._bodyCheckService.CheckAsync(
+                repository: REPOSITORY,
+                body: BODY_TO_CHECK,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(result);
+    }
+
+    private void BodyCheckFailsWith(Exception failure)
+    {
+        this._bodyCheckService.CheckAsync(
+                repository: REPOSITORY,
+                body: BODY_TO_CHECK,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<BodyCheckResult> BodyCheckAsync()
+    {
+        return WorkflowMcpTools.BodyCheckAsync(
+            repo: REPOSITORY,
+            body: BODY_TO_CHECK,
+            service: this._bodyCheckService,
             cancellationToken: this.CancellationToken()
         );
     }

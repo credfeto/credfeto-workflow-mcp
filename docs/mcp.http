@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -754,6 +754,63 @@ Accept: application/json, text/event-stream
       "pr": 87,
       "commentId": "abc",
       "body": "Fixed."
+    }
+  }
+}
+
+### Call the body_check tool with a clean body; posts nothing and expects outcome "Passed"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 48,
+  "method": "tools/call",
+  "params": {
+    "name": "body_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "body": "## Summary\n\nChecked from docs/mcp.http."
+    }
+  }
+}
+
+### Call the body_check tool with a host path on line 3; posts nothing and expects outcome "Refused", rule "host path", line 3 and message "body refused: host path (line 3)", never the path itself
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 49,
+  "method": "tools/call",
+  "params": {
+    "name": "body_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "body": "## Summary\n\nSee /tmp/example for details."
+    }
+  }
+}
+
+### Call the body_check tool with a body of only whitespace and invisible characters; expects the tool error "the body is empty"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 50,
+  "method": "tools/call",
+  "params": {
+    "name": "body_check",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "body": "\u200B\u3000\n"
     }
   }
 }
