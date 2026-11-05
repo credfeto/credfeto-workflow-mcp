@@ -40,6 +40,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added issue_search MCP tool (repo, text, optional state, optional limit) that searches one repository's issues by sanitised words in title or body, refusing operators, tokens and host paths, returning typed results with a truncated flag (#19)
 - issue_list MCP tool listing open issues by priority with Blocked/On Hold flags (#18)
 - Added read-only body_check MCP tool (repo, body) that runs the leak check on a body without posting it and returns passed, or refused with the rule and line but never the matched text, so workflows can test a body before using it (#20)
+- Added comment_add MCP tool (repo, pr | issue, body) that posts a top-level comment after the leak check and approval-keyword refusal, returning the comment URL (#31)
 ### Fixed
 ### Changed
 ### Deprecated

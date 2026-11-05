@@ -28,6 +28,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             [
                 "body_check",
                 "branch_required_checks",
+                "comment_add",
                 "issue_close",
                 "issue_comments",
                 "issue_create",
@@ -224,6 +225,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void CommentAddTakesRepoAndBodyAndOptionalTarget()
+    {
+        JsonElement schema = this.GetTool("comment_add").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "issue", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void CommentAddIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("comment_add");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "comment_add writes a comment");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "comment_add is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "comment_add is not idempotent");
+    }
+
+    [Fact]
     public void PrChecksTakesRepoAndOptionalTargets()
     {
         JsonElement schema = this.GetTool("pr_checks").ProtocolTool.InputSchema;
@@ -340,6 +360,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueListService>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrReplyService>()
+            .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
             .AddMockedService<IWorkflowStatusCheckService>()
