@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_close`, `pr_reply`, `branch_required_checks`, `pr_checks`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `pr_reply`, `branch_required_checks`, `pr_checks`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -53,6 +53,7 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | `issue_comments`         | Read only. Takes `repo` (`owner/repo`), `issue` or pull request number, optional `since` (`yyyy-MM-ddTHH:mm:ssZ`) and `author`; returns the 100 most recent matching comments, oldest first, bodies capped at 500 lines, and a summary.       |
 | `issue_create`           | Takes `repo` (`owner/repo`), `priority`, `title`, `body` and optional `labels`; creates missing labels, then the issue, puts it on the Workflow board as Not Started and returns its URL. A board failure still names the URL.                |
 | `issue_list`             | Read only. Takes `repo` (`owner/repo`); returns the open issues, not pull requests, most urgent priority first, then by number, each with priority, blocked and on-hold flags, assignees, title and labels. Fails rather than list over 1000. |
+| `issue_plan_status`      | Read only. Takes `repo` (`owner/repo`) and `issue`; returns whether it has an `## Implementation Plan` comment (latest wins) and is Blocked, its time and author, then each later comment's time, author, association, approval flag and URL. |
 | `issue_search`           | Read only. Takes `repo` (`owner/repo`), `text` and optional `state` (`open`, `closed` or `all`; default `open`) and `limit` (1 to 100, default 30); returns each matching issue's number, state, title and labels, and whether more matched.  |
 | `issue_view`             | Read only. Takes `repo` (`owner/repo`) and `issue`; returns the issue number, title, state (`OPEN` or `CLOSED`), label names, assignee logins and body. A pull request number is reported as not found.                                       |
 | `ping`                   | Returns `{"value":"pong"}`, the same payload as `GET /ping`.                                                                                                                                                                                  |
