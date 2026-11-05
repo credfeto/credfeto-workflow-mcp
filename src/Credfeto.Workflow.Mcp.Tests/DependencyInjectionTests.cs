@@ -30,6 +30,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "issue_close",
                 "issue_comments",
                 "issue_create",
+                "issue_list",
                 "issue_search",
                 "issue_view",
                 "label_add",
@@ -55,6 +56,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
     [InlineData("issue_comments")]
+    [InlineData("issue_list")]
     [InlineData("issue_search")]
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
@@ -137,6 +139,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["limit", "repo", "state", "text"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo", "text"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssueListTakesRepo()
+    {
+        JsonElement schema = this.GetTool("issue_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -315,6 +326,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
             .AddMockedService<IIssueSearchService>()
+            .AddMockedService<IIssueListService>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<IPrChecksService>()

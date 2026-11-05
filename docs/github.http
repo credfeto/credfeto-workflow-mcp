@@ -320,6 +320,16 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: a repository's open issues (issue_list)
+# Follow the Link header's rel="next" URL until there is none. GitHub serves pull requests from this endpoint too;
+# an item with a pull_request member is skipped, and the call is refused when more than 1000 issues remain.
+# A 404 means the repository is missing or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues?state=open&per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: search a repository's issue titles and bodies for text (issue_search)
 # q is "in:title,body <words> repo:<owner/repo> type:issue", plus "state:open" or "state:closed" unless every state
 # is wanted, URL-encoded as one value. per_page is the limit plus one, at most 100, so a further match shows the

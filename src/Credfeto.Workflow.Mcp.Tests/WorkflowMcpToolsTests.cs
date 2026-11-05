@@ -42,6 +42,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueCreateService _issueCreateService;
+    private readonly IIssueListService _issueListService;
     private readonly IIssueSearchService _issueSearchService;
     private readonly IIssueService _issueService;
     private readonly ILabelService _labelService;
@@ -65,6 +66,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._issueService = GetSubstitute<IIssueService>();
         this._issueCreateService = GetSubstitute<IIssueCreateService>();
         this._issueSearchService = GetSubstitute<IIssueSearchService>();
+        this._issueListService = GetSubstitute<IIssueListService>();
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
@@ -870,6 +872,92 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             text: SEARCH_TEXT,
             service: this._issueSearchService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task IssueListReturnsWhatTheServiceListedAsync()
+    {
+        IssueListResponse expected = new(
+            Repository: REPOSITORY,
+            Issues:
+            [
+                new IssueSummary(
+                    Number: 18,
+                    Priority: "High",
+                    Blocked: false,
+                    OnHold: true,
+                    Assignees: ["credfeto"],
+                    Title: "issue list",
+                    Labels: ["High", "On Hold"]
+                ),
+            ]
+        );
+        this._issueListService.ListOpenIssuesAsync(
+                repository: REPOSITORY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueListResponse actual = await this.IssueListAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueListFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueListFailures())
+        {
+            this.IssueListFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueListAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task IssueListOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueListFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueListAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> IssueListFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "repo", rule: "it must be owner/name"),
+            new IssueListFailedException("could not list the open issues of " + REPOSITORY),
+            new RepositoryNotFoundException(
+                "the repository " + REPOSITORY + " was not found, or the caller cannot see it"
+            ),
+        ];
+    }
+
+    private void IssueListFailsWith(Exception failure)
+    {
+        this._issueListService.ListOpenIssuesAsync(
+                repository: REPOSITORY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueListResponse> IssueListAsync()
+    {
+        return WorkflowMcpTools.IssueListAsync(
+            repo: REPOSITORY,
+            service: this._issueListService,
             cancellationToken: this.CancellationToken()
         );
     }

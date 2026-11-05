@@ -58,6 +58,26 @@ public sealed class StandardLabelsTests : TestBase
         Assert.False(condition: StandardLabels.IsPriority(value), userMessage: value);
     }
 
+    [Theory]
+    [InlineData("Security", 0)]
+    [InlineData("urgent", 1)]
+    [InlineData("HIGH", 2)]
+    [InlineData("Medium", 3)]
+    [InlineData("low", 4)]
+    public static void APriorityIsRankedMostUrgentFirst(string value, int expected)
+    {
+        Assert.Equal(expected: expected, actual: StandardLabels.PriorityRank(value));
+    }
+
+    [Theory]
+    [InlineData("Critical")]
+    [InlineData("")]
+    [InlineData(null)]
+    public static void AnyOtherValueIsRankedLast(string? value)
+    {
+        Assert.Equal(expected: 5, actual: StandardLabels.PriorityRank(value));
+    }
+
     [Fact]
     public static void ThePrioritiesAreListedMostUrgentFirst()
     {
