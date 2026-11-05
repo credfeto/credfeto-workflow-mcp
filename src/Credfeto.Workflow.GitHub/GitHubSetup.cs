@@ -99,6 +99,7 @@ public static class GitHubSetup
             .AddSingleton<ICommentAddService, CommentAddService>()
             .AddSingleton<ILabelService, LabelService>()
             .AddSingleton<IIssueService, IssueService>()
+            .AddSingleton<IIssuePlanStatusReader, IssuePlanStatusReader>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()
             .AddSingleton<IIssueSearchService, IssueSearchService>()
             .AddSingleton<IIssueListService, IssueListService>()

@@ -41,7 +41,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - issue_list MCP tool listing open issues by priority with Blocked/On Hold flags (#18)
 - Added read-only body_check MCP tool (repo, body) that runs the leak check on a body without posting it and returns passed, or refused with the rule and line but never the matched text, so workflows can test a body before using it (#20)
 - Added comment_add MCP tool (repo, pr | issue, body) that posts a top-level comment after the leak check and approval-keyword refusal, returning the comment URL (#31)
-- TBD - to be finalized after review
+- Added issue_plan_status MCP tool (repo, issue) that reports whether an issue has an implementation plan comment, whether it is Blocked, who posted the latest plan and when, and each later comment's author, time and approval-keyword flag, without returning any comment bodies, so workflows can check plan approval through the server (#17)
 ### Fixed
 ### Changed
 ### Deprecated

@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -430,6 +430,63 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 58,
       "since": "2026-01-01"
+    }
+  }
+}
+
+### Call the issue_plan_status tool; expects hasPlan, blocked, planAt and planBy for the latest "## Implementation Plan" comment, then each later comment's createdAt, login, association, hasApprovalKeyword and url, oldest first, with no comment bodies
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 48,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_plan_status",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 17
+    }
+  }
+}
+
+### Call the issue_plan_status tool with a pull request number; expects a tool error saying the issue was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 49,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_plan_status",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 41
+    }
+  }
+}
+
+### Call the issue_plan_status tool with issue 0; expects a tool error naming the "issue" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 50,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_plan_status",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 0
     }
   }
 }
