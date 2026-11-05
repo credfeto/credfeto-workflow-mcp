@@ -43,6 +43,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueCreateService _issueCreateService;
     private readonly IIssueListService _issueListService;
+    private readonly IIssuePlanStatusReader _issuePlanStatusReader;
     private readonly IIssueSearchService _issueSearchService;
     private readonly IIssueService _issueService;
     private readonly ILabelService _labelService;
@@ -67,6 +68,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._issueCreateService = GetSubstitute<IIssueCreateService>();
         this._issueSearchService = GetSubstitute<IIssueSearchService>();
         this._issueListService = GetSubstitute<IIssueListService>();
+        this._issuePlanStatusReader = GetSubstitute<IIssuePlanStatusReader>();
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
@@ -417,6 +419,69 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
         GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
             this.IssueViewAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task IssuePlanStatusReturnsWhatTheReaderReadAsync()
+    {
+        IssuePlanStatus expected = new(
+            HasPlan: true,
+            Blocked: false,
+            PlanAt: "2026-01-02T03:04:05Z",
+            PlanBy: new(
+                Login: "credfeto",
+                Association: "OWNER",
+                Url: new("https://github.com/" + REPOSITORY + "/issues/16#issuecomment-1")
+            ),
+            Comments: []
+        );
+        this._issuePlanStatusReader.ReadAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssuePlanStatus actual = await this.IssuePlanStatusAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task IssuePlanStatusIssueNotFoundIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssuePlanStatusFailureReportedAsync(
+            new IssueNotFoundException("issue " + REPOSITORY + "#16 was not found")
+        );
+    }
+
+    [Fact]
+    public Task IssuePlanStatusFailedReadIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssuePlanStatusFailureReportedAsync(
+            new IssueViewFailedException("could not read issue " + REPOSITORY + "#16")
+        );
+    }
+
+    [Fact]
+    public Task IssuePlanStatusInvalidParameterIsReportedToTheCallerAsync()
+    {
+        return this.AssertIssuePlanStatusFailureReportedAsync(
+            ParameterValidationException.For(parameterName: "issue", rule: "must be above 0")
+        );
+    }
+
+    [Fact]
+    public async Task IssuePlanStatusOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssuePlanStatusFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssuePlanStatusAsync
         );
 
         Assert.Same(expected: failure, actual: exception);
@@ -1665,6 +1730,36 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             issue: ISSUE,
             service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    private async Task AssertIssuePlanStatusFailureReportedAsync(Exception failure)
+    {
+        this.IssuePlanStatusFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.IssuePlanStatusAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void IssuePlanStatusFailsWith(Exception failure)
+    {
+        this._issuePlanStatusReader.ReadAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssuePlanStatus> IssuePlanStatusAsync()
+    {
+        return WorkflowMcpTools.IssuePlanStatusAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            reader: this._issuePlanStatusReader,
             cancellationToken: this.CancellationToken()
         );
     }

@@ -204,6 +204,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void IssuePlanStatusReaderShouldBeRegistered()
+    {
+        this.RequireService<IIssuePlanStatusReader>();
+    }
+
+    [Fact]
+    public void IssuePlanStatusReaderShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IIssuePlanStatusReader, IssuePlanStatusReader>();
+    }
+
+    [Fact]
     public void IssueCreateServiceShouldBeRegistered()
     {
         this.RequireService<IIssueCreateService>();
