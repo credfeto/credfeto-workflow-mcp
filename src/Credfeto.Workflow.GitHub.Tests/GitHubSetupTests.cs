@@ -228,6 +228,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void IssueListServiceShouldBeRegistered()
+    {
+        this.RequireService<IIssueListService>();
+    }
+
+    [Fact]
+    public void IssueListServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IIssueListService, IssueListService>();
+    }
+
+    [Fact]
     public void RequiredChecksReaderShouldBeRegistered()
     {
         this.RequireService<IRequiredChecksReader>();

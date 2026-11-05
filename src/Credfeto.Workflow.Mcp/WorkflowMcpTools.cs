@@ -298,6 +298,29 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "issue_list", Title = "Issue list", ReadOnly = true)]
+    [Description(
+        "Lists a repository's open issues, excluding pull requests, most urgent priority first and then by number, with each issue's priority, blocked and on-hold flags, assignees, title and labels"
+    )]
+    public static async Task<IssueListResponse> IssueListAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IIssueListService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListOpenIssuesAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is RepositoryNotFoundException or IssueListFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(
         Name = "issue_close",
         Title = "Issue close",
