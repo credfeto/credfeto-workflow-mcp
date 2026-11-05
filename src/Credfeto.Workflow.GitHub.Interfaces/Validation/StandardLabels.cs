@@ -106,4 +106,15 @@ public static class StandardLabels
     {
         return Priority.TryGetValue(equalValue: value, actualValue: out string? priority) ? priority : null;
     }
+
+    // The priority's rank, 0 being the most urgent; a value that is not a priority ranks after every priority
+    public static int PriorityRank(string? value)
+    {
+        int rank = Array.FindIndex(
+            array: PriorityNames,
+            match: name => StringComparer.OrdinalIgnoreCase.Equals(x: name, y: value)
+        );
+
+        return rank < 0 ? PriorityNames.Length : rank;
+    }
 }

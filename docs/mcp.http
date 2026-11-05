@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -556,6 +556,42 @@ Accept: application/json, text/event-stream
       "priority": "Low",
       "title": "Try the issue_create tool",
       "body": "Created from docs/mcp.http."
+    }
+  }
+}
+
+### Call the issue_list tool; expects the open issues, without pull requests, most urgent priority first and then by number, each with number, priority, blocked, onHold, assignees, title and labels
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 46,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp"
+    }
+  }
+}
+
+### Call the issue_list tool with an invalid repository name; expects a tool error naming the "repository" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 47,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_list",
+    "arguments": {
+      "repo": "credfeto"
     }
   }
 }
