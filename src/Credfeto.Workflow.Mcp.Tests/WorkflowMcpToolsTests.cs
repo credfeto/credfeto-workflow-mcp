@@ -42,7 +42,10 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string BODY_TO_CHECK = "## Summary\n\nCheck this body.";
 
+    private const string COMMENT_BODY = "## Summary\n\nThe comment text.";
+
     private readonly IBodyCheckService _bodyCheckService;
+    private readonly ICommentAddService _commentAddService;
     private readonly IRequiredChecksReader _checksReader;
     private readonly IIssueCreateService _issueCreateService;
     private readonly IIssueListService _issueListService;
@@ -75,6 +78,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._prCreateService = GetSubstitute<IPrCreateService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
+        this._commentAddService = GetSubstitute<ICommentAddService>();
     }
 
     [Fact]
@@ -1165,6 +1169,117 @@ public sealed class WorkflowMcpToolsTests : TestBase
             commentId: "123",
             body: "Thanks",
             service: this._prReplyService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task CommentAddReturnsThePostedCommentAsync()
+    {
+        CommentAddResult expected = new(
+            Outcome: CommentAddOutcome.Posted,
+            Message: "the comment was posted on " + REPOSITORY + "#41",
+            Url: new("https://github.com/" + REPOSITORY + "/pull/41#issuecomment-99"),
+            Rule: null,
+            LineNumber: null
+        );
+        this.CommentAddReturns(expected);
+
+        CommentAddResult actual = await this.CommentAddAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task CommentAddReturnsARefusalAsAResultAsync()
+    {
+        CommentAddResult expected = new(
+            Outcome: CommentAddOutcome.Refused,
+            Message: "body refused: approval keyword (line 3)",
+            Url: null,
+            Rule: "approval keyword",
+            LineNumber: 3
+        );
+        this.CommentAddReturns(expected);
+
+        CommentAddResult actual = await this.CommentAddAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task CommentAddFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in CommentAddFailures())
+        {
+            this.CommentAddFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.CommentAddAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task CommentAddOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.CommentAddFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.CommentAddAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> CommentAddFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "pr", rule: "exactly one of pr or issue must be given"),
+            new ParameterValidationException("the body is empty"),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new LeakCheckFailedException("the text could not be checked for leaks in time"),
+        ];
+    }
+
+    private void CommentAddReturns(CommentAddResult result)
+    {
+        this._commentAddService.AddAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                body: COMMENT_BODY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(result);
+    }
+
+    private void CommentAddFailsWith(Exception failure)
+    {
+        this._commentAddService.AddAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                issue: null,
+                body: COMMENT_BODY,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<CommentAddResult> CommentAddAsync()
+    {
+        return WorkflowMcpTools.CommentAddAsync(
+            repo: REPOSITORY,
+            body: COMMENT_BODY,
+            service: this._commentAddService,
+            pr: PULL_REQUEST,
+            issue: null,
             cancellationToken: this.CancellationToken()
         );
     }

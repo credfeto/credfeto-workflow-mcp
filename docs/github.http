@@ -397,3 +397,18 @@ Content-Type: application/json
 {
   "body": "Fixed in abc1234: the reply text."
 }
+
+### REST: post a top-level comment on a pull request or an issue (comment_add; never retried)
+# A pull request's conversation comments are issue comments, so this takes either number. The html_url names
+# /pull/ or /issues/ whichever GitHub answers with. A 400, 401, 403, 404, 410 or 422 means the comment was not
+# posted; any other failure means it may have been posted, so check with issue_comments before trying again.
+POST {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/31/comments
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "body": "## Summary\n\nPosted from docs/github.http."
+}

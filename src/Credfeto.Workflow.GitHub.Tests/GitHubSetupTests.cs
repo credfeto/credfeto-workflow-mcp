@@ -3,6 +3,7 @@ using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Checks;
+using Credfeto.Workflow.GitHub.Comments;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
@@ -177,6 +178,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void PrReplyServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IPrReplyService, PrReplyService>();
+    }
+
+    [Fact]
+    public void CommentAddServiceShouldBeRegistered()
+    {
+        this.RequireService<ICommentAddService>();
+    }
+
+    [Fact]
+    public void CommentAddServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ICommentAddService, CommentAddService>();
     }
 
     [Fact]

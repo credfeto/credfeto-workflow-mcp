@@ -447,6 +447,50 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: every successful call posts a new comment
+    [McpServerTool(
+        Name = "comment_add",
+        Title = "Comment add",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Posts a top-level comment on a pull request or an issue and returns its URL, refusing a body that fails the leak check or carries an approval keyword outside a Markdown quote; returns the outcome Posted, Refused with the rule and line, NotPosted or MayHaveBeenPosted"
+    )]
+    public static async Task<CommentAddResult> CommentAddAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The comment text, in Markdown")] string body,
+        ICommentAddService service,
+        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
+        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.AddAsync(
+                repository: repo,
+                pullRequest: pr,
+                issue: issue,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is ParameterValidationException
+                        or RepositoryNotFoundException
+                        or RepositoryVisibilityLookupFailedException
+                        or LeakCheckFailedException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never the body or upstream detail,
+            // so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     // Not idempotent: a call for a branch with no open pull request creates one
     [McpServerTool(
         Name = "pr_create",

@@ -10,6 +10,7 @@ using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Checks;
+using Credfeto.Workflow.GitHub.Comments;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
@@ -95,6 +96,7 @@ public static class GitHubSetup
             .AddSingleton<IPullRequestListService, PullRequestListService>()
             .AddSingleton<IPrCreateService, PrCreateService>()
             .AddSingleton<IPrReplyService, PrReplyService>()
+            .AddSingleton<ICommentAddService, CommentAddService>()
             .AddSingleton<ILabelService, LabelService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()

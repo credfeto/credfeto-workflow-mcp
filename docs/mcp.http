@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -987,6 +987,127 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 82,
       "status": "Testing"
+    }
+  }
+}
+
+### Call the comment_add tool on an issue; expects outcome "Posted", the message "the comment was posted on credfeto/credfeto-workflow-mcp#31" and the comment URL
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 51,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 31,
+      "body": "## Summary\n\nPosted from docs/mcp.http."
+    }
+  }
+}
+
+### Call the comment_add tool on a pull request; expects outcome "Posted" and the comment URL, in its /pull/ or /issues/ form
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 52,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "body": "## Summary\n\nPosted from docs/mcp.http."
+    }
+  }
+}
+
+### Call the comment_add tool with an approval keyword on line 3; posts nothing and expects outcome "Refused", rule "approval keyword", line 3 and message "body refused: approval keyword (line 3)"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 53,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 31,
+      "body": "## Summary\n\nLGTM"
+    }
+  }
+}
+
+### Call the comment_add tool with an approval keyword only on a Markdown quote line; expects outcome "Posted"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 54,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 31,
+      "body": "> Approved\n\nQuoted from the plan review."
+    }
+  }
+}
+
+### Call the comment_add tool with a host path on line 2; posts nothing and expects outcome "Refused", rule "host path", line 2, never the path itself
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 55,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 31,
+      "body": "## Summary\nSee /tmp/example for details."
+    }
+  }
+}
+
+### Call the comment_add tool with both pr and issue; expects a tool error naming the "pr" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 56,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "issue": 31,
+      "body": "Posted from docs/mcp.http."
     }
   }
 }
