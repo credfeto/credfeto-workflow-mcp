@@ -247,7 +247,9 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: a repository's visibility (leak check for references in text written to a repository)
+### GraphQL: a repository's visibility (leak check for references in text written to a repository, body_check)
+# The only GitHub request body_check makes: first for the repository the body is for, and only when the body
+# references another repository, then for each referenced repository whose owner is not a private owner.
 # Visibility is PUBLIC, PRIVATE or INTERNAL. An error saying "Could not resolve to a Repository" means the
 # repository is missing or the caller cannot see it. The REST equivalent is the visibility field of
 # GET repos/{owner}/{repo}.

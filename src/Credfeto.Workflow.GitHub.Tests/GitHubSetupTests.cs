@@ -240,6 +240,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void BodyCheckServiceShouldBeRegistered()
+    {
+        this.RequireService<IBodyCheckService>();
+    }
+
+    [Fact]
+    public void BodyCheckServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IBodyCheckService, BodyCheckService>();
+    }
+
+    [Fact]
     public void RequiredChecksReaderShouldBeRegistered()
     {
         this.RequireService<IRequiredChecksReader>();
