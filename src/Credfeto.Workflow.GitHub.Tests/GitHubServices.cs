@@ -16,12 +16,18 @@ internal static class GitHubServices
         HttpMessageHandler? primaryHandler = null,
         TimeSpan? httpClientTimeout = null,
         long? maxResponseContentBufferSize = null,
-        TimeSpan? attemptTimeout = null
+        TimeSpan? attemptTimeout = null,
+        string? apiVersion = null
     )
     {
-        IConfiguration configuration = new ConfigurationBuilder()
-            .AddInMemoryCollection([new KeyValuePair<string, string?>(key: "GitHub:ApiBaseUrl", value: apiBaseUrl)])
-            .Build();
+        List<KeyValuePair<string, string?>> settings = [new(key: "GitHub:ApiBaseUrl", value: apiBaseUrl)];
+
+        if (apiVersion is not null)
+        {
+            settings.Add(new(key: "GitHub:ApiVersion", value: apiVersion));
+        }
+
+        IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
 
         IServiceCollection services = new ServiceCollection().AddSingleton(configuration).AddLogging().AddGitHub();
 

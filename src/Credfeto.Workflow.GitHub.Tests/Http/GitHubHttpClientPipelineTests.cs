@@ -22,6 +22,8 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
 {
     private const int RETRY_ATTEMPTS = 3;
 
+    private const string API_VERSION_HEADER_NAME = "X-GitHub-Api-Version";
+
     // Far smaller than OVERSIZED_JSON, so buffering it exceeds the limit
     private const long SMALL_BUFFER_LIMIT = 8;
 
@@ -51,9 +53,37 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.Equal(expected: 32 * 1024 * 1024, actual: client.MaxResponseContentBufferSize);
         Assert.Equal(expected: "credfeto-workflow-mcp", actual: client.DefaultRequestHeaders.UserAgent.ToString());
         Assert.Equal(expected: "application/vnd.github+json", actual: client.DefaultRequestHeaders.Accept.ToString());
-        Assert.True(
-            condition: client.DefaultRequestHeaders.Contains("X-GitHub-Api-Version"),
-            userMessage: "API version header should be set"
+        Assert.Equal(
+            expected: "2026-03-10",
+            actual: Assert.Single(client.DefaultRequestHeaders.GetValues(API_VERSION_HEADER_NAME))
+        );
+    }
+
+    [Fact]
+    public async Task ConfiguredApiVersionIsSentAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build(apiVersion: "2022-11-28");
+
+        using HttpClient client = CreateClient(serviceProvider);
+
+        Assert.Equal(
+            expected: "2022-11-28",
+            actual: Assert.Single(client.DefaultRequestHeaders.GetValues(API_VERSION_HEADER_NAME))
+        );
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public static async Task BlankApiVersionSendsNoVersionHeaderAsync(string apiVersion)
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build(apiVersion: apiVersion);
+
+        using HttpClient client = CreateClient(serviceProvider);
+
+        Assert.False(
+            condition: client.DefaultRequestHeaders.Contains(API_VERSION_HEADER_NAME),
+            userMessage: "API version header should not be set"
         );
     }
 

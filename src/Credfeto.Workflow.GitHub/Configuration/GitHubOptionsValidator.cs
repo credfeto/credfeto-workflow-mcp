@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Credfeto.Workflow.GitHub.Http;
 using Microsoft.Extensions.Options;
 
@@ -8,8 +9,24 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
 {
     public ValidateOptionsResult Validate(string? name, GitHubOptions options)
     {
-        Uri? apiBaseUrl = options.ApiBaseUrl;
+        // The version is sent as a header on every request, so a value the handler cannot send would fail every call
+        if (!IsHeaderSafe(options.ApiVersion))
+        {
+            return ValidateOptionsResult.Fail(
+                "GitHub:ApiVersion must only contain printable ASCII characters, with no control characters or line breaks."
+            );
+        }
 
+        return ValidateApiBaseUrl(options.ApiBaseUrl);
+    }
+
+    private static bool IsHeaderSafe(string? apiVersion)
+    {
+        return apiVersion is null || apiVersion.All(static c => c is >= ' ' and <= '~');
+    }
+
+    private static ValidateOptionsResult ValidateApiBaseUrl(Uri? apiBaseUrl)
+    {
         if (apiBaseUrl is null)
         {
             return ValidateOptionsResult.Fail("GitHub:ApiBaseUrl must be configured.");

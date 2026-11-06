@@ -37,7 +37,6 @@ public static class GitHubSetup
     private const string USER_AGENT = "credfeto-workflow-mcp";
     private const string MEDIA_TYPE = "application/vnd.github+json";
     private const string API_VERSION_HEADER_NAME = "X-GitHub-Api-Version";
-    private const string API_VERSION = "2026-03-10";
 
     private const string RESILIENCE_PIPELINE_NAME = "resilience";
 
@@ -217,6 +216,10 @@ public static class GitHubSetup
             new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
         );
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(MEDIA_TYPE));
-        client.DefaultRequestHeaders.Add(name: API_VERSION_HEADER_NAME, value: API_VERSION);
+
+        if (!string.IsNullOrWhiteSpace(options.ApiVersion))
+        {
+            client.DefaultRequestHeaders.Add(name: API_VERSION_HEADER_NAME, value: options.ApiVersion);
+        }
     }
 }

@@ -82,6 +82,48 @@ public sealed class GitHubOptionsValidatorTests : TestBase
         );
     }
 
+    [Theory]
+    [InlineData("2026-03-10")]
+    [InlineData("2022-11-28")]
+    [InlineData("ghes-3.14 preview")]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void ValidApiVersionSucceeds(string? apiVersion)
+    {
+        ValidateOptionsResult result = this.ValidateApiVersion(apiVersion);
+
+        Assert.True(condition: result.Succeeded, userMessage: result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData("2026-03-10\r\nX-Injected: 1")]
+    [InlineData("2026-03-10\n")]
+    [InlineData("2026-03-10\r")]
+    [InlineData("2026\t03-10")]
+    [InlineData("2026-03-10\0")]
+    [InlineData("2026-03-10\u007f")]
+    [InlineData("2026-03-10\u0085")]
+    [InlineData("2026-03-10\x2028")]
+    [InlineData("2026-03-10\xe9")]
+    public void HeaderUnsafeApiVersionFails(string apiVersion)
+    {
+        ValidateOptionsResult result = this.ValidateApiVersion(apiVersion);
+
+        Assert.Equal(
+            expected: "GitHub:ApiVersion must only contain printable ASCII characters, with no control characters or line breaks.",
+            actual: result.FailureMessage
+        );
+    }
+
+    private ValidateOptionsResult ValidateApiVersion(string? apiVersion)
+    {
+        return this._validator.Validate(
+            name: null,
+            options: new GitHubOptions { ApiBaseUrl = new Uri("https://api.github.com/"), ApiVersion = apiVersion }
+        );
+    }
+
     private ValidateOptionsResult Validate(Uri? apiBaseUrl)
     {
         return this._validator.Validate(name: null, options: new GitHubOptions { ApiBaseUrl = apiBaseUrl });
