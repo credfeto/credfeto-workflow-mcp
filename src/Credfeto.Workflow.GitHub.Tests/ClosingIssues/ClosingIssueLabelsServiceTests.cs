@@ -44,6 +44,27 @@ public sealed class ClosingIssueLabelsServiceTests : GitHubClientTestBase
     }
 
     [Theory]
+    [InlineData("Blocked")]
+    [InlineData("BLOCKED")]
+    [InlineData("blocked")]
+    [InlineData("On Hold")]
+    [InlineData("on hold")]
+    [InlineData("ON HOLD")]
+    [InlineData("On-Hold")]
+    [InlineData("on-hold")]
+    public async Task ReadAsyncExcludesWorkflowControlLabelsIgnoringCaseAsync(string label)
+    {
+        string issue = Issue(number: 1, labels: Labels("false", NO_CURSOR, "bug", label));
+        string page = ClosingPage(hasNextPage: "false", endCursor: NO_CURSOR, nodes: "[" + issue + "]");
+
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(page));
+
+        ClosingIssueLabelsResponse response = await this.ReadAsync(upstream);
+
+        Assert.Equal(expected: ["bug"], actual: response.Labels);
+    }
+
+    [Theory]
     [InlineData("null")]
     [InlineData("[]")]
     [InlineData(

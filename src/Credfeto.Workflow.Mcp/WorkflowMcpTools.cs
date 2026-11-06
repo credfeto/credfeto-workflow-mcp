@@ -203,7 +203,7 @@ public sealed class WorkflowMcpTools
 
     [McpServerTool(Name = "closing_issue_labels", Title = "Closing issue labels", ReadOnly = true)]
     [Description(
-        "Collects the labels of every issue a pull request closes, leaving out Blocked and On-Hold, and reports any closing issue whose labels could not be read"
+        "Collects the labels of every issue a pull request closes, leaving out Blocked, On Hold and On-Hold in any case, and reports any closing issue whose labels could not be read"
     )]
     public static async Task<ClosingIssueLabelsResponse> ClosingIssueLabelsAsync(
         [Description("The repository, as owner/name")] string repo,

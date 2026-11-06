@@ -23,6 +23,9 @@ public sealed partial class ClosingIssueLabelsService : IClosingIssueLabelsServi
     private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
     private const string UNKNOWN_REFERENCE = "<unknown>";
 
+    // Both spellings of the On Hold label are in use, so neither may be copied onto the pull request
+    private const string ON_HOLD_HYPHENATED = "On-Hold";
+
     private const string CLOSING_ISSUES_QUERY =
         "query($o:String!,$r:String!,$n:Int!,$after:String){repository(owner:$o,name:$r){pullRequest(number:$n){closingIssuesReferences(first:100,after:$after){pageInfo{hasNextPage endCursor} nodes{number repository{owner{login} name} labels(first:100){pageInfo{hasNextPage endCursor} nodes{name}}}}}}}";
 
@@ -267,8 +270,9 @@ public sealed partial class ClosingIssueLabelsService : IClosingIssueLabelsServi
     private static bool IsIncluded(string label)
     {
         // Workflow-control labels belong to the issue alone and must never be copied onto the pull request
-        return !StringComparer.Ordinal.Equals(x: label, y: "Blocked")
-            && !StringComparer.Ordinal.Equals(x: label, y: "On-Hold");
+        return !StringComparer.OrdinalIgnoreCase.Equals(x: label, y: StandardLabels.BLOCKED)
+            && !StringComparer.OrdinalIgnoreCase.Equals(x: label, y: StandardLabels.ON_HOLD)
+            && !StringComparer.OrdinalIgnoreCase.Equals(x: label, y: ON_HOLD_HYPHENATED);
     }
 
     private static ClosingIssueLabelsResponse BuildResponse(HashSet<string> labels, HashSet<string> failedReferences)
