@@ -3,6 +3,7 @@ using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Checks;
+using Credfeto.Workflow.GitHub.ClosingIssues;
 using Credfeto.Workflow.GitHub.Comments;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
@@ -130,6 +131,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void PullRequestCommentsReaderShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IPullRequestCommentsReader, PullRequestCommentsReader>();
+    }
+
+    [Fact]
+    public void ClosingIssueLabelsServiceShouldBeRegistered()
+    {
+        this.RequireService<IClosingIssueLabelsService>();
+    }
+
+    [Fact]
+    public void ClosingIssueLabelsServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IClosingIssueLabelsService, ClosingIssueLabelsService>();
     }
 
     [Fact]

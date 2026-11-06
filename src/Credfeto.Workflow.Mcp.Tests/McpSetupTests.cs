@@ -35,6 +35,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
+            .AddMockedService<IClosingIssueLabelsService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()
             .AddMcpTools();

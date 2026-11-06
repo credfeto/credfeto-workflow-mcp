@@ -2,6 +2,7 @@ using System.Text.Json.Serialization;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Checks;
+using Credfeto.Workflow.GitHub.ClosingIssues;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
@@ -27,6 +28,9 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(PullRequestCommentsQueryData))]
 [JsonSerializable(typeof(PullRequestViewQueryVariables))]
 [JsonSerializable(typeof(PullRequestViewQueryData))]
+[JsonSerializable(typeof(ClosingIssuesQueryVariables))]
+[JsonSerializable(typeof(ClosingIssuesQueryData))]
+[JsonSerializable(typeof(IssueLabelsQueryData))]
 [JsonSerializable(typeof(PullRequestFileResponse[]))]
 [JsonSerializable(typeof(PullRequestListItemResponse[]))]
 [JsonSerializable(typeof(PullRequestCreateRequest))]
