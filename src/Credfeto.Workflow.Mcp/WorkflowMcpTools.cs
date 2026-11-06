@@ -261,6 +261,30 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "issue_plan_status", Title = "Issue plan status", ReadOnly = true)]
+    [Description(
+        "Reads whether an issue has an implementation plan comment and whether it is blocked, who posted the latest plan and when, and the author, time and approval keyword flag of every comment after it, without any comment body"
+    )]
+    public static async Task<IssuePlanStatus> IssuePlanStatusAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        IIssuePlanStatusReader reader,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await reader.ReadAsync(repository: repo, issue: issue, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is IssueNotFoundException or IssueViewFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_search", Title = "Issue search", ReadOnly = true)]
     [Description(
         "Searches the titles and bodies of a repository's issues for text, returning the number, state, title and labels of each match; truncated is true when more matches exist than the limit"

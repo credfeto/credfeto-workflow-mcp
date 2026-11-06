@@ -322,6 +322,23 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: an issue's labels, for the Blocked flag (issue_plan_status)
+# A response with a pull_request link, or an html_url ending /pull/{number}, is reported as no such issue.
+# A 404 means the issue or the repository is missing, or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/17
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: an issue's comments, oldest first, to find the latest implementation plan (issue_plan_status)
+# Follow the Link header's rel="next" URL until there is none. Comment bodies are read but never returned.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/17/comments?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a repository's open issues (issue_list)
 # Follow the Link header's rel="next" URL until there is none. GitHub serves pull requests from this endpoint too;
 # an item with a pull_request member is skipped, and the call is refused when more than 1000 issues remain.
