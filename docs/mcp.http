@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1165,6 +1165,44 @@ Accept: application/json, text/event-stream
       "pr": 87,
       "issue": 31,
       "body": "Posted from docs/mcp.http."
+    }
+  }
+}
+
+### Call the closing_issue_labels tool; expects the sorted, de-duplicated labels of the pull request's closing issues without Blocked or On-Hold, complete and failedReferences
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 57,
+  "method": "tools/call",
+  "params": {
+    "name": "closing_issue_labels",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 98
+    }
+  }
+}
+
+### Call the closing_issue_labels tool with pr 0; expects a tool error naming the "pullRequest" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 58,
+  "method": "tools/call",
+  "params": {
+    "name": "closing_issue_labels",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 0
     }
   }
 }

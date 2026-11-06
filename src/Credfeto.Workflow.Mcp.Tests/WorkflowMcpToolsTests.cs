@@ -47,6 +47,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IBodyCheckService _bodyCheckService;
     private readonly ICommentAddService _commentAddService;
     private readonly IRequiredChecksReader _checksReader;
+    private readonly IClosingIssueLabelsService _closingIssueLabelsService;
     private readonly IIssueCreateService _issueCreateService;
     private readonly IIssueListService _issueListService;
     private readonly IIssuePlanStatusReader _issuePlanStatusReader;
@@ -81,6 +82,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._prReplyService = GetSubstitute<IPrReplyService>();
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
         this._commentAddService = GetSubstitute<ICommentAddService>();
+        this._closingIssueLabelsService = GetSubstitute<IClosingIssueLabelsService>();
     }
 
     [Fact]
@@ -1443,6 +1445,86 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             body: BODY_TO_CHECK,
             service: this._bodyCheckService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task ClosingIssueLabelsReturnsWhatTheServiceReadAsync()
+    {
+        ClosingIssueLabelsResponse expected = new(Labels: ["enhancement"], Complete: true, FailedReferences: []);
+        this.ClosingIssueLabelsReturns(expected);
+
+        ClosingIssueLabelsResponse actual = await this.ClosingIssueLabelsAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task ClosingIssueLabelsFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in ClosingIssueLabelsFailures())
+        {
+            this.ClosingIssueLabelsFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.ClosingIssueLabelsAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task ClosingIssueLabelsOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.ClosingIssueLabelsFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.ClosingIssueLabelsAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> ClosingIssueLabelsFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "repository", rule: "it must be in the form owner/repo"),
+            ParameterValidationException.For(parameterName: "pullRequest", rule: "must be above 0"),
+            new ClosingIssueLabelsFailedException(
+                "could not read the closing issues of credfeto/credfeto-workflow-mcp#41"
+            ),
+        ];
+    }
+
+    private void ClosingIssueLabelsReturns(ClosingIssueLabelsResponse result)
+    {
+        this._closingIssueLabelsService.ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(result);
+    }
+
+    private void ClosingIssueLabelsFailsWith(Exception failure)
+    {
+        this._closingIssueLabelsService.ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<ClosingIssueLabelsResponse> ClosingIssueLabelsAsync()
+    {
+        return WorkflowMcpTools.ClosingIssueLabelsAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._closingIssueLabelsService,
             cancellationToken: this.CancellationToken()
         );
     }

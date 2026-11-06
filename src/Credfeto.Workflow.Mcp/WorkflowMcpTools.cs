@@ -201,6 +201,30 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "closing_issue_labels", Title = "Closing issue labels", ReadOnly = true)]
+    [Description(
+        "Collects the labels of every issue a pull request closes, leaving out Blocked and On-Hold, and reports any closing issue whose labels could not be read"
+    )]
+    public static async Task<ClosingIssueLabelsResponse> ClosingIssueLabelsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IClosingIssueLabelsService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(repository: repo, pullRequest: pr, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is ClosingIssueLabelsFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_view", Title = "Issue view", ReadOnly = true)]
     [Description("Reads the title, state, labels, assignees and body of an issue")]
     public static async Task<IssueViewResponse> IssueViewAsync(

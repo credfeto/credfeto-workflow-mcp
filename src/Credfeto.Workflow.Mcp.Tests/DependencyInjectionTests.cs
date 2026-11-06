@@ -28,6 +28,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             [
                 "body_check",
                 "branch_required_checks",
+                "closing_issue_labels",
                 "comment_add",
                 "issue_close",
                 "issue_comments",
@@ -65,6 +66,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
     [InlineData("body_check")]
+    [InlineData("closing_issue_labels")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -264,6 +266,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void ClosingIssueLabelsTakesRepoAndPr()
+    {
+        JsonElement schema = this.GetTool("closing_issue_labels").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void WorkflowStatusCheckTakesRepoAndOptionalWorkItems()
     {
         JsonElement schema = this.GetTool("workflow_status_check").ProtocolTool.InputSchema;
@@ -375,6 +386,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
+            .AddMockedService<IClosingIssueLabelsService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()
             .AddMcpTools();
