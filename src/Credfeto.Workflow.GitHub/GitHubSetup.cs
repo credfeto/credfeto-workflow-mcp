@@ -10,6 +10,7 @@ using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
 using Credfeto.Workflow.GitHub.Checks;
+using Credfeto.Workflow.GitHub.ClosingIssues;
 using Credfeto.Workflow.GitHub.Comments;
 using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http;
@@ -92,6 +93,7 @@ public static class GitHubSetup
             .AddSingleton<IBoardWriter, BoardWriter>()
             .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
+            .AddSingleton<IClosingIssueLabelsService, ClosingIssueLabelsService>()
             .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IPullRequestListService, PullRequestListService>()
             .AddSingleton<IPrCreateService, PrCreateService>()
