@@ -43,6 +43,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added comment_add MCP tool (repo, pr | issue, body) that posts a top-level comment after the leak check and approval-keyword refusal, returning the comment URL (#31)
 - Added issue_plan_status MCP tool (repo, issue) that reports whether an issue has an implementation plan comment, whether it is Blocked, who posted the latest plan and when, and each later comment's author, time and approval-keyword flag, without returning any comment bodies, so workflows can check plan approval through the server (#17)
 - Added closing_issue_labels MCP tool (repo, pr) returning the labels, excluding Blocked, On Hold and On-Hold in any case, of the issues a pull request closes, with complete and failedReferences flags so workflows can see whether every closing reference resolved (#14)
+- Configurable GitHub API version header via GitHub:ApiVersion (empty omits the header) - #37
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
