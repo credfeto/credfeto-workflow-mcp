@@ -45,6 +45,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added closing_issue_labels MCP tool (repo, pr) returning the labels, excluding Blocked, On Hold and On-Hold in any case, of the issues a pull request closes, with complete and failedReferences flags so workflows can see whether every closing reference resolved (#14)
 ### Fixed
 ### Changed
+- README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
 ### Deprecated
 ### Removed
 ### Deployment Changes
