@@ -44,6 +44,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added issue_plan_status MCP tool (repo, issue) that reports whether an issue has an implementation plan comment, whether it is Blocked, who posted the latest plan and when, and each later comment's author, time and approval-keyword flag, without returning any comment bodies, so workflows can check plan approval through the server (#17)
 - Added closing_issue_labels MCP tool (repo, pr) returning the labels, excluding Blocked, On Hold and On-Hold in any case, of the issues a pull request closes, with complete and failedReferences flags so workflows can see whether every closing reference resolved (#14)
 - Added optional GitHub:ApiVersion setting (default 2026-03-10) that sets the X-GitHub-Api-Version header on GitHub API requests, so the API version can be pinned or upgraded without a code change; an empty or whitespace value omits the header, and values containing non-printable or non-ASCII characters are rejected at startup (#37)
+- Added read-only pr_search, code_search and repo_search MCP tools (#59)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
