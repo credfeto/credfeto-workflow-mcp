@@ -57,6 +57,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
     private readonly IPrCreateService _prCreateService;
+    private readonly IPrEditService _prEditService;
     private readonly IPrHandOffService _prHandOffService;
     private readonly IPrReplyService _prReplyService;
     private readonly IPullRequestCommentsReader _reader;
@@ -80,6 +81,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
+        this._prEditService = GetSubstitute<IPrEditService>();
         this._prHandOffService = GetSubstitute<IPrHandOffService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
@@ -1312,6 +1314,88 @@ public sealed class WorkflowMcpToolsTests : TestBase
             description: "Closes #55",
             service: this._prHandOffService,
             record: "clean",
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrEditReturnsWhatTheServiceAnsweredAsync()
+    {
+        PrEditResult expected = new(
+            Outcome: PrEditOutcome.Edited,
+            Message: REPOSITORY + "#41 was edited",
+            Url: new("https://github.com/" + REPOSITORY + "/pull/41"),
+            Rule: null,
+            LineNumber: null
+        );
+        this.PrEditServiceCallAsync().Returns(expected);
+
+        PrEditResult actual = await this.PrEditAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrEditFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in PrEditFailures())
+        {
+            this.PrEditServiceCallAsync().ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.PrEditAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task PrEditOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrEditServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrEditAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> PrEditFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "pr", rule: "must be above 0"),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new LeakCheckFailedException("the text could not be checked for leaks in time"),
+        ];
+    }
+
+    private ValueTask<PrEditResult> PrEditServiceCallAsync()
+    {
+        return this._prEditService.EditAsync(
+            repository: REPOSITORY,
+            pullRequest: PULL_REQUEST,
+            title: "feat(tools): edit",
+            body: "Closes #44",
+            assignSelf: true,
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<PrEditResult> PrEditAsync()
+    {
+        return WorkflowMcpTools.PrEditAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._prEditService,
+            title: "feat(tools): edit",
+            body: "Closes #44",
+            assignSelf: true,
             cancellationToken: this.CancellationToken()
         );
     }

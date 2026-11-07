@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_hand_off", "pr_list", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1032,6 +1032,67 @@ Accept: application/json, text/event-stream
       "pr": 87,
       "title": "feat(tools): add the pr_hand_off tool",
       "description": " "
+    }
+  }
+}
+
+### Call the pr_edit tool on a pull request, which may have been opened by another account; expects outcome "Edited" with the pull request URL, or "Unchanged" when it already is as asked
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 70,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "title": "feat(tools): add the pr_edit tool",
+      "body": "Adds the pr_edit tool.\n\nCloses #44",
+      "assignSelf": true
+    }
+  }
+}
+
+### Call the pr_edit tool with a body holding a token; expects outcome "Refused" with the rule "token" and its line, and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 71,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "body": "Adds the pr_edit tool.\n\nghp_000000000000000000000000000000000000"
+    }
+  }
+}
+
+### Call the pr_edit tool with nothing to change; expects a tool error naming the "title" parameter and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 72,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87
     }
   }
 }
