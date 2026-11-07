@@ -156,17 +156,17 @@ public sealed partial class PrReplyService : IPrReplyService
                 cancellationToken: cancellationToken
             );
         }
-        catch (HttpRequestException exception) when (IsRejected(exception.StatusCode))
+        catch (HttpRequestException exception) when (GitHubHttpFailure.IsRejected(exception.StatusCode))
         {
             return Failed(
                 outcome: PrReplyOutcome.NotPosted,
-                message: $"the reply was not posted: {Describe(exception)}"
+                message: $"the reply was not posted: {GitHubHttpFailure.Describe(exception)}"
             );
         }
         catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
         {
             // The request was sent and never retried, so GitHub may have stored the reply without the answer arriving
-            return MayHaveBeenPosted(Describe(exception));
+            return MayHaveBeenPosted(GitHubHttpFailure.Describe(exception));
         }
 
         if (
@@ -192,30 +192,6 @@ public sealed partial class PrReplyService : IPrReplyService
             Rule: null,
             LineNumber: null
         );
-    }
-
-    // These statuses mean GitHub refused the request, so nothing was stored
-    private static bool IsRejected(HttpStatusCode? statusCode)
-    {
-        return statusCode
-            is HttpStatusCode.BadRequest
-                or HttpStatusCode.Unauthorized
-                or HttpStatusCode.Forbidden
-                or HttpStatusCode.NotFound
-                or HttpStatusCode.Gone
-                or HttpStatusCode.UnprocessableEntity;
-    }
-
-    // Only the status is described, never the exception's message, so no upstream text reaches the caller
-    private static string Describe(Exception exception)
-    {
-        return exception switch
-        {
-            HttpRequestException { StatusCode: { } statusCode } =>
-                $"GitHub answered with status {((int)statusCode).ToString(CultureInfo.InvariantCulture)}",
-            HttpRequestException => "the request to GitHub failed",
-            _ => "the answer from GitHub could not be read",
-        };
     }
 
     private static long? PullRequestNumber(string? pullRequestUrl)

@@ -704,20 +704,9 @@ public sealed partial class PrHandOffService : IPrHandOffService
             BoardWriteException { InnerException: { } inner } => MayHaveBeenWritten(inner),
             BoardWriteException => true,
             GitHubGraphQlException => false,
-            HttpRequestException { StatusCode: { } statusCode } => !IsRejected(statusCode),
+            HttpRequestException { StatusCode: { } statusCode } => !GitHubHttpFailure.IsRejected(statusCode),
             _ => true,
         };
-    }
-
-    private static bool IsRejected(HttpStatusCode statusCode)
-    {
-        return statusCode
-            is HttpStatusCode.BadRequest
-                or HttpStatusCode.Unauthorized
-                or HttpStatusCode.Forbidden
-                or HttpStatusCode.NotFound
-                or HttpStatusCode.Gone
-                or HttpStatusCode.UnprocessableEntity;
     }
 
     // Only the status is described, never the exception's message, so no upstream text reaches the caller
@@ -728,10 +717,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
             BoardWriteException { InnerException: { } inner } => Describe(inner),
             BoardWriteException => "the Workflow board did not confirm the change",
             GitHubGraphQlException => "GitHub refused the change",
-            HttpRequestException { StatusCode: { } statusCode } =>
-                $"GitHub answered with status {((int)statusCode).ToString(CultureInfo.InvariantCulture)}",
-            HttpRequestException => "the request to GitHub failed",
-            _ => "the answer from GitHub could not be read",
+            _ => GitHubHttpFailure.Describe(exception),
         };
     }
 

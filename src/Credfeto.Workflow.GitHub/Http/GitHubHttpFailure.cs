@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -73,6 +74,30 @@ internal static class GitHubHttpFailure
         return exception.StatusCode == HttpStatusCode.Forbidden
             && UpstreamMessage(exception) is { } message
             && message.Contains(value: RULESETS_UNAVAILABLE_MESSAGE, comparisonType: StringComparison.Ordinal);
+    }
+
+    // These statuses mean GitHub refused the request, so nothing was stored
+    public static bool IsRejected(HttpStatusCode? statusCode)
+    {
+        return statusCode
+            is HttpStatusCode.BadRequest
+                or HttpStatusCode.Unauthorized
+                or HttpStatusCode.Forbidden
+                or HttpStatusCode.NotFound
+                or HttpStatusCode.Gone
+                or HttpStatusCode.UnprocessableEntity;
+    }
+
+    // Only the status is described, never the exception's message, so no upstream text reaches the caller
+    public static string Describe(Exception exception)
+    {
+        return exception switch
+        {
+            HttpRequestException { StatusCode: { } statusCode } =>
+                $"GitHub answered with status {((int)statusCode).ToString(CultureInfo.InvariantCulture)}",
+            HttpRequestException => "the request to GitHub failed",
+            _ => "the answer from GitHub could not be read",
+        };
     }
 
     private static string[] ErrorCodes(JsonElement? errors)
