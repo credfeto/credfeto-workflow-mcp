@@ -282,15 +282,17 @@ public sealed class RunLogService : IRunLogService
             );
         }
 
+        (int lines, int redacted, int masked) = log.CountLines();
+
         return new(
             Outcome: RunLogOutcome.Log,
             Message: $"read the failed steps' logs of the run {request.Run} of {request.Repository}",
             Log: text,
             Jobs: log.Jobs,
             Steps: log.Sections.Count,
-            Lines: log.Sections.Sum(section => section.Lines.Count),
-            Redacted: log.Sections.Sum(section => section.Lines.Count(line => line.Redacted)),
-            Masked: log.Sections.Sum(section => section.Lines.Count(line => line.Masked))
+            Lines: lines,
+            Redacted: redacted,
+            Masked: masked
         );
     }
 
@@ -324,6 +326,31 @@ public sealed class RunLogService : IRunLogService
         public RunLogText Add(IReadOnlyList<RunLogSection> sections)
         {
             return sections.Count == 0 ? this : new(Jobs: this.Jobs + 1, Sections: [.. this.Sections, .. sections]);
+        }
+
+        // Counts every line, and the redacted and masked ones, in a single pass
+        public (int Lines, int Redacted, int Masked) CountLines()
+        {
+            int lines = 0;
+            int redacted = 0;
+            int masked = 0;
+
+            foreach (RunLogLine line in this.Sections.SelectMany(section => section.Lines))
+            {
+                ++lines;
+
+                if (line.Redacted)
+                {
+                    ++redacted;
+                }
+
+                if (line.Masked)
+                {
+                    ++masked;
+                }
+            }
+
+            return (Lines: lines, Redacted: redacted, Masked: masked);
         }
 
         // Every line ends with a line feed, so the log can be joined to more text without running into it
