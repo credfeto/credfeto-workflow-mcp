@@ -1,6 +1,5 @@
 using System;
 using System.Globalization;
-using System.Net;
 using System.Net.Http;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -144,11 +143,11 @@ public sealed partial class CommentAddService : ICommentAddService
                 cancellationToken: cancellationToken
             );
         }
-        catch (HttpRequestException exception) when (IsRejected(exception.StatusCode))
+        catch (HttpRequestException exception) when (GitHubHttpFailure.IsRejected(exception.StatusCode))
         {
             return Failed(
                 outcome: CommentAddOutcome.NotPosted,
-                message: $"could not post the comment on {reference}: {Describe(exception)}"
+                message: $"could not post the comment on {reference}: {GitHubHttpFailure.Describe(exception)}"
             );
         }
         catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
@@ -156,7 +155,7 @@ public sealed partial class CommentAddService : ICommentAddService
             // The request was sent and never retried, so GitHub may have stored the comment without the answer arriving
             return Failed(
                 outcome: CommentAddOutcome.MayHaveBeenPosted,
-                message: $"could not post the comment on {reference}, which may have been posted ({Describe(exception)}); read the comments before posting again"
+                message: $"could not post the comment on {reference}, which may have been posted ({GitHubHttpFailure.Describe(exception)}); read the comments before posting again"
             );
         }
 
@@ -185,30 +184,6 @@ public sealed partial class CommentAddService : ICommentAddService
             Rule: null,
             LineNumber: null
         );
-    }
-
-    // These statuses mean GitHub refused the request, so nothing was stored
-    private static bool IsRejected(HttpStatusCode? statusCode)
-    {
-        return statusCode
-            is HttpStatusCode.BadRequest
-                or HttpStatusCode.Unauthorized
-                or HttpStatusCode.Forbidden
-                or HttpStatusCode.NotFound
-                or HttpStatusCode.Gone
-                or HttpStatusCode.UnprocessableEntity;
-    }
-
-    // Only the status is described, never the exception's message, so no upstream text reaches the caller
-    private static string Describe(Exception exception)
-    {
-        return exception switch
-        {
-            HttpRequestException { StatusCode: { } statusCode } =>
-                $"GitHub answered with status {((int)statusCode).ToString(CultureInfo.InvariantCulture)}",
-            HttpRequestException => "the request to GitHub failed",
-            _ => "the answer from GitHub could not be read",
-        };
     }
 
     // The body is never echoed back: only the rule and, for a rule that applies to one line, the line are reported

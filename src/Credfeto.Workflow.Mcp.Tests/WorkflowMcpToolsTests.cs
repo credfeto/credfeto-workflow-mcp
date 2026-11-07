@@ -57,6 +57,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
     private readonly IPrCreateService _prCreateService;
+    private readonly IPrHandOffService _prHandOffService;
     private readonly IPrReplyService _prReplyService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IPullRequestService _viewService;
@@ -79,6 +80,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
+        this._prHandOffService = GetSubstitute<IPrHandOffService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
         this._commentAddService = GetSubstitute<ICommentAddService>();
@@ -1236,6 +1238,80 @@ public sealed class WorkflowMcpToolsTests : TestBase
             commentId: "123",
             body: "Thanks",
             service: this._prReplyService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrHandOffReturnsWhatTheServiceAnsweredAsync()
+    {
+        PrHandOffResult expected = new(
+            Outcome: PrHandOffOutcome.HandedOff,
+            Message: REPOSITORY + "#41 was handed off for human review; auto-merge on",
+            HeadSha: "0123456789abcdef0123456789abcdef01234567",
+            ReviewRecordUrl: new("https://github.com/" + REPOSITORY + "/pull/41#issuecomment-456"),
+            AutoMerge: PrHandOffAutoMerge.On,
+            AutoMergeReason: null,
+            StepsDone: null,
+            Rule: null,
+            LineNumber: null
+        );
+        this.PrHandOffServiceCallAsync().Returns(expected);
+
+        PrHandOffResult actual = await this.PrHandOffAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrHandOffValidationFailuresAreReportedToTheCallerAsync()
+    {
+        ParameterValidationException failure = ParameterValidationException.For(
+            parameterName: "description",
+            rule: "it must not be empty or whitespace"
+        );
+        this.PrHandOffServiceCallAsync().ThrowsAsync(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.PrHandOffAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    [Fact]
+    public async Task PrHandOffOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrHandOffServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrHandOffAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private ValueTask<PrHandOffResult> PrHandOffServiceCallAsync()
+    {
+        return this._prHandOffService.HandOffAsync(
+            repository: REPOSITORY,
+            pullRequest: PULL_REQUEST,
+            title: "feat(tools): hand off",
+            description: "Closes #55",
+            record: "clean",
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<PrHandOffResult> PrHandOffAsync()
+    {
+        return WorkflowMcpTools.PrHandOffAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            title: "feat(tools): hand off",
+            description: "Closes #55",
+            service: this._prHandOffService,
+            record: "clean",
             cancellationToken: this.CancellationToken()
         );
     }

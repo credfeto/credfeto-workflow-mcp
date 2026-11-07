@@ -692,6 +692,50 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: every successful call posts a new review record
+    [McpServerTool(
+        Name = "pr_hand_off",
+        Title = "Pull request hand off",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Hands a pull request off for human review: sets its final title and description, moves it to Human Review on the Workflow board, marks it ready, posts the review record naming the head and turns on auto-merge as a merge commit; refuses before writing anything unless the pull request is open, has no Blocked or On Hold label and every required check has passed. Returns HandedOff with auto-merge On, Unavailable or NotArmed, Refused with the rule, NotFound, NotHandedOff or MayHaveBeenHandedOff with the steps already made"
+    )]
+    public static async Task<PrHandOffResult> PrHandOffAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        [Description(
+            "The final pull request title, a Conventional Commits title such as \"feat(scope): text\" or \"fix: text\""
+        )]
+            string title,
+        [Description("The final pull request description, in Markdown; keep every Closes line")] string description,
+        IPrHandOffService service,
+        [Description("Extra text for the review record, in Markdown, added under its reviewed head line")]
+            string? record = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.HandOffAsync(
+                repository: repo,
+                pullRequest: pr,
+                title: title,
+                description: description,
+                record: record,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsPrHandOffError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never the title, description,
+            // record or upstream detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
@@ -880,32 +924,40 @@ public sealed class WorkflowMcpTools
 
     private static bool IsIssueCreateError(Exception exception)
     {
-        return exception
-            is ParameterValidationException
-                or IssueCreateRefusedException
-                or IssueCreateFailedException
-                or IssueCreateBoardWriteException
-                or RepositoryNotFoundException
-                or RepositoryVisibilityLookupFailedException
-                or WorkflowBoardNotFoundException
-                or WorkflowBoardAmbiguousException
-                or WorkflowBoardInvalidException
-                or WorkflowStatusFieldNotFoundException
-                or StatusFieldReadFailedException
-                or StatusOptionMissingException
-                or AmbiguousStatusOptionException;
+        return IsBoardOrRepositoryError(exception)
+            || exception is IssueCreateRefusedException or IssueCreateFailedException or IssueCreateBoardWriteException;
     }
 
     private static bool IsPrCreateError(Exception exception)
     {
+        return IsBoardOrRepositoryError(exception)
+            || exception
+                is PrCreateRefusedException
+                    or PrCreateFailedException
+                    or PrCreateBoardWriteException
+                    or PullRequestListFailedException;
+    }
+
+    private static bool IsPrHandOffError(Exception exception)
+    {
+        return IsBoardOrRepositoryError(exception)
+            || exception
+                is LeakCheckFailedException
+                    or PullRequestNotFoundException
+                    or CommitNotFoundException
+                    or BranchNotFoundException
+                    or RequiredChecksUnreadableException
+                    or PrChecksUnreadableException;
+    }
+
+    // The failures shared by every tool that validates its input, resolves the repository and writes to its
+    // Workflow board
+    private static bool IsBoardOrRepositoryError(Exception exception)
+    {
         return exception
             is ParameterValidationException
-                or PrCreateRefusedException
-                or PrCreateFailedException
-                or PrCreateBoardWriteException
                 or RepositoryNotFoundException
                 or RepositoryVisibilityLookupFailedException
-                or PullRequestListFailedException
                 or WorkflowBoardNotFoundException
                 or WorkflowBoardAmbiguousException
                 or WorkflowBoardInvalidException

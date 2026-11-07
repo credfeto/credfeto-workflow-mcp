@@ -44,6 +44,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_checks",
                 "pr_comments",
                 "pr_create",
+                "pr_hand_off",
                 "pr_list",
                 "pr_reply",
                 "pr_search",
@@ -252,6 +253,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrHandOffTakesRepoPrTitleDescriptionAndOptionalRecord()
+    {
+        JsonElement schema = this.GetTool("pr_hand_off").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["description", "pr", "record", "repo", "title"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["description", "pr", "repo", "title"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrHandOffIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("pr_hand_off");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "pr_hand_off writes a pull request");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "pr_hand_off is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "pr_hand_off is not idempotent");
+    }
+
+    [Fact]
     public void PrReplyTakesRepoAndPrAndCommentIdAndBody()
     {
         JsonElement schema = this.GetTool("pr_reply").ProtocolTool.InputSchema;
@@ -418,6 +438,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueListService>()
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()
+            .AddMockedService<IPrHandOffService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
