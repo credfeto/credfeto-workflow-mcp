@@ -303,7 +303,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
                 State: default
             );
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception) when (IsReadFailure(exception))
         {
             state = null;
         }
@@ -425,7 +425,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
 
             return response.AllowAutoMerge is false;
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception) when (IsReadFailure(exception))
         {
             return false;
         }
@@ -467,8 +467,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
                 || StringComparer.Ordinal.Equals(x: rule.Type, y: REQUIRED_STATUS_CHECKS_RULE)
             );
         }
-        catch (Exception exception)
-            when (exception is GitHubInvalidResponseException or HttpRequestException or ParameterValidationException)
+        catch (Exception exception) when (IsReadFailure(exception) || exception is ParameterValidationException)
         {
             return false;
         }
@@ -541,23 +540,37 @@ public sealed partial class PrHandOffService : IPrHandOffService
             );
         }
 
-        Uri? recordUrl = null;
+        return failure is { } failed
+            ? Failed(request: target.Request, failure: failed, steps: steps)
+            : await this.RecordAndFinishAsync(target: target, steps: steps, cancellationToken: cancellationToken);
+    }
 
-        failure ??= await TryWriteAsync(
-            write: async () =>
-                recordUrl = await this.PostRecordAsync(target: target, cancellationToken: cancellationToken),
-            step: STEP_REVIEW_RECORD,
-            steps: steps
-        );
+    private async ValueTask<PrHandOffResult> RecordAndFinishAsync(
+        HandOffTarget target,
+        List<string> steps,
+        CancellationToken cancellationToken
+    )
+    {
+        Uri recordUrl;
 
-        if (failure is { } failed)
+        try
         {
-            return Failed(request: target.Request, failure: failed, steps: steps);
+            recordUrl = await this.PostRecordAsync(target: target, cancellationToken: cancellationToken);
         }
+        catch (Exception exception) when (IsWriteFailure(exception))
+        {
+            return Failed(
+                request: target.Request,
+                failure: new(Step: STEP_REVIEW_RECORD, Exception: exception),
+                steps: steps
+            );
+        }
+
+        steps.Add(STEP_REVIEW_RECORD);
 
         return await this.FinishAsync(
             target: target,
-            recordUrl: recordUrl ?? throw new GitHubInvalidResponseException("the review record URL was missing"),
+            recordUrl: recordUrl,
             steps: steps,
             cancellationToken: cancellationToken
         );
@@ -615,10 +628,15 @@ public sealed partial class PrHandOffService : IPrHandOffService
             return again is { } state
                 && StringComparer.OrdinalIgnoreCase.Equals(x: state.HeadSha, y: target.State.HeadSha);
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception) when (IsReadFailure(exception))
         {
             return false;
         }
+    }
+
+    private static bool IsReadFailure(Exception exception)
+    {
+        return exception is GitHubInvalidResponseException or HttpRequestException;
     }
 
     private ValueTask SetBoardAsync(HandOffTarget target, CancellationToken cancellationToken)
