@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
@@ -38,6 +39,24 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri,
             content: null,
             responseTypeInfo: responseTypeInfo,
+            mediaType: null,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public ValueTask<TResponse> GetAsync<TResponse>(
+        string relativeUri,
+        string mediaType,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ExchangeAsync(
+            method: HttpMethod.Get,
+            relativeUri: relativeUri,
+            content: null,
+            responseTypeInfo: responseTypeInfo,
+            mediaType: new MediaTypeWithQualityHeaderValue(mediaType),
             cancellationToken: cancellationToken
         );
     }
@@ -55,6 +74,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri,
             content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
             responseTypeInfo: responseTypeInfo,
+            mediaType: null,
             cancellationToken: cancellationToken
         );
     }
@@ -72,6 +92,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri,
             content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
             responseTypeInfo: responseTypeInfo,
+            mediaType: null,
             cancellationToken: cancellationToken
         );
     }
@@ -87,6 +108,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri,
             content: null,
             responseTypeInfo: responseTypeInfo,
+            mediaType: null,
             cancellationToken: cancellationToken
         );
     }
@@ -96,6 +118,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         string relativeUri,
         HttpContent? content,
         JsonTypeInfo<TResponse> responseTypeInfo,
+        MediaTypeWithQualityHeaderValue? mediaType,
         CancellationToken cancellationToken
     )
     {
@@ -110,6 +133,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
             method: method,
             requestUri: requestUri,
             content: content,
+            mediaType: mediaType,
             cancellationToken: cancellationToken
         );
 
@@ -156,6 +180,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
                 method: HttpMethod.Get,
                 requestUri: requestUri,
                 content: null,
+                mediaType: null,
                 cancellationToken: cancellationToken
             );
 
@@ -208,11 +233,18 @@ public sealed class GitHubRestClient : IGitHubRestClient
         HttpMethod method,
         Uri requestUri,
         HttpContent? content,
+        MediaTypeWithQualityHeaderValue? mediaType,
         CancellationToken cancellationToken
     )
     {
         using HttpRequestMessage request = new(method: method, requestUri: requestUri);
         request.Content = content;
+
+        // A header set on the request is kept in place of the client's default, so this replaces the default media type
+        if (mediaType is not null)
+        {
+            request.Headers.Accept.Add(mediaType);
+        }
 
         HttpResponseMessage response = await GitHubHttpSender.SendAsync(
             httpClient: httpClient,

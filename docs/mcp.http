@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -748,6 +748,163 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "text": "workflow AND status"
+    }
+  }
+}
+
+### Call the pr_search tool with the defaults; expects the repository, up to 30 open pull requests with number, state, headBranch and title, and truncated
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 59,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "search"
+    }
+  }
+}
+
+### Call the pr_search tool for merged pull requests with a limit; expects at most 5 pull requests, each with state "MERGED"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 60,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "search",
+      "state": "merged",
+      "limit": 5
+    }
+  }
+}
+
+### Call the pr_search tool with an unknown state; expects a tool error naming the "state" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 61,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "search",
+      "state": "draft"
+    }
+  }
+}
+
+### Call the code_search tool with the defaults; expects the repository, up to 30 files with path and matches sorted by path, and truncated
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 62,
+  "method": "tools/call",
+  "params": {
+    "name": "code_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "McpServerTool"
+    }
+  }
+}
+
+### Call the code_search tool with a limit of 0; expects a tool error naming the "limit" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 63,
+  "method": "tools/call",
+  "params": {
+    "name": "code_search",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "text": "McpServerTool",
+      "limit": 0
+    }
+  }
+}
+
+### Call the repo_search tool with the defaults; expects the owner, up to 30 non-archived repositories with repository, visibility, status and defaultBranch sorted by name, and truncated
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 64,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_search",
+    "arguments": {
+      "owner": "credfeto",
+      "text": "workflow"
+    }
+  }
+}
+
+### Call the repo_search tool including archived repositories; expects archived repositories to be listed with status "archived"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 65,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_search",
+    "arguments": {
+      "owner": "credfeto",
+      "text": "workflow",
+      "includeArchived": true
+    }
+  }
+}
+
+### Call the repo_search tool with an invalid owner; expects a tool error naming the "owner" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 66,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_search",
+    "arguments": {
+      "owner": "credfeto/name",
+      "text": "workflow"
     }
   }
 }

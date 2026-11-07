@@ -41,7 +41,8 @@ internal sealed class RecordingHttpMessageHandler : HttpMessageHandler
             Method: request.Method,
             RequestUri: request.RequestUri,
             Authorization: request.Headers.Authorization?.ToString(),
-            Body: body
+            Body: body,
+            Accept: request.Headers.Accept.ToString()
         );
 
         int index;

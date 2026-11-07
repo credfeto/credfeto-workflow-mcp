@@ -266,6 +266,42 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrSearchServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrSearchService>();
+    }
+
+    [Fact]
+    public void PrSearchServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrSearchService, PrSearchService>();
+    }
+
+    [Fact]
+    public void CodeSearchServiceShouldBeRegistered()
+    {
+        this.RequireService<ICodeSearchService>();
+    }
+
+    [Fact]
+    public void CodeSearchServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ICodeSearchService, CodeSearchService>();
+    }
+
+    [Fact]
+    public void RepoSearchServiceShouldBeRegistered()
+    {
+        this.RequireService<IRepoSearchService>();
+    }
+
+    [Fact]
+    public void RepoSearchServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepoSearchService, RepoSearchService>();
+    }
+
+    [Fact]
     public void IssueListServiceShouldBeRegistered()
     {
         this.RequireService<IIssueListService>();

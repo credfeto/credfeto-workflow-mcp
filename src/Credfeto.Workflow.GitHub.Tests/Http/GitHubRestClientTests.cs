@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Tests.Helpers;
 using Credfeto.Workflow.GitHub.Tests.Models;
+using NSubstitute;
 using Polly.Timeout;
 using Xunit;
 
@@ -32,6 +34,59 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         RecordedRequest request = Assert.Single(upstream.Requests);
         Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
         Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo"), actual: request.RequestUri);
+        Assert.Equal(expected: string.Empty, actual: request.Accept);
+    }
+
+    [Fact]
+    public async Task GetWithMediaTypeAsksForThatMediaTypeAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":1,"name":"first"}"""));
+
+        TestItem item = await this.CreateClient(upstream)
+            .GetAsync(
+                relativeUri: "repos/owner/repo",
+                mediaType: "application/vnd.github.text-match+json",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: new TestItem(Id: 1, Name: "first"), actual: item);
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
+        Assert.Equal(expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo"), actual: request.RequestUri);
+        Assert.Equal(expected: "application/vnd.github.text-match+json", actual: request.Accept);
+    }
+
+    [Fact]
+    public async Task GetWithMediaTypeReplacesTheDefaultMediaTypeAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":1,"name":"first"}"""));
+        IHttpClientFactory factory = GetSubstitute<IHttpClientFactory>();
+        factory
+            .CreateClient(GitHubSetup.HttpClientName)
+            .Returns(_ =>
+            {
+                HttpClient client = new(handler: upstream, disposeHandler: false)
+                {
+                    BaseAddress = new Uri(GitHubServices.ApiBaseUrl),
+                };
+                client.DefaultRequestHeaders.Accept.Add(
+                    new MediaTypeWithQualityHeaderValue("application/vnd.github+json")
+                );
+
+                return client;
+            });
+        GitHubRestClient rest = new(httpClientFactory: factory, logger: this.GetTypedLogger<GitHubRestClient>());
+
+        _ = await rest.GetAsync(
+            relativeUri: "repos/owner/repo",
+            mediaType: "application/vnd.github.text-match+json",
+            responseTypeInfo: TestJsonContext.Default.TestItem,
+            cancellationToken: this.CancellationToken()
+        );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: "application/vnd.github.text-match+json", actual: request.Accept);
     }
 
     [Theory]
