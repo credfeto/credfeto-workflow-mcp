@@ -508,3 +508,61 @@ Content-Type: application/json
 {
   "body": "## Summary\n\nPosted from docs/github.http."
 }
+
+### REST: a repository's workflow runs on a branch or commit, when no workflow is given (run_list)
+# One page only: per_page is the limit, at most 50. The filter is branch=<branch>, with the name URL-encoded, or
+# head_sha=<sha>; no event filter is set, so runs of every trigger are listed. Every run returned must match the
+# filter, and the runs are sorted newest first. A 404 means the repository is missing or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/runs?branch=main&per_page=20
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: a repository's workflows, to find the one given by file name or name (run_list)
+# Follow the Link header's rel="next" URL until there is none. A workflow is matched by the file name at the end
+# of its path first, then by its name; a disabled workflow is still listed, so its runs can be read.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/workflows?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: one workflow's runs on a branch or commit, after finding its id (run_list)
+# The same filter, limit and checks as the repository's workflow runs above, with the id from the workflows list.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/workflows/1/runs?branch=main&per_page=20
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: a workflow run, with its latest attempt number (run_view, run_log)
+# The id must match the run asked for and run_attempt must be at least 1. GitHub answers 404 for a missing
+# repository and a missing run alike, so on a 404 the repository is read with GET repos/{owner}/{repo} to tell
+# them apart.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/runs/1
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the jobs of a run's latest attempt (run_view, run_log)
+# Follow the Link header's rel="next" URL until there is none. Only the latest attempt is read, so a job from an
+# earlier attempt never hides the current result. The list is refused as incomplete when the number of jobs read
+# differs from total_count, when total_count changes between pages, or when it is above 1000.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/runs/1/attempts/1/jobs?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the log archive of a run's latest attempt, only when a job failed (run_log)
+# GitHub answers 302 with a short-lived signed Location URL for the zip archive; the redirect is not followed. The
+# archive is downloaded from that URL without the token, only over https on the default port and only from
+# results-receiver.actions.githubusercontent.com or a productionresultssa<n>.blob.core.windows.net host, again
+# without following redirects. A 404 means the logs were not found and a 410 that they are past their retention.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/runs/1/attempts/1/logs
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp

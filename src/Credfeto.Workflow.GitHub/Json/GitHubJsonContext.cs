@@ -9,6 +9,7 @@ using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
 
@@ -81,4 +82,9 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(LabelTimelineEventResponse[]))]
 [JsonSerializable(typeof(LabelAddRequest))]
 [JsonSerializable(typeof(LabelCreateRequest))]
+[JsonSerializable(typeof(WorkflowRunResponse))]
+[JsonSerializable(typeof(WorkflowRunsPageResponse))]
+[JsonSerializable(typeof(WorkflowJobResponse))]
+[JsonSerializable(typeof(WorkflowJobsPageResponse))]
+[JsonSerializable(typeof(WorkflowsPageResponse))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

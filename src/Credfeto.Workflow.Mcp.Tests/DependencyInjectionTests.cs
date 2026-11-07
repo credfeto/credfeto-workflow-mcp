@@ -54,6 +54,9 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_search",
                 "pr_view",
                 "repo_search",
+                "run_list",
+                "run_log",
+                "run_view",
                 "workflow_status_check",
                 "workflow_status_set",
             ],
@@ -78,6 +81,9 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("workflow_status_check")]
     [InlineData("body_check")]
     [InlineData("closing_issue_labels")]
+    [InlineData("run_list")]
+    [InlineData("run_view")]
+    [InlineData("run_log")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -244,6 +250,33 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RunListTakesRepoAndOptionalFilters()
+    {
+        JsonElement schema = this.GetTool("run_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["branch", "limit", "repo", "sha", "workflow"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RunViewTakesRepoAndRun()
+    {
+        JsonElement schema = this.GetTool("run_view").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo", "run"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "run"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RunLogTakesRepoAndRunAndOptionalJobAndLines()
+    {
+        JsonElement schema = this.GetTool("run_log").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["job", "lines", "repo", "run"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "run"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -504,6 +537,9 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ICodeSearchService>()
             .AddMockedService<IRepoSearchService>()
             .AddMockedService<IIssueListService>()
+            .AddMockedService<IRunListService>()
+            .AddMockedService<IRunViewService>()
+            .AddMockedService<IRunLogService>()
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrEditService>()

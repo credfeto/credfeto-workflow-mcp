@@ -132,6 +132,56 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.Equal(expected: DecompressionMethods.All, actual: primary.AutomaticDecompression);
     }
 
+    [Fact]
+    public async Task LogStorageClientIsConfiguredForSignedUrlsAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        using HttpClient client = serviceProvider
+            .GetRequiredService<IHttpClientFactory>()
+            .CreateClient(GitHubSetup.LogStorageHttpClientName);
+
+        Assert.Null(client.BaseAddress);
+        Assert.Equal(expected: TimeSpan.FromSeconds(60), actual: client.Timeout);
+        Assert.Equal(expected: 32 * 1024 * 1024, actual: client.MaxResponseContentBufferSize);
+        Assert.Equal(expected: "credfeto-workflow-mcp", actual: client.DefaultRequestHeaders.UserAgent.ToString());
+        Assert.Empty(client.DefaultRequestHeaders.Accept);
+        Assert.False(
+            condition: client.DefaultRequestHeaders.Contains(API_VERSION_HEADER_NAME),
+            userMessage: "API version header should not be sent to log storage"
+        );
+    }
+
+    [Theory]
+    [InlineData("Authorization")]
+    [InlineData("Location")]
+    [InlineData("X-Custom")]
+    public static async Task LogStorageLoggedHeaderValuesAreAllRedactedAsync(string header)
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        HttpClientFactoryOptions options = serviceProvider
+            .GetRequiredService<IOptionsMonitor<HttpClientFactoryOptions>>()
+            .Get(GitHubSetup.LogStorageHttpClientName);
+
+        Assert.True(condition: options.ShouldRedactHeaderValue(header), userMessage: "Every header must be redacted");
+    }
+
+    [Fact]
+    public async Task LogStoragePrimaryHandlerReadsTheArchiveAsItIsAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        SocketsHttpHandler primary = GetPrimaryHandler(
+            serviceProvider: serviceProvider,
+            name: GitHubSetup.LogStorageHttpClientName
+        );
+
+        Assert.False(condition: primary.AllowAutoRedirect, userMessage: "Redirects must not be followed");
+        Assert.False(condition: primary.UseCookies, userMessage: "Cookies must not be shared between callers");
+        Assert.Equal(expected: DecompressionMethods.None, actual: primary.AutomaticDecompression);
+    }
+
     [Theory]
     [InlineData("POST", 1)]
     [InlineData("GET", RETRY_ATTEMPTS + 1)]
@@ -454,11 +504,14 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
             );
     }
 
-    private static SocketsHttpHandler GetPrimaryHandler(ServiceProvider serviceProvider)
+    private static SocketsHttpHandler GetPrimaryHandler(
+        ServiceProvider serviceProvider,
+        string name = GitHubSetup.HttpClientName
+    )
     {
         HttpMessageHandler handler = serviceProvider
             .GetRequiredService<IHttpMessageHandlerFactory>()
-            .CreateHandler(GitHubSetup.HttpClientName);
+            .CreateHandler(name);
 
         while (handler is DelegatingHandler delegatingHandler)
         {

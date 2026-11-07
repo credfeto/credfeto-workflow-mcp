@@ -19,6 +19,7 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
 using Microsoft.Extensions.DependencyInjection;
@@ -33,6 +34,9 @@ namespace Credfeto.Workflow.GitHub;
 public static class GitHubSetup
 {
     public const string HttpClientName = "GitHub";
+
+    // Reads a run's logs from the signed URL GitHub redirects to, without the caller's token
+    public const string LogStorageHttpClientName = "GitHubLogStorage";
 
     private const string USER_AGENT = "credfeto-workflow-mcp";
     private const string MEDIA_TYPE = "application/vnd.github+json";
@@ -52,6 +56,9 @@ public static class GitHubSetup
 
     // Also the HttpClient timeout, which unlike the resilience pipeline covers buffering the response body
     private static readonly TimeSpan TotalRequestTimeout = TimeSpan.FromSeconds(30);
+
+    // A run's log archive can be several megabytes, so it is given longer than an API page
+    private static readonly TimeSpan LogStorageRequestTimeout = TimeSpan.FromSeconds(60);
 
     // Only binds a method that is retried, so a timed-out attempt is followed by another
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(10);
@@ -81,6 +88,7 @@ public static class GitHubSetup
         _ = services.AddOptions<HttpTimeoutStrategyOptions>(HttpClientName).Configure(ConfigureAttemptTimeout);
 
         return services
+            .AddLogStorageHttpClient()
             .AddHttpContextAccessor()
             .AddSingleton<IValidateOptions<GitHubOptions>, GitHubOptionsValidator>()
             .AddSingleton<IValidateOptions<WorkflowOptions>, WorkflowOptionsValidator>()
@@ -109,6 +117,9 @@ public static class GitHubSetup
             .AddSingleton<ICodeSearchService, CodeSearchService>()
             .AddSingleton<IRepoSearchService, RepoSearchService>()
             .AddSingleton<IIssueListService, IssueListService>()
+            .AddSingleton<IRunListService, RunListService>()
+            .AddSingleton<IRunViewService, RunViewService>()
+            .AddSingleton<IRunLogService, RunLogService>()
             .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()
@@ -122,6 +133,16 @@ public static class GitHubSetup
             .RedactLoggedHeaders(static _ => true)
             .AddHttpMessageHandler<CallerTokenForwardingHandler>()
             .AddResilienceHandler(pipelineName: RESILIENCE_PIPELINE_NAME, configure: ConfigureResilience)
+            .Services;
+    }
+
+    // The signed URL is its own credential, so no token handler is added and every header is redacted from logs
+    private static IServiceCollection AddLogStorageHttpClient(this IServiceCollection services)
+    {
+        return services
+            .AddHttpClient(name: LogStorageHttpClientName, configureClient: ConfigureLogStorageHttpClient)
+            .ConfigurePrimaryHttpMessageHandler(CreateLogStoragePrimaryHandler)
+            .RedactLoggedHeaders(static _ => true)
             .Services;
     }
 
@@ -210,16 +231,34 @@ public static class GitHubSetup
         };
     }
 
+    // A log archive is stored compressed and read as is, so no decompression is asked for; a 3xx is surfaced so
+    // the read never leaves the host that was checked
+    private static HttpMessageHandler CreateLogStoragePrimaryHandler()
+    {
+        return new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false };
+    }
+
+    // The settings every client shares: its timeout, the response buffer cap and the User-Agent
+    private static void ConfigureCommonHttpClient(HttpClient client, TimeSpan timeout)
+    {
+        client.Timeout = timeout;
+        client.MaxResponseContentBufferSize = MAX_RESPONSE_CONTENT_BUFFER_SIZE;
+        client.DefaultRequestHeaders.UserAgent.Add(
+            new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
+        );
+    }
+
+    private static void ConfigureLogStorageHttpClient(HttpClient client)
+    {
+        ConfigureCommonHttpClient(client: client, timeout: LogStorageRequestTimeout);
+    }
+
     private static void ConfigureHttpClient(IServiceProvider serviceProvider, HttpClient client)
     {
         GitHubOptions options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>().Value;
 
         client.BaseAddress = options.ApiBaseUrl;
-        client.Timeout = TotalRequestTimeout;
-        client.MaxResponseContentBufferSize = MAX_RESPONSE_CONTENT_BUFFER_SIZE;
-        client.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
-        );
+        ConfigureCommonHttpClient(client: client, timeout: TotalRequestTimeout);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(MEDIA_TYPE));
 
         if (!string.IsNullOrWhiteSpace(options.ApiVersion))

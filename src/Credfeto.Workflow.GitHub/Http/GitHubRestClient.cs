@@ -61,6 +61,39 @@ public sealed class GitHubRestClient : IGitHubRestClient
         );
     }
 
+    // The redirect is never followed here: the primary handler surfaces it, so the caller's token is not sent to the
+    // host the Location names, and the caller decides whether that host may be read
+    public async ValueTask<Uri> GetRedirectLocationAsync(string relativeUri, CancellationToken cancellationToken)
+    {
+        HttpClient httpClient = this.CreateHttpClient();
+        Uri requestUri = ResolveOnConfiguredHost(
+            baseAddress: GitHubBaseAddress.From(httpClient),
+            relativeUri: relativeUri
+        );
+
+        using HttpRequestMessage request = new(method: HttpMethod.Get, requestUri: requestUri);
+
+        using HttpResponseMessage response = await GitHubHttpSender.SendAsync(
+            httpClient: httpClient,
+            request: request,
+            cancellationToken: cancellationToken
+        );
+
+        if (response.StatusCode == HttpStatusCode.Found)
+        {
+            return response.Headers.Location is { IsAbsoluteUri: true } location
+                ? location
+                : throw new GitHubInvalidResponseException("GitHub returned a redirect with no absolute location");
+        }
+
+        if (response.IsSuccessStatusCode)
+        {
+            throw new GitHubInvalidResponseException("GitHub did not return a redirect");
+        }
+
+        throw await this.FailureAsync(response: response, requestUri: requestUri, cancellationToken: cancellationToken);
+    }
+
     public ValueTask<TResponse> PostAsync<TRequest, TResponse>(
         string relativeUri,
         TRequest body,
@@ -259,22 +292,35 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
         using (response)
         {
-            this._logger.LogRequestFailed(path: requestUri.PathAndQuery, statusCode: (int)response.StatusCode);
-
-            // Only a 403 is told apart by its message, and a 422 by its error codes, so any other failure is reported
-            // without reading the body
-            if (response.StatusCode is not (HttpStatusCode.Forbidden or HttpStatusCode.UnprocessableEntity))
-            {
-                throw GitHubHttpFailure.FromResponse(response);
-            }
-
-            GitHubErrorResponse? upstreamError = await GitHubHttpFailure.ReadUpstreamErrorAsync(
-                content: response.Content,
+            throw await this.FailureAsync(
+                response: response,
+                requestUri: requestUri,
                 cancellationToken: cancellationToken
             );
-
-            throw GitHubHttpFailure.FromResponse(response: response, upstreamError: upstreamError);
         }
+    }
+
+    private async ValueTask<HttpRequestException> FailureAsync(
+        HttpResponseMessage response,
+        Uri requestUri,
+        CancellationToken cancellationToken
+    )
+    {
+        this._logger.LogRequestFailed(path: requestUri.PathAndQuery, statusCode: (int)response.StatusCode);
+
+        // Only a 403 is told apart by its message, and a 422 by its error codes, so any other failure is reported
+        // without reading the body
+        if (response.StatusCode is not (HttpStatusCode.Forbidden or HttpStatusCode.UnprocessableEntity))
+        {
+            return GitHubHttpFailure.FromResponse(response);
+        }
+
+        GitHubErrorResponse? upstreamError = await GitHubHttpFailure.ReadUpstreamErrorAsync(
+            content: response.Content,
+            cancellationToken: cancellationToken
+        );
+
+        return GitHubHttpFailure.FromResponse(response: response, upstreamError: upstreamError);
     }
 
     private static ValueTask<TContent> ReadContentAsync<TContent>(

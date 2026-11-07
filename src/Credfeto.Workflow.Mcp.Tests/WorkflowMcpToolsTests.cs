@@ -61,6 +61,9 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPrHandOffService _prHandOffService;
     private readonly IPrReplyService _prReplyService;
     private readonly IPullRequestCommentsReader _reader;
+    private readonly IRunListService _runListService;
+    private readonly IRunLogService _runLogService;
+    private readonly IRunViewService _runViewService;
     private readonly IPullRequestService _viewService;
     private readonly IWorkflowStatusCheckService _workflowStatusCheckService;
     private readonly IWorkflowStatusSetService _workflowStatusSetService;
@@ -87,6 +90,9 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
         this._commentAddService = GetSubstitute<ICommentAddService>();
         this._closingIssueLabelsService = GetSubstitute<IClosingIssueLabelsService>();
+        this._runListService = GetSubstitute<IRunListService>();
+        this._runViewService = GetSubstitute<IRunViewService>();
+        this._runLogService = GetSubstitute<IRunLogService>();
     }
 
     [Fact]
@@ -1348,6 +1354,248 @@ public sealed class WorkflowMcpToolsTests : TestBase
         return WorkflowMcpTools.IssueListAsync(
             repo: REPOSITORY,
             service: this._issueListService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task RunListReturnsWhatTheServiceListedAsync()
+    {
+        RunListResponse expected = new(
+            Repository: REPOSITORY,
+            Runs:
+            [
+                new RunListEntry(
+                    Id: 5,
+                    Workflow: "Build",
+                    Status: "completed",
+                    Conclusion: "failure",
+                    HeadSha: SHA,
+                    Event: "push",
+                    CreatedAt: "2026-01-02T03:04:05Z"
+                ),
+            ]
+        );
+        this.RunListServiceCallAsync().Returns(expected);
+
+        RunListResponse actual = await this.RunListAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task RunListFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (
+            Exception failure in new Exception[]
+            {
+                ParameterValidationException.For(
+                    parameterName: "limit",
+                    rule: "it must be a whole number from 1 to 50"
+                ),
+                new RunListFailedException("could not list the workflow runs of " + REPOSITORY),
+                new WorkflowNotFoundException("the workflow build.yml was not found in " + REPOSITORY),
+            }
+        )
+        {
+            this.RunListServiceCallAsync().ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.RunListAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task RunListOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.RunListServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.RunListAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private ValueTask<RunListResponse> RunListServiceCallAsync()
+    {
+        return this._runListService.ListAsync(
+            repository: REPOSITORY,
+            branch: BRANCH,
+            sha: null,
+            workflow: "build.yml",
+            limit: 7,
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<RunListResponse> RunListAsync()
+    {
+        return WorkflowMcpTools.RunListAsync(
+            repo: REPOSITORY,
+            service: this._runListService,
+            branch: BRANCH,
+            sha: null,
+            workflow: "build.yml",
+            limit: 7,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task RunViewReturnsWhatTheServiceReadAsync()
+    {
+        RunViewResponse expected = new(
+            Repository: REPOSITORY,
+            Id: 5,
+            Status: "completed",
+            Conclusion: "failure",
+            HeadSha: SHA,
+            HeadBranch: BRANCH,
+            Workflow: "Build",
+            Event: "push",
+            Attempt: 2,
+            CreatedAt: "2026-01-02T03:04:05Z",
+            Jobs: [new RunJobEntry(Id: 20, Name: "build", Status: "completed", Conclusion: "failure")]
+        );
+        this.RunViewServiceCallAsync().Returns(expected);
+
+        RunViewResponse actual = await this.RunViewAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task RunViewFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (
+            Exception failure in new Exception[]
+            {
+                ParameterValidationException.For(parameterName: "run", rule: "it must be digits only"),
+                new RunViewFailedException("could not read the run 5 of " + REPOSITORY),
+                new RunNotFoundException("the run 5 was not found in " + REPOSITORY),
+            }
+        )
+        {
+            this.RunViewServiceCallAsync().ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.RunViewAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task RunViewOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.RunViewServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.RunViewAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private ValueTask<RunViewResponse> RunViewServiceCallAsync()
+    {
+        return this._runViewService.ViewAsync(
+            repository: REPOSITORY,
+            run: "5",
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<RunViewResponse> RunViewAsync()
+    {
+        return WorkflowMcpTools.RunViewAsync(
+            repo: REPOSITORY,
+            run: "5",
+            service: this._runViewService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task RunLogReturnsWhatTheServiceReadAsync()
+    {
+        RunLogResponse expected = new(
+            Outcome: RunLogOutcome.Log,
+            Message: "read the failed steps' logs of the run 5 of " + REPOSITORY,
+            Log: "== job build step Compile\n| error\n",
+            Jobs: 1,
+            Steps: 1,
+            Lines: 1,
+            Redacted: 0,
+            Masked: 0
+        );
+        this.RunLogServiceCallAsync().Returns(expected);
+
+        RunLogResponse actual = await this.RunLogAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task RunLogFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (
+            Exception failure in new Exception[]
+            {
+                ParameterValidationException.For(
+                    parameterName: "lines",
+                    rule: "it must be a whole number from 1 to 2000"
+                ),
+                new RunLogFailedException("could not read the logs of the run 5 of " + REPOSITORY),
+            }
+        )
+        {
+            this.RunLogServiceCallAsync().ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.RunLogAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task RunLogOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.RunLogServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.RunLogAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private ValueTask<RunLogResponse> RunLogServiceCallAsync()
+    {
+        return this._runLogService.ReadFailedAsync(
+            repository: REPOSITORY,
+            run: "5",
+            job: "20",
+            lines: 30,
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<RunLogResponse> RunLogAsync()
+    {
+        return WorkflowMcpTools.RunLogAsync(
+            repo: REPOSITORY,
+            run: "5",
+            service: this._runLogService,
+            job: "20",
+            lines: 30,
             cancellationToken: this.CancellationToken()
         );
     }
