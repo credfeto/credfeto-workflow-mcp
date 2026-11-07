@@ -924,53 +924,40 @@ public sealed class WorkflowMcpTools
 
     private static bool IsIssueCreateError(Exception exception)
     {
-        return exception
-            is ParameterValidationException
-                or IssueCreateRefusedException
-                or IssueCreateFailedException
-                or IssueCreateBoardWriteException
-                or RepositoryNotFoundException
-                or RepositoryVisibilityLookupFailedException
-                or WorkflowBoardNotFoundException
-                or WorkflowBoardAmbiguousException
-                or WorkflowBoardInvalidException
-                or WorkflowStatusFieldNotFoundException
-                or StatusFieldReadFailedException
-                or StatusOptionMissingException
-                or AmbiguousStatusOptionException;
+        return IsBoardOrRepositoryError(exception)
+            || exception is IssueCreateRefusedException or IssueCreateFailedException or IssueCreateBoardWriteException;
     }
 
     private static bool IsPrCreateError(Exception exception)
     {
-        return exception
-            is ParameterValidationException
-                or PrCreateRefusedException
-                or PrCreateFailedException
-                or PrCreateBoardWriteException
-                or RepositoryNotFoundException
-                or RepositoryVisibilityLookupFailedException
-                or PullRequestListFailedException
-                or WorkflowBoardNotFoundException
-                or WorkflowBoardAmbiguousException
-                or WorkflowBoardInvalidException
-                or WorkflowStatusFieldNotFoundException
-                or StatusFieldReadFailedException
-                or StatusOptionMissingException
-                or AmbiguousStatusOptionException;
+        return IsBoardOrRepositoryError(exception)
+            || exception
+                is PrCreateRefusedException
+                    or PrCreateFailedException
+                    or PrCreateBoardWriteException
+                    or PullRequestListFailedException;
     }
 
     private static bool IsPrHandOffError(Exception exception)
+    {
+        return IsBoardOrRepositoryError(exception)
+            || exception
+                is LeakCheckFailedException
+                    or PullRequestNotFoundException
+                    or CommitNotFoundException
+                    or BranchNotFoundException
+                    or RequiredChecksUnreadableException
+                    or PrChecksUnreadableException;
+    }
+
+    // The failures shared by every tool that validates its input, resolves the repository and writes to its
+    // Workflow board
+    private static bool IsBoardOrRepositoryError(Exception exception)
     {
         return exception
             is ParameterValidationException
                 or RepositoryNotFoundException
                 or RepositoryVisibilityLookupFailedException
-                or LeakCheckFailedException
-                or PullRequestNotFoundException
-                or CommitNotFoundException
-                or BranchNotFoundException
-                or RequiredChecksUnreadableException
-                or PrChecksUnreadableException
                 or WorkflowBoardNotFoundException
                 or WorkflowBoardAmbiguousException
                 or WorkflowBoardInvalidException
