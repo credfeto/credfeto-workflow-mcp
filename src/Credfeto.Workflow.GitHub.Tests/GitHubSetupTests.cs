@@ -194,6 +194,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrHandOffServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrHandOffService>();
+    }
+
+    [Fact]
+    public void PrHandOffServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrHandOffService, PrHandOffService>();
+    }
+
+    [Fact]
     public void CommentAddServiceShouldBeRegistered()
     {
         this.RequireService<ICommentAddService>();

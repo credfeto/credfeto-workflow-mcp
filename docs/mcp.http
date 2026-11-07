@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_list", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_hand_off", "pr_list", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -968,6 +968,70 @@ Accept: application/json, text/event-stream
       "pr": 87,
       "commentId": "abc",
       "body": "Fixed."
+    }
+  }
+}
+
+### Call the pr_hand_off tool on an open pull request whose required checks have passed; expects outcome "HandedOff" with the head SHA, the review record URL and auto-merge "On", "Unavailable" or "NotArmed"
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 67,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_hand_off",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "title": "feat(tools): add the pr_hand_off tool",
+      "description": "Adds the pr_hand_off tool.\n\nCloses #55",
+      "record": "Simplify, code review, security review and coverage all clean."
+    }
+  }
+}
+
+### Call the pr_hand_off tool with a title that is not a Conventional Commits title; expects outcome "Refused" with the rule "Conventional Commits title" and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 68,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_hand_off",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "title": "Add the pr_hand_off tool",
+      "description": "Adds the pr_hand_off tool.\n\nCloses #55"
+    }
+  }
+}
+
+### Call the pr_hand_off tool with an empty description; expects a tool error naming the "description" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 69,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_hand_off",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "title": "feat(tools): add the pr_hand_off tool",
+      "description": " "
     }
   }
 }
