@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
@@ -17,6 +18,10 @@ internal static class GitHubHttpFailure
     private const string UPSTREAM_ERROR_CODES_KEY = "Credfeto.Workflow.GitHub.UpstreamErrorCodes";
 
     private const string CODE_PROPERTY = "code";
+
+    // GitHub answers the rulesets endpoint with this 403 on a private repository whose plan has no rulesets, which
+    // means no ruleset can require a check rather than that the caller lacks access
+    private const string RULESETS_UNAVAILABLE_MESSAGE = "Upgrade to GitHub Pro or make this repository public";
 
     // An error body is only read to tell failures with the same status apart, so anything larger is not an
     // error message GitHub would send and is ignored rather than buffered
@@ -61,6 +66,13 @@ internal static class GitHubHttpFailure
     {
         return exception.Data[UPSTREAM_ERROR_CODES_KEY] is IReadOnlyList<string> codes
             && codes.Contains(value: code, comparer: StringComparer.Ordinal);
+    }
+
+    public static bool IsRulesetsUnavailable(HttpRequestException exception)
+    {
+        return exception.StatusCode == HttpStatusCode.Forbidden
+            && UpstreamMessage(exception) is { } message
+            && message.Contains(value: RULESETS_UNAVAILABLE_MESSAGE, comparisonType: StringComparison.Ordinal);
     }
 
     private static string[] ErrorCodes(JsonElement? errors)

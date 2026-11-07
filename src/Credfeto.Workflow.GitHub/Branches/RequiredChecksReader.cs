@@ -21,10 +21,6 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
 
     private const string REQUIRED_STATUS_CHECKS_RULE = "required_status_checks";
 
-    // GitHub answers the rulesets endpoint with this 403 on a private repository whose plan has no rulesets, which
-    // means no ruleset can require a check rather than that the caller lacks access
-    private const string RULESETS_UNAVAILABLE_MESSAGE = "Upgrade to GitHub Pro or make this repository public";
-
     // GitHub reports -1 for a check that any source may satisfy
     private const long ANY_SOURCE_APP_ID = -1;
 
@@ -247,7 +243,7 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
                 cancellationToken: cancellationToken
             );
         }
-        catch (HttpRequestException exception) when (IsRulesetsUnavailable(exception))
+        catch (HttpRequestException exception) when (GitHubHttpFailure.IsRulesetsUnavailable(exception))
         {
             return [];
         }
@@ -269,13 +265,6 @@ public sealed class RequiredChecksReader : IRequiredChecksReader
                         : ToRequiredCheck(context: check.Context, appId: check.IntegrationId)
                 ),
         ];
-    }
-
-    private static bool IsRulesetsUnavailable(HttpRequestException exception)
-    {
-        return exception.StatusCode == HttpStatusCode.Forbidden
-            && GitHubHttpFailure.UpstreamMessage(exception) is { } message
-            && message.Contains(value: RULESETS_UNAVAILABLE_MESSAGE, comparisonType: StringComparison.Ordinal);
     }
 
     private static RequiredCheck ToRequiredCheck(string? context, long? appId)

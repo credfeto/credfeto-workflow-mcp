@@ -40,9 +40,6 @@ public sealed partial class PrHandOffService : IPrHandOffService
 
     private const string REQUIRED_STATUS_CHECKS_RULE = "required_status_checks";
 
-    // GitHub answers the rulesets endpoint with this 403 on a private repository whose plan has no rulesets
-    private const string RULESETS_UNAVAILABLE_MESSAGE = "Upgrade to GitHub Pro or make this repository public";
-
     private const string REVIEW_RECORD_HEADING = "### AI Review Loop: reviewed ";
 
     private const string STEP_TITLE_AND_DESCRIPTION = "title and description set";
@@ -487,17 +484,10 @@ public sealed partial class PrHandOffService : IPrHandOffService
                 cancellationToken: cancellationToken
             );
         }
-        catch (HttpRequestException exception) when (IsRulesetsUnavailable(exception))
+        catch (HttpRequestException exception) when (GitHubHttpFailure.IsRulesetsUnavailable(exception))
         {
             return [];
         }
-    }
-
-    private static bool IsRulesetsUnavailable(HttpRequestException exception)
-    {
-        return exception.StatusCode == HttpStatusCode.Forbidden
-            && GitHubHttpFailure.UpstreamMessage(exception) is { } message
-            && message.Contains(value: RULESETS_UNAVAILABLE_MESSAGE, comparisonType: StringComparison.Ordinal);
     }
 
     // The writes run in this order so a pull request is only marked ready once its title, description and board status
