@@ -47,7 +47,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only pr_search, code_search and repo_search MCP tools that search pull request titles and bodies, repository code and owner repositories by text, returning truncated-flagged results, so workflows can find related pull requests, code and repositories through the server without calling GitHub directly (#59)
 - Added pr_hand_off MCP tool (#55) that checks a pull request's title and description, then sets them, moves the pull request to Human Review on the Workflow board, marks it ready for review, posts the AI review record and enables auto-merge, so workflows can hand a finished pull request off through the server
 - Added pr_edit MCP tool that edits a pull request's title and description and adds the signed-in account to its assignees, so workflows can correct a pull request's title and description through the server, with the title and description leak-checked before any write (#44)
-- Added issue_reopen, pr_close and pr_reopen MCP tools (repo, issue/pr, optional comment) mirroring the cfwf commands (#56)
+- Added issue_reopen, pr_close and pr_reopen MCP tools (#56) that reopen an issue and close or reopen a pull request, optionally with a comment, so workflows can change their state through the server without calling GitHub directly
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
