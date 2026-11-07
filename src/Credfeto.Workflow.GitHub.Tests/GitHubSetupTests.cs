@@ -206,6 +206,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrEditServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrEditService>();
+    }
+
+    [Fact]
+    public void PrEditServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrEditService, PrEditService>();
+    }
+
+    [Fact]
     public void CommentAddServiceShouldBeRegistered()
     {
         this.RequireService<ICommentAddService>();

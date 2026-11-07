@@ -34,6 +34,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IIssueListService>()
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()
+            .AddMockedService<IPrEditService>()
             .AddMockedService<IPrHandOffService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<ICommentAddService>()

@@ -736,6 +736,56 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Destructive because the title and body given replace the ones the pull request had; idempotent because a repeat
+    // call finds the pull request already as asked and writes nothing
+    [McpServerTool(
+        Name = "pr_edit",
+        Title = "Pull request edit",
+        ReadOnly = false,
+        Destructive = true,
+        Idempotent = true
+    )]
+    [Description(
+        "Edits a pull request in one write: replaces its title and description and adds the signed-in account to its assignees, keeping the others; the title and description are leak checked before anything is written. Returns Edited or Unchanged with the pull request URL, Refused with the rule and line, NotFound, NotEdited or MayHaveBeenEdited"
+    )]
+    public static async Task<PrEditResult> PrEditAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPrEditService service,
+        [Description(
+            "The new pull request title, a Conventional Commits title such as \"feat(scope): text\" or \"fix: text\""
+        )]
+            string? title = null,
+        [Description("The new pull request description, in Markdown")] string? body = null,
+        [Description("Whether to add the signed-in account to the pull request's assignees")] bool assignSelf = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.EditAsync(
+                repository: repo,
+                pullRequest: pr,
+                title: title,
+                body: body,
+                assignSelf: assignSelf,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is ParameterValidationException
+                        or RepositoryNotFoundException
+                        or RepositoryVisibilityLookupFailedException
+                        or LeakCheckFailedException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never the title, body or upstream
+            // detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
