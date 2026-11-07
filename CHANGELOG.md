@@ -46,7 +46,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added optional GitHub:ApiVersion setting (default 2026-03-10) that sets the X-GitHub-Api-Version header on GitHub API requests, so the API version can be pinned or upgraded without a code change; an empty or whitespace value omits the header, and values containing non-printable or non-ASCII characters are rejected at startup (#37)
 - Added read-only pr_search, code_search and repo_search MCP tools that search pull request titles and bodies, repository code and owner repositories by text, returning truncated-flagged results, so workflows can find related pull requests, code and repositories through the server without calling GitHub directly (#59)
 - Added pr_hand_off MCP tool (#55) that checks a pull request's title and description, then sets them, moves the pull request to Human Review on the Workflow board, marks it ready for review, posts the AI review record and enables auto-merge, so workflows can hand a finished pull request off through the server
-- Added pr_edit MCP tool (repo, pr, optional title, body, assignSelf) that edits a pull request's title and body and optionally assigns the caller, validating input and leak-checking text before any write (#44)
+- Added pr_edit MCP tool that edits a pull request's title and description and adds the signed-in account to its assignees, so workflows can correct a pull request's title and description through the server, with the title and description leak-checked before any write (#44)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
