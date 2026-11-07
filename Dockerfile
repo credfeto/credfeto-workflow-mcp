@@ -1,5 +1,5 @@
 # Build context is the published output folder (dotnet publish -r <rid> --self-contained), not the repository root
-FROM mcr.microsoft.com/dotnet/runtime-deps:11.0.0-rc.2-resolute-chiseled@sha256:47ad5de0d321860bbef0ed32d652452b7d59a0de76fe52c77aebfcb112add819
+FROM mcr.microsoft.com/dotnet/runtime-deps:11.0.0-rc.3-resolute-chiseled@sha256:e7f17490b7d668dbcba8671ed287e3e023bb385e8aa7851f3c803acbd3aff61e
 
 WORKDIR /usr/src/app
 
