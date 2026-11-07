@@ -14,6 +14,13 @@ public interface IGitHubRestClient
         CancellationToken cancellationToken
     );
 
+    ValueTask<TResponse> GetAsync<TResponse>(
+        string relativeUri,
+        string mediaType,
+        JsonTypeInfo<TResponse> responseTypeInfo,
+        CancellationToken cancellationToken
+    );
+
     ValueTask<TResponse> PostAsync<TRequest, TResponse>(
         string relativeUri,
         TRequest body,

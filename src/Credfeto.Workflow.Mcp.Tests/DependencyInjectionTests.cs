@@ -29,6 +29,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "body_check",
                 "branch_required_checks",
                 "closing_issue_labels",
+                "code_search",
                 "comment_add",
                 "issue_close",
                 "issue_comments",
@@ -45,7 +46,9 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_create",
                 "pr_list",
                 "pr_reply",
+                "pr_search",
                 "pr_view",
+                "repo_search",
                 "workflow_status_check",
                 "workflow_status_set",
             ],
@@ -62,6 +65,9 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("issue_comments")]
     [InlineData("issue_list")]
     [InlineData("issue_search")]
+    [InlineData("pr_search")]
+    [InlineData("code_search")]
+    [InlineData("repo_search")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
     [InlineData("workflow_status_check")]
@@ -155,6 +161,33 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["limit", "repo", "state", "text"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo", "text"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrSearchTakesRepoAndTextAndOptionalStateAndLimit()
+    {
+        JsonElement schema = this.GetTool("pr_search").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["limit", "repo", "state", "text"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "text"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void CodeSearchTakesRepoAndTextAndOptionalLimit()
+    {
+        JsonElement schema = this.GetTool("code_search").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["limit", "repo", "text"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "text"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RepoSearchTakesOwnerAndTextAndOptionalArchivedAndLimit()
+    {
+        JsonElement schema = this.GetTool("repo_search").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["includeArchived", "limit", "owner", "text"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["owner", "text"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -379,6 +412,9 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
             .AddMockedService<IIssueSearchService>()
+            .AddMockedService<IPrSearchService>()
+            .AddMockedService<ICodeSearchService>()
+            .AddMockedService<IRepoSearchService>()
             .AddMockedService<IIssueListService>()
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()

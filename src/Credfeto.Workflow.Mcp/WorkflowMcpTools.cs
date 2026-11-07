@@ -346,6 +346,116 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "pr_search", Title = "Pull request search", ReadOnly = true)]
+    [Description(
+        "Searches the titles and bodies of a repository's pull requests for text, returning the number, state, head branch and title of each match; truncated is true when more matches exist than the limit"
+    )]
+    public static async Task<PrSearchResult> PrSearchAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The words to search for in pull request titles and bodies")] string text,
+        IPrSearchService service,
+        [Description("Which pull requests to search: open, closed, merged or all; open when not given")]
+            string? state = null,
+        [Description("The most matches to return, from 1 to 100")] int limit = IssueSearchQuery.DEFAULT_LIMIT,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.SearchAsync(
+                repository: repo,
+                text: text,
+                state: PrSearchQuery.State(value: state, parameterName: nameof(state)),
+                limit: limit,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueSearchRefusedException
+                        or PrSearchFailedException
+                        or RepositoryNotFoundException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "code_search", Title = "Code search", ReadOnly = true)]
+    [Description(
+        "Searches the code of a repository's default branch for text, returning the path and match count of each matching file, sorted by path; truncated is true when more matches exist than the limit"
+    )]
+    public static async Task<CodeSearchResult> CodeSearchAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The words to search for in the repository's code")] string text,
+        ICodeSearchService service,
+        [Description("The most matches to return, from 1 to 100")] int limit = IssueSearchQuery.DEFAULT_LIMIT,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.SearchAsync(
+                repository: repo,
+                text: text,
+                limit: limit,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueSearchRefusedException
+                        or CodeSearchFailedException
+                        or RepositoryNotFoundException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "repo_search", Title = "Repository search", ReadOnly = true)]
+    [Description(
+        "Searches the names and descriptions of an owner's repositories for text, returning the name, visibility, status and default branch of each match, sorted by name; truncated is true when more matches exist than the limit"
+    )]
+    public static async Task<RepoSearchResult> RepoSearchAsync(
+        [Description("The user or organisation that owns the repositories")] string owner,
+        [Description("The words to search for in repository names and descriptions")] string text,
+        IRepoSearchService service,
+        [Description("Whether to include archived repositories; false when not given")] bool includeArchived = false,
+        [Description("The most matches to return, from 1 to 100")] int limit = IssueSearchQuery.DEFAULT_LIMIT,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.SearchAsync(
+                owner: owner,
+                text: text,
+                includeArchived: includeArchived,
+                limit: limit,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueSearchRefusedException
+                        or RepoSearchFailedException
+                        or OwnerNotFoundException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_list", Title = "Issue list", ReadOnly = true)]
     [Description(
         "Lists a repository's open issues, excluding pull requests, most urgent priority first and then by number, with each issue's priority, blocked and on-hold flags, assignees, title and labels"

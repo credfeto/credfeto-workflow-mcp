@@ -398,6 +398,47 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: search a repository's pull request titles and bodies for text (pr_search)
+# q is "in:title,body <words> repo:<owner/repo> type:pr", plus "state:open", "state:closed" or "is:merged" unless
+# every state is wanted, URL-encoded as one value. "state:closed" includes merged pull requests. per_page is the
+# limit plus one, at most 100, so a further match shows the result is truncated, as does a total_count above the
+# limit. A 404 means the repository is missing, or the caller cannot see it.
+GET {{apiBaseUrl}}search/issues?q=in%3Atitle%2Cbody%20search%20repo%3Acredfeto%2Fcredfeto-workflow-mcp%20type%3Apr%20state%3Aopen&per_page=31
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the repository, read before searching its code (code_search)
+# Code search answers 422 for a repository that is missing, so the repository is read first: a 404 means it is
+# missing or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: search a repository's default branch code for text, with the matched fragments (code_search)
+# q is "<words> repo:<owner/repo>", URL-encoded as one value. The text-match media type returns each file's
+# text_matches, whose matches are counted. per_page is the limit plus one, at most 100, so a further match shows
+# the result is truncated, as does a total_count above the limit. The files are sorted by path.
+GET {{apiBaseUrl}}search/code?q=McpServerTool%20repo%3Acredfeto%2Fcredfeto-workflow-mcp&per_page=31
+Authorization: Bearer {{token}}
+Accept: application/vnd.github.text-match+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: search an owner's repository names and descriptions for text (repo_search)
+# q is "in:name,description <words> user:<owner>", plus "archived:false" unless archived repositories are wanted,
+# URL-encoded as one value; "user:" matches organisations too. per_page is the limit plus one, at most 100, so a
+# further match shows the result is truncated, as does a total_count above the limit. A 422 means the owner is
+# missing, or the caller cannot search it. The repositories are sorted by name.
+GET {{apiBaseUrl}}search/repositories?q=in%3Aname%2Cdescription%20workflow%20user%3Acredfeto%20archived%3Afalse&per_page=31
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a repository's labels, before creating the missing ones (issue_create)
 # Read in full, following the Link header's next page; a label is matched without regard to case.
 GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/labels?per_page=100
