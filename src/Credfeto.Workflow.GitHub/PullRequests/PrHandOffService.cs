@@ -216,7 +216,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
     {
         if (!TitleValidator.IsValidPullRequestTitle(request.Title))
         {
-            return Refused(subject: TITLE_SUBJECT, rule: CONVENTIONAL_COMMITS_RULE, lineNumber: null);
+            return Refused(subject: TITLE_SUBJECT, rule: CONVENTIONAL_COMMITS_RULE);
         }
 
         // A title gets the same rules as a body except its length, which the usage checks already limit
@@ -231,7 +231,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
 
         if (titleLeak is not null)
         {
-            return Refused(subject: TITLE_SUBJECT, rule: LeakRuleNames.Name(titleLeak.Rule), lineNumber: null);
+            return Refused(subject: TITLE_SUBJECT, rule: LeakRuleNames.Name(titleLeak.Rule));
         }
 
         PrHandOffResult? description = await this.CheckBodyAsync(
@@ -355,7 +355,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
     {
         if (!state.Open)
         {
-            return Refused(subject: PULL_REQUEST_SUBJECT, rule: NOT_OPEN_RULE, lineNumber: null);
+            return RefusedPr(NOT_OPEN_RULE);
         }
 
         // The standard spelling is reported rather than the label as it is spelt on the pull request
@@ -363,7 +363,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
             state.Labels.Contains(value: hold, comparer: StringComparer.OrdinalIgnoreCase)
         );
 
-        return held is null ? null : Refused(subject: PULL_REQUEST_SUBJECT, rule: $"{held} label", lineNumber: null);
+        return held is null ? null : RefusedPr($"{held} label");
     }
 
     private async ValueTask<PrHandOffResult?> CheckRequiredChecksAsync(
@@ -384,23 +384,15 @@ public sealed partial class PrHandOffService : IPrHandOffService
         // The checks are read for the head GitHub reports now, which a push may have moved since the first read
         if (!StringComparer.OrdinalIgnoreCase.Equals(x: checks.Sha, y: state.HeadSha))
         {
-            return Refused(subject: PULL_REQUEST_SUBJECT, rule: HEAD_CHANGED_RULE, lineNumber: null);
+            return RefusedPr(HEAD_CHANGED_RULE);
         }
 
         return checks.Verdict switch
         {
             PrChecksVerdict.Passed => null,
-            PrChecksVerdict.Failed => Refused(
-                subject: PULL_REQUEST_SUBJECT,
-                rule: "required checks failed",
-                lineNumber: null
-            ),
-            PrChecksVerdict.Pending => Refused(
-                subject: PULL_REQUEST_SUBJECT,
-                rule: "required checks pending",
-                lineNumber: null
-            ),
-            _ => Refused(subject: PULL_REQUEST_SUBJECT, rule: "no checks", lineNumber: null),
+            PrChecksVerdict.Failed => RefusedPr("required checks failed"),
+            PrChecksVerdict.Pending => RefusedPr("required checks pending"),
+            _ => RefusedPr("no checks"),
         };
     }
 
@@ -740,70 +732,60 @@ public sealed partial class PrHandOffService : IPrHandOffService
         string reason = Describe(failure.Exception);
 
         return MayHaveBeenWritten(failure.Exception)
-            ? new(
-                Outcome: PrHandOffOutcome.MayHaveBeenHandedOff,
-                Message: $"could not hand off {request.Reference}, whose last step may have been made ({reason}); read the pull request before trying again",
-                HeadSha: null,
-                ReviewRecordUrl: null,
-                AutoMerge: null,
-                AutoMergeReason: null,
-                StepsDone: [.. steps],
-                Rule: null,
-                LineNumber: null
-            )
+            ? Result(
+                outcome: PrHandOffOutcome.MayHaveBeenHandedOff,
+                message: $"could not hand off {request.Reference}, whose last step may have been made ({reason}); read the pull request before trying again"
+            ) with
+            {
+                StepsDone = [.. steps],
+            }
             : NotHandedOff(request: request, reason: $"step failed: {failure.Step} ({reason})", steps: steps);
     }
 
     private static PrHandOffResult NotHandedOff(HandOffRequest request, string reason, IReadOnlyList<string> steps)
     {
-        return new(
-            Outcome: PrHandOffOutcome.NotHandedOff,
-            Message: $"{request.Reference} was not handed off: {reason}",
-            HeadSha: null,
-            ReviewRecordUrl: null,
-            AutoMerge: null,
-            AutoMergeReason: null,
-            StepsDone: [.. steps],
-            Rule: null,
-            LineNumber: null
-        );
+        return Result(
+            outcome: PrHandOffOutcome.NotHandedOff,
+            message: $"{request.Reference} was not handed off: {reason}"
+        ) with
+        {
+            StepsDone = [.. steps],
+        };
     }
 
     private static PrHandOffResult HandedOff(HandOffTarget target, Uri recordUrl)
     {
         string autoMerge = target.Plan.Reason is { } reason ? $"auto-merge not turned on: {reason}" : "auto-merge on";
 
-        return new(
-            Outcome: PrHandOffOutcome.HandedOff,
-            Message: $"{target.Request.Reference} was handed off for human review; {autoMerge}",
-            HeadSha: target.State.HeadSha,
-            ReviewRecordUrl: recordUrl,
-            AutoMerge: target.Plan.Kind,
-            AutoMergeReason: target.Plan.Reason,
-            StepsDone: null,
-            Rule: null,
-            LineNumber: null
-        );
+        return Result(
+            outcome: PrHandOffOutcome.HandedOff,
+            message: $"{target.Request.Reference} was handed off for human review; {autoMerge}"
+        ) with
+        {
+            HeadSha = target.State.HeadSha,
+            ReviewRecordUrl = recordUrl,
+            AutoMerge = target.Plan.Kind,
+            AutoMergeReason = target.Plan.Reason,
+        };
+    }
+
+    private static PrHandOffResult RefusedPr(string rule)
+    {
+        return Refused(subject: PULL_REQUEST_SUBJECT, rule: rule);
     }
 
     // The refused text is never echoed back: only the subject, the rule and, for a body, the line are reported
-    private static PrHandOffResult Refused(string subject, string rule, int? lineNumber)
+    private static PrHandOffResult Refused(string subject, string rule, int? lineNumber = null)
     {
         string line = lineNumber is { } value
             ? $" (line {value.ToString(CultureInfo.InvariantCulture)})"
             : string.Empty;
 
-        return new(
-            Outcome: PrHandOffOutcome.Refused,
-            Message: $"{subject} refused: {rule}{line}",
-            HeadSha: null,
-            ReviewRecordUrl: null,
-            AutoMerge: null,
-            AutoMergeReason: null,
-            StepsDone: null,
-            Rule: rule,
-            LineNumber: lineNumber
-        );
+        return Result(outcome: PrHandOffOutcome.Refused, message: $"{subject} refused: {rule}{line}") with
+        {
+            Rule = rule,
+            LineNumber = lineNumber,
+        };
     }
 
     private static PrHandOffResult Result(PrHandOffOutcome outcome, string message)
