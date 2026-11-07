@@ -15,21 +15,24 @@ public static class RunQuery
 
     public static int Limit(int value, string parameterName)
     {
-        return value is >= 1 and <= MAX_LIMIT
-            ? value
-            : throw ParameterValidationException.For(
-                parameterName: parameterName,
-                rule: "it must be a whole number from 1 to 50"
-            );
+        return InRange(value: value, max: MAX_LIMIT, parameterName: parameterName);
     }
 
     public static int Lines(int value, string parameterName)
     {
-        return value is >= 1 and <= MAX_LINES
+        return InRange(value: value, max: MAX_LINES, parameterName: parameterName);
+    }
+
+    private static int InRange(int value, int max, string parameterName)
+    {
+        return value >= 1 && value <= max
             ? value
             : throw ParameterValidationException.For(
                 parameterName: parameterName,
-                rule: "it must be a whole number from 1 to 2000"
+                rule: string.Create(
+                    provider: CultureInfo.InvariantCulture,
+                    $"it must be a whole number from 1 to {max}"
+                )
             );
     }
 
