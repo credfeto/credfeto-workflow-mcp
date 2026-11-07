@@ -696,6 +696,317 @@ public sealed class WorkflowMcpToolsTests : TestBase
     }
 
     [Fact]
+    public async Task IssueReopenReturnsWhatTheServiceReopenedAsync()
+    {
+        IssueReopenResponse expected = CreateReopenResponse();
+        this._issueService.ReopenAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                comment: "Reopened as the fix did not land",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueReopenResponse actual = await WorkflowMcpTools.IssueReopenAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueService,
+            comment: "Reopened as the fix did not land",
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueReopenPassesNoCommentWhenNoneIsGivenAsync()
+    {
+        IssueReopenResponse expected = CreateReopenResponse();
+        this._issueService.ReopenAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueReopenResponse actual = await this.IssueReopenAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueReopenFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueReopenFailures())
+        {
+            this.IssueReopenFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueReopenAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task IssueReopenOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueReopenFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueReopenAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> IssueReopenFailures()
+    {
+        return
+        [
+            new IssueNotFoundException("issue " + REPOSITORY + "#16 was not found"),
+            new IssueReopenRefusedException("comment refused: token (line 2)"),
+            new IssueReopenFailedException("could not reopen issue " + REPOSITORY + "#16"),
+            ParameterValidationException.For(parameterName: "issue", rule: "must be above 0"),
+        ];
+    }
+
+    private static IssueReopenResponse CreateReopenResponse()
+    {
+        return new(
+            Issue: REPOSITORY + "#16",
+            Outcome: "open",
+            Url: new("https://github.com/" + REPOSITORY + "/issues/16")
+        );
+    }
+
+    private void IssueReopenFailsWith(Exception failure)
+    {
+        this._issueService.ReopenAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueReopenResponse> IssueReopenAsync()
+    {
+        return WorkflowMcpTools.IssueReopenAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrCloseReturnsWhatTheServiceClosedAsync()
+    {
+        PullRequestStateChangeResponse expected = CreateStateChangeResponse("closed");
+        this._viewService.CloseAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                comment: "Superseded",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestStateChangeResponse actual = await WorkflowMcpTools.PrCloseAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            comment: "Superseded",
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrClosePassesNoCommentWhenNoneIsGivenAsync()
+    {
+        PullRequestStateChangeResponse expected = CreateStateChangeResponse("already-closed");
+        this._viewService.CloseAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestStateChangeResponse actual = await this.PrCloseAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrCloseFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in PrStateChangeFailures("close"))
+        {
+            this._viewService.CloseAsync(
+                    repository: REPOSITORY,
+                    pullRequest: PULL_REQUEST,
+                    comment: null,
+                    cancellationToken: Arg.Any<CancellationToken>()
+                )
+                .ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.PrCloseAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task PrCloseOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this._viewService.CloseAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrCloseAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task PrReopenReturnsWhatTheServiceReopenedAsync()
+    {
+        PullRequestStateChangeResponse expected = CreateStateChangeResponse("open");
+        this._viewService.ReopenAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                comment: "Reopened",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestStateChangeResponse actual = await WorkflowMcpTools.PrReopenAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            comment: "Reopened",
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrReopenPassesNoCommentWhenNoneIsGivenAsync()
+    {
+        PullRequestStateChangeResponse expected = CreateStateChangeResponse("already-open");
+        this._viewService.ReopenAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestStateChangeResponse actual = await this.PrReopenAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrReopenFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in PrStateChangeFailures("reopen"))
+        {
+            this._viewService.ReopenAsync(
+                    repository: REPOSITORY,
+                    pullRequest: PULL_REQUEST,
+                    comment: null,
+                    cancellationToken: Arg.Any<CancellationToken>()
+                )
+                .ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.PrReopenAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task PrReopenOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this._viewService.ReopenAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                comment: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrReopenAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> PrStateChangeFailures(string verb)
+    {
+        return
+        [
+            new PullRequestNotFoundException("pull request " + REPOSITORY + "#41 was not found"),
+            new PullRequestStateChangeRefusedException(
+                verb
+                    + " of pull request "
+                    + REPOSITORY
+                    + "#41 was refused: a merged pull request cannot be closed or reopened"
+            ),
+            new PullRequestStateChangeFailedException("could not " + verb + " pull request " + REPOSITORY + "#41"),
+            ParameterValidationException.For(parameterName: "pr", rule: "must be above 0"),
+        ];
+    }
+
+    private static PullRequestStateChangeResponse CreateStateChangeResponse(string outcome)
+    {
+        return new(
+            PullRequest: REPOSITORY + "#41",
+            Outcome: outcome,
+            Url: new("https://github.com/" + REPOSITORY + "/pull/41")
+        );
+    }
+
+    private Task<PullRequestStateChangeResponse> PrCloseAsync()
+    {
+        return WorkflowMcpTools.PrCloseAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    private Task<PullRequestStateChangeResponse> PrReopenAsync()
+    {
+        return WorkflowMcpTools.PrReopenAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
     public async Task IssueCreateReturnsWhatTheServiceCreatedAsync()
     {
         IssueCreateResponse expected = new(new Uri("https://github.com/" + REPOSITORY + "/issues/90"));
