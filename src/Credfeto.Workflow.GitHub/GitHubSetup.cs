@@ -238,13 +238,19 @@ public static class GitHubSetup
         return new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false };
     }
 
-    private static void ConfigureLogStorageHttpClient(HttpClient client)
+    // The settings every client shares: its timeout, the response buffer cap and the User-Agent
+    private static void ConfigureCommonHttpClient(HttpClient client, TimeSpan timeout)
     {
-        client.Timeout = LogStorageRequestTimeout;
+        client.Timeout = timeout;
         client.MaxResponseContentBufferSize = MAX_RESPONSE_CONTENT_BUFFER_SIZE;
         client.DefaultRequestHeaders.UserAgent.Add(
             new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
         );
+    }
+
+    private static void ConfigureLogStorageHttpClient(HttpClient client)
+    {
+        ConfigureCommonHttpClient(client: client, timeout: LogStorageRequestTimeout);
     }
 
     private static void ConfigureHttpClient(IServiceProvider serviceProvider, HttpClient client)
@@ -252,11 +258,7 @@ public static class GitHubSetup
         GitHubOptions options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>().Value;
 
         client.BaseAddress = options.ApiBaseUrl;
-        client.Timeout = TotalRequestTimeout;
-        client.MaxResponseContentBufferSize = MAX_RESPONSE_CONTENT_BUFFER_SIZE;
-        client.DefaultRequestHeaders.UserAgent.Add(
-            new ProductInfoHeaderValue(productName: USER_AGENT, productVersion: null)
-        );
+        ConfigureCommonHttpClient(client: client, timeout: TotalRequestTimeout);
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue(MEDIA_TYPE));
 
         if (!string.IsNullOrWhiteSpace(options.ApiVersion))
