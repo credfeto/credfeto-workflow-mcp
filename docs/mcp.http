@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_view", "repo_search", "run_list", "run_log", "run_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1022,6 +1022,184 @@ Accept: application/json, text/event-stream
     "arguments": {
       "owner": "credfeto/name",
       "text": "workflow"
+    }
+  }
+}
+
+### Call the run_list tool for a branch; expects up to 20 runs of every event, newest first, each with id, workflow, status, conclusion, headSha, event and createdAt
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 79,
+  "method": "tools/call",
+  "params": {
+    "name": "run_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "branch": "main"
+    }
+  }
+}
+
+### Call the run_list tool for one workflow by file name with a limit; expects at most 5 runs of that workflow
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 80,
+  "method": "tools/call",
+  "params": {
+    "name": "run_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "branch": "main",
+      "workflow": "build-and-publish-pre-release.yml",
+      "limit": 5
+    }
+  }
+}
+
+### Call the run_list tool with an unknown workflow; expects a tool error saying the workflow was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 81,
+  "method": "tools/call",
+  "params": {
+    "name": "run_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "branch": "main",
+      "workflow": "no-such-workflow.yml"
+    }
+  }
+}
+
+### Call the run_list tool with both branch and sha; expects a tool error naming the "branch" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 82,
+  "method": "tools/call",
+  "params": {
+    "name": "run_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "branch": "main",
+      "sha": "0123456789012345678901234567890123456789"
+    }
+  }
+}
+
+### Call the run_view tool; expects the run's status, conclusion, headSha, headBranch, workflow, event, attempt, createdAt and the jobs of its latest attempt sorted by id
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 83,
+  "method": "tools/call",
+  "params": {
+    "name": "run_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1"
+    }
+  }
+}
+
+### Call the run_view tool with an invalid run; expects a tool error naming the "run" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 84,
+  "method": "tools/call",
+  "params": {
+    "name": "run_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "0"
+    }
+  }
+}
+
+### Call the run_log tool; expects outcome "Log" with the sanitised last 200 lines of each failed step of the latest attempt, an empty log when no step failed, "Pending" while the run is running or "NotFound" for a missing run
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 85,
+  "method": "tools/call",
+  "params": {
+    "name": "run_log",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1"
+    }
+  }
+}
+
+### Call the run_log tool for one job with fewer lines; expects only that job's failed steps, at most 30 lines each
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 86,
+  "method": "tools/call",
+  "params": {
+    "name": "run_log",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1",
+      "job": "1",
+      "lines": 30
+    }
+  }
+}
+
+### Call the run_log tool with too many lines; expects a tool error naming the "lines" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 87,
+  "method": "tools/call",
+  "params": {
+    "name": "run_log",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1",
+      "lines": 2001
     }
   }
 }

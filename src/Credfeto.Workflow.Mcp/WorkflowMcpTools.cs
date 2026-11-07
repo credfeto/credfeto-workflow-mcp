@@ -7,6 +7,7 @@ using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
+using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
@@ -543,6 +544,99 @@ public sealed class WorkflowMcpTools
         }
         catch (Exception exception)
             when (exception is RepositoryNotFoundException or IssueListFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "run_list", Title = "Run list", ReadOnly = true)]
+    [Description(
+        "Lists a repository's GitHub Actions runs for one branch or one commit, newest first, started by any event, with each run's id, workflow, status, conclusion, head SHA, event and creation time"
+    )]
+    public static async Task<RunListResponse> RunListAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IRunListService service,
+        [Description("Only the runs whose head branch is exactly this one; give exactly one of branch or sha")]
+            string? branch = null,
+        [Description("Only the runs whose head commit is exactly this one, as 40 hexadecimal digits")]
+            string? sha = null,
+        [Description("Only the runs of this workflow: its file name, such as build.yml, or its name")]
+            string? workflow = null,
+        [Description("The most runs to return, from 1 to 50")] int limit = RunQuery.DEFAULT_LIMIT,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(
+                repository: repo,
+                branch: branch,
+                sha: sha,
+                workflow: workflow,
+                limit: limit,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception is WorkflowNotFoundException or RunListFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "run_view", Title = "Run view", ReadOnly = true)]
+    [Description(
+        "Reads one GitHub Actions run, its status, conclusion, head commit and branch, workflow, event, attempt and creation time, and the jobs of its latest attempt sorted by id"
+    )]
+    public static async Task<RunViewResponse> RunViewAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The run's id, digits only")] string run,
+        IRunViewService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ViewAsync(repository: repo, run: run, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is RunNotFoundException or RunViewFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "run_log", Title = "Run log", ReadOnly = true)]
+    [Description(
+        "Reads the last lines of the logs of a completed GitHub Actions run's failed steps, from its latest attempt, with each line made printable, a line holding a token redacted and long secrets masked; the outcome is pending while the run or job has not completed and not found when the run or job is not in the repository"
+    )]
+    public static async Task<RunLogResponse> RunLogAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The run's id, digits only")] string run,
+        IRunLogService service,
+        [Description("Only this job of the run: its id, digits only")] string? job = null,
+        [Description("The most of the last lines of each failed step to keep, from 1 to 2000")]
+            int lines = RunQuery.DEFAULT_LINES,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ReadFailedAsync(
+                repository: repo,
+                run: run,
+                job: job,
+                lines: lines,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (exception is RunLogFailedException or ParameterValidationException)
         {
             // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
             // safe to return

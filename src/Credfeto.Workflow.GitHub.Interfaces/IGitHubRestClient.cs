@@ -21,6 +21,8 @@ public interface IGitHubRestClient
         CancellationToken cancellationToken
     );
 
+    ValueTask<Uri> GetRedirectLocationAsync(string relativeUri, CancellationToken cancellationToken);
+
     ValueTask<TResponse> PostAsync<TRequest, TResponse>(
         string relativeUri,
         TRequest body,

@@ -633,6 +633,96 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Equal(expected: GitHubRestClient.MaxPages, actual: upstream.Requests.Count);
     }
 
+    [Fact]
+    public async Task RedirectLocationIsReturnedAsync()
+    {
+        Uri location = new("https://results-receiver.actions.githubusercontent.com/logs.zip?sig=abc");
+        using RecordingHttpMessageHandler upstream = new(_ => Redirect(location));
+
+        Uri actual = await this.CreateClient(upstream)
+            .GetRedirectLocationAsync(
+                relativeUri: "repos/owner/repo/logs",
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: location, actual: actual);
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/logs"),
+            actual: request.RequestUri
+        );
+    }
+
+    [Fact]
+    public async Task RedirectWithNoLocationIsInvalidResponseAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.Found));
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.CreateClient(upstream)
+                .GetRedirectLocationAsync(
+                    relativeUri: "repos/owner/repo/logs",
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+    }
+
+    [Fact]
+    public async Task RedirectWithRelativeLocationIsInvalidResponseAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Redirect(new Uri("/logs.zip", UriKind.Relative)));
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.CreateClient(upstream)
+                .GetRedirectLocationAsync(
+                    relativeUri: "repos/owner/repo/logs",
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+    }
+
+    [Fact]
+    public async Task SuccessInsteadOfRedirectIsInvalidResponseAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("{}"));
+
+        await Assert.ThrowsAsync<GitHubInvalidResponseException>(() =>
+            this.CreateClient(upstream)
+                .GetRedirectLocationAsync(
+                    relativeUri: "repos/owner/repo/logs",
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.NotFound)]
+    [InlineData(HttpStatusCode.Gone)]
+    public async Task RedirectFailureStatusThrowsAsync(HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Status(statusCode));
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .GetRedirectLocationAsync(
+                    relativeUri: "repos/owner/repo/logs",
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: statusCode, actual: exception.StatusCode);
+    }
+
+    private static HttpResponseMessage Redirect(Uri location)
+    {
+        return new(HttpStatusCode.Found) { Headers = { Location = location } };
+    }
+
     private async Task<IReadOnlyList<TestItem>> GetAllIssuesAsync(HttpMessageHandler upstream)
     {
         return await this.CreateClient(upstream)
