@@ -189,17 +189,13 @@ public sealed class RunLogService : IRunLogService
                 cancellationToken: cancellationToken
             );
         }
-        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.Gone)
+        catch (HttpRequestException exception)
+            when (exception.StatusCode is HttpStatusCode.Gone or HttpStatusCode.NotFound)
         {
+            string reason = exception.StatusCode == HttpStatusCode.Gone ? "are past their retention" : "were not found";
+
             throw new RunLogFailedException(
-                message: $"the logs of the run {request.Run} of {request.Repository} are past their retention",
-                innerException: exception
-            );
-        }
-        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
-        {
-            throw new RunLogFailedException(
-                message: $"the logs of the run {request.Run} of {request.Repository} were not found",
+                message: $"the logs of the run {request.Run} of {request.Repository} {reason}",
                 innerException: exception
             );
         }
