@@ -122,9 +122,12 @@ public sealed class RunLogService : IRunLogService
         CancellationToken cancellationToken
     )
     {
+        IReadOnlyList<WorkflowJobResponse> candidates = jobs;
+
         if (request.Job is { } jobId)
         {
-            WorkflowJobResponse? job = jobs.FirstOrDefault(candidate => candidate.Id == jobId);
+            candidates = [.. jobs.Where(candidate => candidate.Id == jobId)];
+            WorkflowJobResponse? job = candidates.FirstOrDefault();
 
             if (job is null || job.RunId != request.Run)
             {
@@ -143,10 +146,7 @@ public sealed class RunLogService : IRunLogService
             }
         }
 
-        WorkflowJobResponse[] failed =
-        [
-            .. jobs.Where(job => (request.Job is null || job.Id == request.Job) && IsFailed(job.Conclusion)),
-        ];
+        WorkflowJobResponse[] failed = [.. candidates.Where(job => IsFailed(job.Conclusion))];
 
         if (failed.Length == 0)
         {
