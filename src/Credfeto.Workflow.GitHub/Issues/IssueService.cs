@@ -37,6 +37,10 @@ public sealed partial class IssueService : IIssueService
 
     private const string OUTCOME_ALREADY_CLOSED = "already-closed";
 
+    private const string OUTCOME_OPEN = "open";
+
+    private const string OUTCOME_ALREADY_OPEN = "already-open";
+
     private const string ON_HOLD_RULE = "an issue labelled On Hold may only be closed by a human";
 
     private const string CLOSING_PULL_REQUEST_RULE = "an open pull request will close the issue when it merges";
@@ -111,10 +115,14 @@ public sealed partial class IssueService : IIssueService
         string reference = $"{validRepository}#{issue}";
         string issueUri = $"repos/{validRepository}/issues/{issue.ToString(CultureInfo.InvariantCulture)}";
 
-        IssueResponse current = await this.ReadForCloseAsync(
+        IssueResponse current = await this.ReadForStateChangeAsync(
             issueUri: issueUri,
             reference: reference,
             issue: issue,
+            failed: exception => new IssueCloseFailedException(
+                message: $"could not close issue {reference}",
+                innerException: exception
+            ),
             cancellationToken: cancellationToken
         );
 
@@ -142,6 +150,41 @@ public sealed partial class IssueService : IIssueService
             comment: validComment,
             cancellationToken: cancellationToken
         );
+    }
+
+    public async ValueTask<IssueReopenResponse> ReopenAsync(
+        string repository,
+        int issue,
+        string? comment,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+
+        if (issue <= 0)
+        {
+            throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0");
+        }
+
+        string? validComment = string.IsNullOrWhiteSpace(comment) ? null : this.CheckReopenComment(comment);
+        string reference = $"{validRepository}#{issue}";
+        string issueUri = $"repos/{validRepository}/issues/{issue.ToString(CultureInfo.InvariantCulture)}";
+
+        IssueResponse current = await this.ReadForStateChangeAsync(
+            issueUri: issueUri,
+            reference: reference,
+            issue: issue,
+            failed: exception => ReopenFailed(reference: reference, commentPosted: false, exception: exception),
+            cancellationToken: cancellationToken
+        );
+
+        return AlreadyOpen(reference: reference, current: current)
+            ?? await this.ReopenClosedIssueAsync(
+                issueUri: issueUri,
+                reference: reference,
+                comment: validComment,
+                cancellationToken: cancellationToken
+            );
     }
 
     public async ValueTask<IssueComments> CommentsAsync(
@@ -398,10 +441,11 @@ public sealed partial class IssueService : IIssueService
         }
     }
 
-    private async ValueTask<IssueResponse> ReadForCloseAsync(
+    private async ValueTask<IssueResponse> ReadForStateChangeAsync(
         string issueUri,
         string reference,
         int issue,
+        Func<Exception, Exception> failed,
         CancellationToken cancellationToken
     )
     {
@@ -422,16 +466,95 @@ public sealed partial class IssueService : IIssueService
         catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
         {
             // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
-            throw new IssueCloseFailedException(
-                message: $"could not close issue {reference}",
-                innerException: exception
-            );
+            throw failed(exception);
         }
 
         // GitHub serves pull requests from the issues endpoint too, so one is reported as no such issue
         return IsPullRequest(issue: issue, response: response)
             ? throw new IssueNotFoundException(NotFoundMessage(reference))
             : response;
+    }
+
+    private static IssueReopenResponse? AlreadyOpen(string reference, IssueResponse current)
+    {
+        try
+        {
+            return StringComparer.Ordinal.Equals(x: State(current.State), y: OPEN)
+                ? new(Issue: reference, Outcome: OUTCOME_ALREADY_OPEN, Url: IssueUrl(current.HtmlUrl))
+                : null;
+        }
+        catch (GitHubInvalidResponseException exception)
+        {
+            throw ReopenFailed(reference: reference, commentPosted: false, exception: exception);
+        }
+    }
+
+    private async ValueTask<IssueReopenResponse> ReopenClosedIssueAsync(
+        string issueUri,
+        string reference,
+        string? comment,
+        CancellationToken cancellationToken
+    )
+    {
+        if (comment is not null)
+        {
+            try
+            {
+                await this._restClient.PostAsync(
+                    relativeUri: $"{issueUri}/comments",
+                    body: new IssueCommentCreateRequest(Body: comment),
+                    requestTypeInfo: GitHubJsonContext.Default.IssueCommentCreateRequest,
+                    responseTypeInfo: GitHubJsonContext.Default.IssueCommentResponse,
+                    cancellationToken: cancellationToken
+                );
+            }
+            catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+            {
+                throw ReopenFailed(reference: reference, commentPosted: false, exception: exception);
+            }
+        }
+
+        try
+        {
+            IssueResponse reopened = await this._restClient.PatchAsync(
+                relativeUri: issueUri,
+                body: new IssueReopenRequest(State: "open"),
+                requestTypeInfo: GitHubJsonContext.Default.IssueReopenRequest,
+                responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
+                cancellationToken: cancellationToken
+            );
+
+            return StringComparer.Ordinal.Equals(x: State(reopened.State), y: OPEN)
+                ? new(Issue: reference, Outcome: OUTCOME_OPEN, Url: IssueUrl(reopened.HtmlUrl))
+                : throw new GitHubInvalidResponseException("GitHub did not confirm the issue is open");
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            throw ReopenFailed(reference: reference, commentPosted: comment is not null, exception: exception);
+        }
+    }
+
+    private static IssueReopenFailedException ReopenFailed(string reference, bool commentPosted, Exception exception)
+    {
+        // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message, which
+        // says when the comment landed so the caller does not post it a second time on a retry
+        return new(
+            message: commentPosted
+                ? $"could not reopen issue {reference}; the comment was posted"
+                : $"could not reopen issue {reference}",
+            innerException: exception
+        );
+    }
+
+    private string CheckReopenComment(string comment)
+    {
+        return StateChangeCommentRules.Check(leakChecker: this._leakChecker, comment: comment) is { } refusal
+            ? throw new IssueReopenRefusedException(StateChangeCommentRules.Message(refusal))
+            {
+                Rule = refusal.Rule,
+                LineNumber = refusal.LineNumber,
+            }
+            : comment;
     }
 
     private static string CloseReason(string reason)

@@ -36,17 +36,20 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "issue_create",
                 "issue_list",
                 "issue_plan_status",
+                "issue_reopen",
                 "issue_search",
                 "issue_view",
                 "label_add",
                 "label_remove",
                 "ping",
                 "pr_checks",
+                "pr_close",
                 "pr_comments",
                 "pr_create",
                 "pr_edit",
                 "pr_hand_off",
                 "pr_list",
+                "pr_reopen",
                 "pr_reply",
                 "pr_search",
                 "pr_view",
@@ -154,6 +157,48 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_close writes the issue");
         Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_close is destructive");
         Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_close is idempotent");
+    }
+
+    [Fact]
+    public void IssueReopenTakesRepoAndIssueAndOptionalComment()
+    {
+        JsonElement schema = this.GetTool("issue_reopen").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["comment", "issue", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Theory]
+    [InlineData("pr_close")]
+    [InlineData("pr_reopen")]
+    public void PrStateToolsTakeRepoAndPrAndOptionalComment(string name)
+    {
+        JsonElement schema = this.GetTool(name).ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["comment", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Theory]
+    [InlineData("issue_reopen")]
+    [InlineData("pr_reopen")]
+    public void ReopenToolsAreIdempotentNonDestructiveWrites(string name)
+    {
+        McpServerTool tool = this.GetTool(name);
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: name + " changes the state");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: name + " is not destructive");
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: name + " is idempotent");
+    }
+
+    [Fact]
+    public void PrCloseIsAnIdempotentDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("pr_close");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "pr_close writes the pull request");
+        Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "pr_close is destructive");
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "pr_close is idempotent");
     }
 
     [Fact]

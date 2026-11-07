@@ -1,13 +1,18 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Net;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.BodyRules;
+using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
+using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Json;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
@@ -18,13 +23,57 @@ public sealed class PullRequestService : IPullRequestService
 
     private const string NOT_FOUND_ERROR = "Could not resolve to a PullRequest with the number";
 
+    private const string STATE_OPEN = "open";
+
+    private const string STATE_CLOSED = "closed";
+
+    private const string MERGED_RULE = "a merged pull request cannot be closed or reopened";
+
     private readonly IGitHubGraphQlClient _graphQlClient;
+    private readonly ILeakChecker _leakChecker;
     private readonly IGitHubRestClient _restClient;
 
-    public PullRequestService(IGitHubGraphQlClient graphQlClient, IGitHubRestClient restClient)
+    public PullRequestService(
+        IGitHubGraphQlClient graphQlClient,
+        IGitHubRestClient restClient,
+        ILeakChecker leakChecker
+    )
     {
         this._graphQlClient = graphQlClient;
         this._restClient = restClient;
+        this._leakChecker = leakChecker;
+    }
+
+    public ValueTask<PullRequestStateChangeResponse> CloseAsync(
+        string repository,
+        int pullRequest,
+        string? comment,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ChangeStateAsync(
+            repository: repository,
+            pullRequest: pullRequest,
+            comment: comment,
+            change: PullRequestStateChange.Close,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public ValueTask<PullRequestStateChangeResponse> ReopenAsync(
+        string repository,
+        int pullRequest,
+        string? comment,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ChangeStateAsync(
+            repository: repository,
+            pullRequest: pullRequest,
+            comment: comment,
+            change: PullRequestStateChange.Reopen,
+            cancellationToken: cancellationToken
+        );
     }
 
     public async ValueTask<PullRequestView> ViewAsync(
@@ -206,5 +255,209 @@ public sealed class PullRequestService : IPullRequestService
         );
 
         return data.Repository?.PullRequest ?? throw PullRequestViewFailure.Incomplete(request.Reference);
+    }
+
+    private async ValueTask<PullRequestStateChangeResponse> ChangeStateAsync(
+        string repository,
+        int pullRequest,
+        string? comment,
+        PullRequestStateChange change,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+
+        if (pullRequest <= 0)
+        {
+            throw ParameterValidationException.For(parameterName: "pr", rule: "must be above 0");
+        }
+
+        string? validComment = string.IsNullOrWhiteSpace(comment) ? null : this.CheckStateChangeComment(comment);
+        string reference = $"{validRepository}#{pullRequest}";
+        string number = pullRequest.ToString(CultureInfo.InvariantCulture);
+        string pullUri = $"repos/{validRepository}/pulls/{number}";
+
+        PullRequestCurrentState current = await this.ReadForStateChangeAsync(
+            pullUri: pullUri,
+            reference: reference,
+            pullRequest: pullRequest,
+            change: change,
+            cancellationToken: cancellationToken
+        );
+
+        // A merged pull request is also closed, so the merge is checked first or a close would report already-closed
+        if (current.Merged)
+        {
+            throw new PullRequestStateChangeRefusedException(
+                $"{change.Verb} of pull request {reference} was refused: {MERGED_RULE}"
+            )
+            {
+                Rule = MERGED_RULE,
+            };
+        }
+
+        if (StringComparer.Ordinal.Equals(x: current.State, y: change.Target))
+        {
+            return new(PullRequest: reference, Outcome: change.AlreadyOutcome, Url: current.Url);
+        }
+
+        return await this.WriteStateChangeAsync(
+            commentUri: $"repos/{validRepository}/issues/{number}/comments",
+            pullUri: pullUri,
+            reference: reference,
+            pullRequest: pullRequest,
+            comment: validComment,
+            change: change,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    private async ValueTask<PullRequestCurrentState> ReadForStateChangeAsync(
+        string pullUri,
+        string reference,
+        int pullRequest,
+        PullRequestStateChange change,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            PullRequestStateResponse response = await this._restClient.GetAsync(
+                relativeUri: pullUri,
+                responseTypeInfo: GitHubJsonContext.Default.PullRequestStateResponse,
+                cancellationToken: cancellationToken
+            );
+
+            return CheckedState(response: response, pullRequest: pullRequest);
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            // An issue shares the pull request number space, and GitHub answers 404 for one asked for as a pull request
+            throw new PullRequestNotFoundException(
+                message: $"pull request {reference} was not found",
+                innerException: exception
+            );
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            throw StateChangeFailed(reference: reference, change: change, commentPosted: false, exception: exception);
+        }
+    }
+
+    private async ValueTask<PullRequestStateChangeResponse> WriteStateChangeAsync(
+        string commentUri,
+        string pullUri,
+        string reference,
+        int pullRequest,
+        string? comment,
+        PullRequestStateChange change,
+        CancellationToken cancellationToken
+    )
+    {
+        if (comment is not null)
+        {
+            try
+            {
+                await this._restClient.PostAsync(
+                    relativeUri: commentUri,
+                    body: new IssueCommentCreateRequest(Body: comment),
+                    requestTypeInfo: GitHubJsonContext.Default.IssueCommentCreateRequest,
+                    responseTypeInfo: GitHubJsonContext.Default.IssueCommentResponse,
+                    cancellationToken: cancellationToken
+                );
+            }
+            catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+            {
+                throw StateChangeFailed(
+                    reference: reference,
+                    change: change,
+                    commentPosted: false,
+                    exception: exception
+                );
+            }
+        }
+
+        try
+        {
+            PullRequestStateResponse response = await this._restClient.PatchAsync(
+                relativeUri: pullUri,
+                body: new PullRequestStateRequest(State: change.Target),
+                requestTypeInfo: GitHubJsonContext.Default.PullRequestStateRequest,
+                responseTypeInfo: GitHubJsonContext.Default.PullRequestStateResponse,
+                cancellationToken: cancellationToken
+            );
+
+            PullRequestCurrentState changed = CheckedState(response: response, pullRequest: pullRequest);
+
+            return StringComparer.Ordinal.Equals(x: changed.State, y: change.Target)
+                ? new(PullRequest: reference, Outcome: change.Outcome, Url: changed.Url)
+                : throw new GitHubInvalidResponseException("GitHub did not confirm the pull request state change");
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            throw StateChangeFailed(
+                reference: reference,
+                change: change,
+                commentPosted: comment is not null,
+                exception: exception
+            );
+        }
+    }
+
+    private static PullRequestCurrentState CheckedState(PullRequestStateResponse response, int pullRequest)
+    {
+        if (response.Number != pullRequest)
+        {
+            throw new GitHubInvalidResponseException("GitHub returned another pull request");
+        }
+
+        if (response.State is not (STATE_OPEN or STATE_CLOSED))
+        {
+            throw new GitHubInvalidResponseException("GitHub returned a pull request with an unknown state");
+        }
+
+        if (response.Merged is not bool merged)
+        {
+            throw new GitHubInvalidResponseException("GitHub returned a pull request without its merged flag");
+        }
+
+        if (
+            response.HtmlUrl is null
+            || !Uri.TryCreate(uriString: response.HtmlUrl, uriKind: UriKind.Absolute, out Uri? url)
+            || !UriSchemes.IsHttp(url)
+        )
+        {
+            throw new GitHubInvalidResponseException("GitHub returned a pull request without a valid link");
+        }
+
+        return new(State: response.State, Merged: merged, Url: url);
+    }
+
+    private static PullRequestStateChangeFailedException StateChangeFailed(
+        string reference,
+        PullRequestStateChange change,
+        bool commentPosted,
+        Exception exception
+    )
+    {
+        // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message, which
+        // says when the comment landed so the caller does not post it a second time on a retry
+        return new(
+            message: commentPosted
+                ? $"could not {change.Verb} pull request {reference}; the comment was posted"
+                : $"could not {change.Verb} pull request {reference}",
+            innerException: exception
+        );
+    }
+
+    private string CheckStateChangeComment(string comment)
+    {
+        return StateChangeCommentRules.Check(leakChecker: this._leakChecker, comment: comment) is { } refusal
+            ? throw new PullRequestStateChangeRefusedException(StateChangeCommentRules.Message(refusal))
+            {
+                Rule = refusal.Rule,
+                LineNumber = refusal.LineNumber,
+            }
+            : comment;
     }
 }

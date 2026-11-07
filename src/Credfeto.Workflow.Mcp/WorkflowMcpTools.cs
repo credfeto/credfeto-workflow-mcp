@@ -88,6 +88,77 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Never merges and never deletes the head branch, so a closed pull request can always be reopened
+    [McpServerTool(
+        Name = "pr_close",
+        Title = "Pull request close",
+        ReadOnly = false,
+        Destructive = true,
+        Idempotent = true
+    )]
+    [Description(
+        "Closes an open pull request without merging it or deleting its branch, posting the optional comment first; a pull request that is already closed is left unchanged and a merged one is refused"
+    )]
+    public static async Task<PullRequestStateChangeResponse> PrCloseAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPullRequestService service,
+        [Description("A comment to post on the pull request before closing it")] string? comment = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CloseAsync(
+                repository: repo,
+                pullRequest: pr,
+                comment: comment,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsPullRequestStateChangeError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(
+        Name = "pr_reopen",
+        Title = "Pull request reopen",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true
+    )]
+    [Description(
+        "Reopens a closed pull request, posting the optional comment first; a pull request that is already open is left unchanged and a merged one is refused"
+    )]
+    public static async Task<PullRequestStateChangeResponse> PrReopenAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPullRequestService service,
+        [Description("A comment to post on the pull request before reopening it")] string? comment = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ReopenAsync(
+                repository: repo,
+                pullRequest: pr,
+                comment: comment,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsPullRequestStateChangeError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "pr_list", Title = "Pull request list", ReadOnly = true)]
     [Description(
         "Lists the open pull requests of a repository in number order, keeping only those on the given head branch and carrying every given label, or fails rather than return a partial list"
@@ -513,6 +584,47 @@ public sealed class WorkflowMcpTools
                     is IssueNotFoundException
                         or IssueCloseRefusedException
                         or IssueCloseFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(
+        Name = "issue_reopen",
+        Title = "Issue reopen",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true
+    )]
+    [Description(
+        "Reopens a closed issue, posting the optional comment first; an issue that is already open is left unchanged and the comment is not posted"
+    )]
+    public static async Task<IssueReopenResponse> IssueReopenAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        IIssueService service,
+        [Description("A comment to post on the issue before reopening it")] string? comment = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ReopenAsync(
+                repository: repo,
+                issue: issue,
+                comment: comment,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueNotFoundException
+                        or IssueReopenRefusedException
+                        or IssueReopenFailedException
                         or ParameterValidationException
             )
         {
@@ -1024,6 +1136,15 @@ public sealed class WorkflowMcpTools
                 or LabelChangeFailedException
                 or PullRequestNotFoundException
                 or IssueNotFoundException
+                or ParameterValidationException;
+    }
+
+    private static bool IsPullRequestStateChangeError(Exception exception)
+    {
+        return exception
+            is PullRequestNotFoundException
+                or PullRequestStateChangeRefusedException
+                or PullRequestStateChangeFailedException
                 or ParameterValidationException;
     }
 }

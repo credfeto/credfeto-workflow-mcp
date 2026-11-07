@@ -104,7 +104,7 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 
-        return new(graphQlClient: graph, restClient: rest);
+        return new(graphQlClient: graph, restClient: rest, leakChecker: GetSubstitute<ILeakChecker>());
     }
 
     private async Task<PullRequestView> ViewAsync(

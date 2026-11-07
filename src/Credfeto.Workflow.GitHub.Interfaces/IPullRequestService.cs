@@ -13,4 +13,18 @@ public interface IPullRequestService
         IReadOnlyList<string>? fields,
         CancellationToken cancellationToken
     );
+
+    ValueTask<PullRequestStateChangeResponse> CloseAsync(
+        string repository,
+        int pullRequest,
+        string? comment,
+        CancellationToken cancellationToken
+    );
+
+    ValueTask<PullRequestStateChangeResponse> ReopenAsync(
+        string repository,
+        int pullRequest,
+        string? comment,
+        CancellationToken cancellationToken
+    );
 }

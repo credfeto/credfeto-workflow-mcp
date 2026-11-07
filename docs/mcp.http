@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_search", "issue_view", "ping", "pr_checks", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_view", "repo_search", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -548,6 +548,123 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 1,
       "reason": "duplicate"
+    }
+  }
+}
+
+### Call the issue_reopen tool with a comment; posts the comment, reopens the issue and expects the outcome "open" (or "already-open" with no comment posted) and the issue URL
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 73,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_reopen",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 1,
+      "comment": "Reopening: the fix did not cover every case."
+    }
+  }
+}
+
+### Call the issue_reopen tool with an invalid issue number; expects a tool error naming the "issue" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 74,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_reopen",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 0
+    }
+  }
+}
+
+### Call the pr_close tool with a comment; posts the comment, closes the pull request without merging or deleting its branch and expects the outcome "closed" (or "already-closed" with no comment posted) and the pull request URL; a merged pull request is refused
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 75,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_close",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 1,
+      "comment": "Closing: superseded by another pull request."
+    }
+  }
+}
+
+### Call the pr_close tool with an invalid pull request number; expects a tool error naming the "pr" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 76,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_close",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 0
+    }
+  }
+}
+
+### Call the pr_reopen tool with a comment; posts the comment, reopens the pull request and expects the outcome "open" (or "already-open" with no comment posted) and the pull request URL; a merged pull request is refused
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 77,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_reopen",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 1,
+      "comment": "Reopening: the change is still needed."
+    }
+  }
+}
+
+### Call the pr_reopen tool with an invalid pull request number; expects a tool error naming the "pr" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 78,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_reopen",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 0
     }
   }
 }

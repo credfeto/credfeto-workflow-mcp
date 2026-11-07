@@ -23,4 +23,11 @@ public interface IIssueService
         string? comment,
         CancellationToken cancellationToken
     );
+
+    ValueTask<IssueReopenResponse> ReopenAsync(
+        string repository,
+        int issue,
+        string? comment,
+        CancellationToken cancellationToken
+    );
 }
