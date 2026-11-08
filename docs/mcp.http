@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_view", "repo_search", "run_list", "run_log", "run_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_view", "repo_search", "run_list", "run_log", "run_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -730,6 +730,88 @@ Accept: application/json, text/event-stream
       "priority": "Low",
       "title": "Try the issue_create tool",
       "body": "Created from docs/mcp.http."
+    }
+  }
+}
+
+### Call the issue_edit tool on an issue, which may have been opened by another account; expects outcome "Edited" with the issue URL, or "Unchanged" when it already is as asked
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 88,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 47,
+      "title": "tool(mcp): add the issue_edit tool",
+      "body": "## Summary\n\nEdited from docs/mcp.http.",
+      "assignSelf": true
+    }
+  }
+}
+
+### Call the issue_edit tool with a title that is not "prefix: text" in a credfeto repository; expects an "invalid value for --title" tool error and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 89,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 47,
+      "title": "Add the issue_edit tool"
+    }
+  }
+}
+
+### Call the issue_edit tool with a body holding a token; expects outcome "Refused" with the rule "token" and its line, and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 90,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 47,
+      "body": "Edited from docs/mcp.http.\n\nghp_000000000000000000000000000000000000"
+    }
+  }
+}
+
+### Call the issue_edit tool with a pull request number; expects outcome "NotFound" and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 91,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 87,
+      "assignSelf": true
     }
   }
 }

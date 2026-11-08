@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `run_list`, `run_view`, `run_log`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `run_list`, `run_view`, `run_log`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -55,6 +55,7 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | `issue_close`            | Takes `repo` (`owner/repo`), `issue`, `reason` (`completed` or `not-planned`) and optional `comment`, posted first; closes the issue and returns the outcome (`closed` or `already-closed`), reason and URL. Refused for an On-Hold issue.    |
 | `issue_comments`         | Read only. Takes `repo` (`owner/repo`), `issue` or pull request number, optional `since` (`yyyy-MM-ddTHH:mm:ssZ`) and `author`; returns the 100 most recent matching comments, oldest first, bodies capped at 500 lines, and a summary.       |
 | `issue_create`           | Takes `repo` (`owner/repo`), `priority`, `title`, `body` and optional `labels`; creates missing labels, then the issue, puts it on the Workflow board as Not Started and returns its URL. A board failure still names the URL.                |
+| `issue_edit`             | Takes `repo` (`owner/repo`), `issue` and at least one of `title`, `body` and `assignSelf`; sets them in one write, keeping the other assignees; returns the outcome (`Edited`, `Unchanged`, `Refused`, `NotFound` or `Failed`) and URL.       |
 | `issue_list`             | Read only. Takes `repo` (`owner/repo`); returns the open issues, not pull requests, most urgent priority first, then by number, each with priority, blocked and on-hold flags, assignees, title and labels. Fails rather than list over 1000. |
 | `issue_plan_status`      | Read only. Takes `repo` (`owner/repo`) and `issue`; returns whether it has an `## Implementation Plan` comment (latest wins) and is Blocked, its time and author, then each later comment's time, author, association, approval flag and URL. |
 | `issue_reopen`           | Takes `repo` (`owner/repo`), `issue` and optional `comment`, posted first; reopens a closed issue and returns the outcome (`open` or `already-open`) and URL. An open issue is left as it is and the comment is not posted.                   |

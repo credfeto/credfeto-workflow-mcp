@@ -5,7 +5,6 @@ using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
@@ -21,13 +20,11 @@ using Credfeto.Workflow.GitHub.Validation;
 
 namespace Credfeto.Workflow.GitHub.Issues;
 
-public sealed partial class IssueCreateService : IIssueCreateService
+public sealed class IssueCreateService : IIssueCreateService
 {
     private const string ALREADY_EXISTS = "already_exists";
 
     private const string LABELS_PARAMETER = "labels";
-
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     private readonly IBoardWriter _boardWriter;
     private readonly IWorkflowBoardResolver _boardResolver;
@@ -387,7 +384,7 @@ public sealed partial class IssueCreateService : IIssueCreateService
 
     private static CreatedIssue Created(string url)
     {
-        if (CreatedItemUrl.TryParse(pattern: IssueUrl(), url: url, out Uri? uri, out int number))
+        if (CreatedItemUrl.TryParse(pattern: CreatedItemUrl.IssueUrl(), url: url, out Uri? uri, out int number))
         {
             return new(Url: uri, Number: number);
         }
@@ -449,13 +446,6 @@ public sealed partial class IssueCreateService : IIssueCreateService
     {
         return exception is GitHubInvalidResponseException or HttpRequestException;
     }
-
-    [GeneratedRegex(
-        pattern: @"^https://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/(?<number>[0-9]+)\z",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex IssueUrl();
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Repository}: {Title}")]
