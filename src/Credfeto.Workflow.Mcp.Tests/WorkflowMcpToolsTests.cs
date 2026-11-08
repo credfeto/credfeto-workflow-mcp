@@ -2920,6 +2920,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             Assignees: null,
             Author: null,
             CommitAuthors: null,
+            ChangedFiles: null,
             Files: null,
             Body: null
         );

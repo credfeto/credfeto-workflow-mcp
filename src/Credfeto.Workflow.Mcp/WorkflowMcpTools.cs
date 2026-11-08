@@ -54,14 +54,14 @@ public sealed class WorkflowMcpTools
 
     [McpServerTool(Name = "pr_view", Title = "Pull request view", ReadOnly = true)]
     [Description(
-        "Reads the requested fields of a pull request, in canonical order; with no fields every field except files and body, which can only be asked for on their own"
+        "Reads the requested fields of a pull request, in canonical order; with no fields every field except changed-files, files and body, the last two of which can only be asked for on their own"
     )]
     public static async Task<PullRequestView> PrViewAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The pull request number")] int pr,
         IPullRequestService service,
         [Description(
-            "The fields to return: state, draft, title, url, base, head, head-sha, auto-merge, review-decision, merge-state, mergeable, created-at, merged-at, merge-commit, labels, assignees, author, commit-authors, files or body"
+            "The fields to return: state, draft, title, url, base, head, head-sha, auto-merge, review-decision, merge-state, mergeable, created-at, merged-at, merge-commit, labels, assignees, author, commit-authors, changed-files, files or body"
         )]
             IReadOnlyList<string>? fields = null,
         CancellationToken cancellationToken = default
@@ -266,6 +266,29 @@ public sealed class WorkflowMcpTools
                         or PrChecksUnreadableException
                         or ParameterValidationException
             )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "pr_status", Title = "Pull request status", ReadOnly = true)]
+    [Description(
+        "Summarises a pull request in one call: its metadata, required-check verdict with the failing and pending check names, Workflow board state, when it became ready for review, changed-file count and comment activity, or fails rather than return a partial status"
+    )]
+    public static async Task<PrStatusResponse> PrStatusAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPrStatusService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(repository: repo, pullRequest: pr, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (IsPrStatusError(exception))
         {
             // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
             // safe to return
@@ -1248,6 +1271,31 @@ public sealed class WorkflowMcpTools
                     or BranchNotFoundException
                     or RequiredChecksUnreadableException
                     or PrChecksUnreadableException;
+    }
+
+    private static bool IsPrStatusError(Exception exception)
+    {
+        return exception
+                is ParameterValidationException
+                    or PullRequestNotFoundException
+                    or PullRequestViewFailedException
+                    or PullRequestCommentsIncompleteException
+                    or PrStatusHeadChangedException
+                    or PrReadyAtFailedException
+            || IsPrStatusChecksOrBoardError(exception);
+    }
+
+    private static bool IsPrStatusChecksOrBoardError(Exception exception)
+    {
+        return exception
+            is CommitNotFoundException
+                or BranchNotFoundException
+                or RepositoryNotFoundException
+                or RequiredChecksUnreadableException
+                or PrChecksUnreadableException
+                or WorkflowBoardAmbiguousException
+                or WorkflowBoardInvalidException
+                or BoardReadFailedException;
     }
 
     // The failures shared by every tool that validates its input, resolves the repository and writes to its

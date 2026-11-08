@@ -125,6 +125,8 @@ public static class GitHubSetup
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()
             .AddSingleton<IWorkflowStatusCheckService, WorkflowStatusCheckService>()
+            .AddSingleton<IPrReadyAtService, PrReadyAtService>()
+            .AddSingleton<IPrStatusService, PrStatusService>()
             .AddSingleton<IWorkflowStatusSetService, WorkflowStatusSetService>()
             .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
             .AddSingleton<ILeakChecker, LeakChecker>()

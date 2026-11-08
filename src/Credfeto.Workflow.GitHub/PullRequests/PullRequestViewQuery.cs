@@ -37,6 +37,7 @@ internal static class PullRequestViewQuery
         [PullRequestViewFields.Author] = "author{login}",
         [PullRequestViewFields.CommitAuthors] =
             "commits(first:100,after:$after){totalCount pageInfo{hasNextPage endCursor} nodes{commit{authors(first:100){totalCount nodes{user{login}}}}}}",
+        [PullRequestViewFields.ChangedFiles] = "changedFiles",
         [PullRequestViewFields.Files] = "changedFiles",
         [PullRequestViewFields.Body] = "body",
     }.ToFrozenDictionary(StringComparer.Ordinal);

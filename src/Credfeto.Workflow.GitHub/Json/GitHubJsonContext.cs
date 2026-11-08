@@ -43,6 +43,8 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(PullRequestUpdateResponse))]
 [JsonSerializable(typeof(PullRequestStateRequest))]
 [JsonSerializable(typeof(PullRequestStateResponse))]
+[JsonSerializable(typeof(PullRequestCreatedResponse))]
+[JsonSerializable(typeof(ReadyTimelineEventResponse[]))]
 [JsonSerializable(typeof(RepositoryAutoMergeResponse))]
 [JsonSerializable(typeof(BranchProtectedResponse))]
 [JsonSerializable(typeof(MarkReadyMutationVariables))]

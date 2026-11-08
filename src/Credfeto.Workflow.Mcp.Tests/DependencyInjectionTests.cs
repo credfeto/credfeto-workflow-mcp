@@ -53,6 +53,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_reopen",
                 "pr_reply",
                 "pr_search",
+                "pr_status",
                 "pr_view",
                 "repo_search",
                 "run_list",
@@ -79,6 +80,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("repo_search")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
+    [InlineData("pr_status")]
     [InlineData("workflow_status_check")]
     [InlineData("body_check")]
     [InlineData("closing_issue_labels")]
@@ -578,6 +580,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IClosingIssueLabelsService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()
+            .AddMockedService<IPrStatusService>()
             .AddMcpTools();
     }
 }

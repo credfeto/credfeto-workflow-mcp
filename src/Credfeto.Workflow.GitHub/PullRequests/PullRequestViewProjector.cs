@@ -41,6 +41,7 @@ internal sealed class PullRequestViewProjector
             Assignees: null,
             Author: null,
             CommitAuthors: null,
+            ChangedFiles: null,
             Files: null,
             Body: null
         );
@@ -114,6 +115,7 @@ internal sealed class PullRequestViewProjector
                 Assignees = this.Join(this._node.Assignees, assignee => assignee.Login),
             },
             PullRequestViewFields.Author => view with { Author = PullRequestViewText.Clean(this._node.Author?.Login) },
+            PullRequestViewFields.ChangedFiles => view with { ChangedFiles = this.ChangedFiles() },
             PullRequestViewFields.Body => view with { Body = this._node.Body ?? string.Empty },
 
             // Commit authors and files need further requests, so the service fills them in afterwards
@@ -133,6 +135,13 @@ internal sealed class PullRequestViewProjector
         }
 
         return url;
+    }
+
+    private int ChangedFiles()
+    {
+        return this._node.ChangedFiles is int changed && changed >= 0
+            ? changed
+            : throw PullRequestViewFailure.Incomplete(this._reference);
     }
 
     private string Join<TNode>(GraphQlConnection<TNode>? connection, Func<TNode, string?> value)

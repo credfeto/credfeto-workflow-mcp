@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_view", "repo_search", "run_list", "run_log", "run_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_reopen", "pr_reply", "pr_search", "pr_status", "pr_view", "repo_search", "run_list", "run_log", "run_view", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -143,7 +143,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### Call the pr_view tool with no fields; expects every field except files and body, in canonical order
+### Call the pr_view tool with no fields; expects every field except changed-files, files and body, in canonical order
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -234,6 +234,44 @@ Accept: application/json, text/event-stream
   "method": "tools/call",
   "params": {
     "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 0
+    }
+  }
+}
+
+### Call the pr_status tool; expects the metadata, changedFiles, board (absent when there is no board or the pull request is not on it), readyAt and readySource, the checks verdict with failing and pending names, and the comment activity
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 92,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_status",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 108
+    }
+  }
+}
+
+### Call the pr_status tool with pull request 0; expects a tool error naming the "pullRequest" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 93,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_status",
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 0
