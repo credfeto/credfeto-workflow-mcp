@@ -57,7 +57,6 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(IssueCloseRequest))]
 [JsonSerializable(typeof(IssueReopenRequest))]
 [JsonSerializable(typeof(IssueCreateRequest))]
-[JsonSerializable(typeof(IssueEditRequest))]
 [JsonSerializable(typeof(IssueEditResponse))]
 [JsonSerializable(typeof(IssueTimelineEventResponse[]))]
 [JsonSerializable(typeof(IssueListItemResponse[]))]

@@ -16,6 +16,7 @@ using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using Credfeto.Workflow.GitHub.Json;
 using Credfeto.Workflow.GitHub.Leaks;
+using Credfeto.Workflow.GitHub.PullRequests;
 using Credfeto.Workflow.GitHub.Validation;
 
 namespace Credfeto.Workflow.GitHub.Issues;
@@ -315,8 +316,8 @@ public sealed class IssueEditService : IIssueEditService
         {
             response = await this._restClient.PatchAsync(
                 relativeUri: $"repos/{request.Repository}/issues/{request.NumberText}",
-                body: new IssueEditRequest(Title: request.Title, Body: request.Body, Assignees: assignees),
-                requestTypeInfo: GitHubJsonContext.Default.IssueEditRequest,
+                body: new PullRequestEditRequest(Title: request.Title, Body: request.Body, Assignees: assignees),
+                requestTypeInfo: GitHubJsonContext.Default.PullRequestEditRequest,
                 responseTypeInfo: GitHubJsonContext.Default.IssueEditResponse,
                 cancellationToken: cancellationToken
             );
