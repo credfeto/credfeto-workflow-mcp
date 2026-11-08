@@ -49,6 +49,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IRequiredChecksReader _checksReader;
     private readonly IClosingIssueLabelsService _closingIssueLabelsService;
     private readonly IIssueCreateService _issueCreateService;
+    private readonly IIssueEditService _issueEditService;
     private readonly IIssueListService _issueListService;
     private readonly IIssuePlanStatusReader _issuePlanStatusReader;
     private readonly IIssueSearchService _issueSearchService;
@@ -78,6 +79,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._listService = GetSubstitute<IPullRequestListService>();
         this._issueService = GetSubstitute<IIssueService>();
         this._issueCreateService = GetSubstitute<IIssueCreateService>();
+        this._issueEditService = GetSubstitute<IIssueEditService>();
         this._issueSearchService = GetSubstitute<IIssueSearchService>();
         this._issueListService = GetSubstitute<IIssueListService>();
         this._issuePlanStatusReader = GetSubstitute<IIssuePlanStatusReader>();
@@ -1133,6 +1135,88 @@ public sealed class WorkflowMcpToolsTests : TestBase
             title: ISSUE_TITLE,
             body: ISSUE_BODY,
             service: this._issueCreateService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task IssueEditReturnsWhatTheServiceAnsweredAsync()
+    {
+        IssueEditResult expected = new(
+            Outcome: IssueEditOutcome.Edited,
+            Message: REPOSITORY + "#16 was edited",
+            Url: new("https://github.com/" + REPOSITORY + "/issues/16"),
+            Rule: null,
+            LineNumber: null
+        );
+        this.IssueEditServiceCallAsync().Returns(expected);
+
+        IssueEditResult actual = await this.IssueEditAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueEditFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueEditFailures())
+        {
+            this.IssueEditServiceCallAsync().ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueEditAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task IssueEditOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueEditServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueEditAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> IssueEditFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "issue", rule: "must be above 0"),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new LeakCheckFailedException("the text could not be checked for leaks in time"),
+        ];
+    }
+
+    private ValueTask<IssueEditResult> IssueEditServiceCallAsync()
+    {
+        return this._issueEditService.EditAsync(
+            repository: REPOSITORY,
+            issue: ISSUE,
+            title: ISSUE_TITLE,
+            body: ISSUE_BODY,
+            assignSelf: true,
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<IssueEditResult> IssueEditAsync()
+    {
+        return WorkflowMcpTools.IssueEditAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueEditService,
+            title: ISSUE_TITLE,
+            body: ISSUE_BODY,
+            assignSelf: true,
             cancellationToken: this.CancellationToken()
         );
     }

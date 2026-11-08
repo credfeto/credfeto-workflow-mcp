@@ -774,6 +774,50 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Destructive because the title and body given replace the ones the issue had; idempotent because a repeat call
+    // finds the issue already as asked and writes nothing
+    [McpServerTool(Name = "issue_edit", Title = "Issue edit", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [Description(
+        "Edits an issue in one write: replaces its title and body and adds the signed-in account to its assignees, keeping the others; the title and body are leak checked before anything is written. Returns Edited or Unchanged with the issue URL, Refused with the rule and line, NotFound (a pull request number is not found) or Failed"
+    )]
+    public static async Task<IssueEditResult> IssueEditAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        IIssueEditService service,
+        [Description(
+            "The new issue title; in credfeto and funfair-tech repositories it must be \"prefix: text\" or \"prefix(name): text\" with a lower-case prefix"
+        )]
+            string? title = null,
+        [Description("The new issue body, in Markdown")] string? body = null,
+        [Description("Whether to add the signed-in account to the issue's assignees")] bool assignSelf = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.EditAsync(
+                repository: repo,
+                issue: issue,
+                title: title,
+                body: body,
+                assignSelf: assignSelf,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is ParameterValidationException
+                        or RepositoryNotFoundException
+                        or RepositoryVisibilityLookupFailedException
+                        or LeakCheckFailedException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never the title, body or upstream
+            // detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(
         Name = "pr_reply",
         Title = "Pull request reply",

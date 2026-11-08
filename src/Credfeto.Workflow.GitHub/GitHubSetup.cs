@@ -112,6 +112,7 @@ public static class GitHubSetup
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssuePlanStatusReader, IssuePlanStatusReader>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()
+            .AddSingleton<IIssueEditService, IssueEditService>()
             .AddSingleton<IIssueSearchService, IssueSearchService>()
             .AddSingleton<IPrSearchService, PrSearchService>()
             .AddSingleton<ICodeSearchService, CodeSearchService>()
