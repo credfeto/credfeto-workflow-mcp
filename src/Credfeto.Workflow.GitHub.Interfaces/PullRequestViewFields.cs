@@ -24,6 +24,7 @@ public static class PullRequestViewFields
     public const string Assignees = "assignees";
     public const string Author = "author";
     public const string CommitAuthors = "commit-authors";
+    public const string ChangedFiles = "changed-files";
     public const string Files = "files";
     public const string Body = "body";
 
@@ -48,12 +49,15 @@ public static class PullRequestViewFields
         Assignees,
         Author,
         CommitAuthors,
+        ChangedFiles,
         Files,
         Body,
     ];
 
-    // Declared after All, so All is already initialised when this is built
-    public static IReadOnlyList<string> Default { get; } = [.. All.Where(field => !IsStandalone(field))];
+    // Declared after All, so All is already initialised when this is built. The changed file count is left out so
+    // the default output stays as it was before the field existed
+    public static IReadOnlyList<string> Default { get; } =
+    [.. All.Where(field => !IsStandalone(field) && !StringComparer.Ordinal.Equals(x: field, y: ChangedFiles))];
 
     // Files and body can be large, so they are only returned when asked for on their own
     public static bool IsStandalone(string field)

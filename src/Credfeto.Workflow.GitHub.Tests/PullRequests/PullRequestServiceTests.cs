@@ -221,18 +221,22 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
     [InlineData(PullRequestViewFields.Body, true)]
     [InlineData(PullRequestViewFields.State, false)]
     [InlineData(PullRequestViewFields.CommitAuthors, false)]
+    [InlineData(PullRequestViewFields.ChangedFiles, false)]
     public static void OnlyFilesAndBodyAreStandalone(string field, bool expected)
     {
         Assert.Equal(expected: expected, actual: PullRequestViewFields.IsStandalone(field));
     }
 
     [Fact]
-    public void DefaultFieldsAreEverythingExceptFilesAndBody()
+    public void DefaultFieldsAreEverythingExceptChangedFilesFilesAndBody()
     {
         string[] expected =
         [
             .. PullRequestViewFields.All.Where(static field =>
-                field is not PullRequestViewFields.Files and not PullRequestViewFields.Body
+                field
+                    is not PullRequestViewFields.ChangedFiles
+                        and not PullRequestViewFields.Files
+                        and not PullRequestViewFields.Body
             ),
         ];
 
@@ -339,8 +343,39 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
         Assert.Equal(expected: "credfeto", actual: view.Assignees);
         Assert.Equal(expected: "credfeto", actual: view.Author);
         Assert.Equal(expected: "alice,bob", actual: view.CommitAuthors);
+        Assert.Null(view.ChangedFiles);
         Assert.Null(view.Files);
         Assert.Null(view.Body);
+    }
+
+    [Fact]
+    public async Task ChangedFilesIsTheCountWithoutListingFilesAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Graph(FULL_NODE));
+
+        PullRequestView view = await this.ViewAsync(
+            graphUpstream: upstream,
+            fields: [PullRequestViewFields.State, PullRequestViewFields.ChangedFiles]
+        );
+
+        Assert.Equal(expected: 2, actual: view.ChangedFiles);
+        Assert.Equal(expected: "OPEN", actual: view.State);
+        Assert.Null(view.Files);
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        _ = Variables(request: request, query: out string query);
+        Assert.EndsWith(
+            expectedEndString: "{pullRequest(number:$n){state changedFiles}}}",
+            actualString: query,
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData("""{"changedFiles":null}""")]
+    [InlineData("""{"changedFiles":-1}""")]
+    public Task InvalidChangedFilesCountIsIncompleteAsync(string node)
+    {
+        return this.AssertIncompleteAsync(node: node, fields: [PullRequestViewFields.ChangedFiles]);
     }
 
     [Fact]

@@ -435,6 +435,30 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrReadyAtServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrReadyAtService>();
+    }
+
+    [Fact]
+    public void PrReadyAtServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrReadyAtService, PrReadyAtService>();
+    }
+
+    [Fact]
+    public void PrStatusServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrStatusService>();
+    }
+
+    [Fact]
+    public void PrStatusServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrStatusService, PrStatusService>();
+    }
+
+    [Fact]
     public void WorkflowStatusSetServiceShouldBeRegistered()
     {
         this.RequireService<IWorkflowStatusSetService>();

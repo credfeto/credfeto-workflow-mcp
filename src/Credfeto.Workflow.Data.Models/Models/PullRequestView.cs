@@ -26,6 +26,7 @@ public sealed record PullRequestView(
     string? Assignees,
     string? Author,
     string? CommitAuthors,
+    int? ChangedFiles,
     IReadOnlyList<string>? Files,
     string? Body
 );
