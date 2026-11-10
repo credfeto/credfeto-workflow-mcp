@@ -27,4 +27,4 @@ excluded
 
 ---
 
-Captured at commit `ed653813f41da059b0c87d5cff2491e19f5d993f` on 2026-11-08.
+Captured at commit `db2043a207459491c3f2d4dc2ae59cbf20d61ad0` on 2026-11-10.
