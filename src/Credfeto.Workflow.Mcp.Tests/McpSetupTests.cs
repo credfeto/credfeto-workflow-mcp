@@ -48,6 +48,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()
             .AddMockedService<IPrStatusService>()
+            .AddMockedService<IPrReadyAtService>()
             .AddMcpTools();
 
         await using WebApplication app = builder.Build();

@@ -296,6 +296,30 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "pr_ready_at", Title = "Pull request ready at", ReadOnly = true)]
+    [Description(
+        "Reads when a pull request was last marked ready for review from its whole timeline: source ready-for-review with that time, or source created with its creation time when it was never marked ready; a later conversion back to draft is not considered"
+    )]
+    public static async Task<PrReadyAtResponse> PrReadyAtAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPrReadyAtService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(repository: repo, pullRequest: pr, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is PullRequestNotFoundException or PrReadyAtFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "closing_issue_labels", Title = "Closing issue labels", ReadOnly = true)]
     [Description(
         "Collects the labels of every issue a pull request closes, leaving out Blocked, On Hold and On-Hold in any case, and reports any closing issue whose labels could not be read"

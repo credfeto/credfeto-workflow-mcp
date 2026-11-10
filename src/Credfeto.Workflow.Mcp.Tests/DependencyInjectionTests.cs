@@ -50,6 +50,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_edit",
                 "pr_hand_off",
                 "pr_list",
+                "pr_ready_at",
                 "pr_reopen",
                 "pr_reply",
                 "pr_search",
@@ -81,6 +82,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
     [InlineData("pr_status")]
+    [InlineData("pr_ready_at")]
     [InlineData("workflow_status_check")]
     [InlineData("body_check")]
     [InlineData("closing_issue_labels")]
@@ -457,6 +459,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrReadyAtTakesRepoAndPr()
+    {
+        JsonElement schema = this.GetTool("pr_ready_at").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void WorkflowStatusCheckTakesRepoAndOptionalWorkItems()
     {
         JsonElement schema = this.GetTool("workflow_status_check").ProtocolTool.InputSchema;
@@ -581,6 +592,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()
             .AddMockedService<IPrStatusService>()
+            .AddMockedService<IPrReadyAtService>()
             .AddMcpTools();
     }
 }
