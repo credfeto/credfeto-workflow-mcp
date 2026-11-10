@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `pr_status`, `run_list`, `run_view`, `run_log`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `pr_status`, `pr_ready_at`, `run_list`, `run_view`, `run_log`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -67,6 +67,7 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | `pr_edit`                | Takes `repo` (`owner/repo`), `pr` and at least one of `title`, `body` and `assignSelf`; sets them in one write, keeping the other assignees; returns the outcome (`Edited`, `Unchanged`, `Refused` or a failure) and URL.                     |
 | `pr_hand_off`            | Takes `repo` (`owner/repo`), `pr`, `title`, `description` and optional `record`; once the pull request is open, unheld and passing, sets them, Human Review, ready, the review record and auto-merge; returns the outcome and steps made.     |
 | `pr_list`                | Read only. Takes `repo` (`owner/repo`) and optional `issue`, `head` and `labels`; returns the open pull requests matching every filter, sorted by number. Fails rather than return a partial list or more than 1000.                          |
+| `pr_ready_at`            | Read only. Takes `repo` (`owner/repo`) and `pr`; reads its whole timeline and returns `readyAt` (UTC) and `source`: `ready-for-review` for the last time it was marked ready, else `created` with its creation time. Ignores later drafts.    |
 | `pr_reopen`              | Takes `repo` (`owner/repo`), `pr` and optional `comment`, posted first; reopens a closed pull request and returns the outcome (`open` or `already-open`) and URL. Refused for a merged pull request.                                          |
 | `pr_reply`               | Takes `repo` (`owner/repo`), `pr`, `commentId` of an inline review comment and `body`; replies in its thread; returns the outcome (`Posted`, `Refused`, `NotFound`, `NotPosted` or `MayHaveBeenPosted`), a message, the reply's id and URL.   |
 | `pr_search`              | Read only. Takes `repo` (`owner/repo`), `text` and optional `state` (`open`, `closed`, `merged` or `all`; default `open`) and `limit` (1 to 100, default 30); returns each match's number, state and title, and whether more matched.         |

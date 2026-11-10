@@ -112,6 +112,29 @@ public sealed class PrReadyAtServiceTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task ALaterConversionBackToDraftIsNotConsideredAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            () => Responses.Json(PULL),
+            () =>
+                Responses.Json(
+                    "["
+                        + Event(name: "ready_for_review", createdAt: "2026-01-02T00:00:00Z")
+                        + ","
+                        + Event(name: "convert_to_draft", createdAt: "2026-01-03T00:00:00Z")
+                        + "]"
+                )
+        );
+
+        PrReadyAtResponse response = await this.ReadAsync(upstream);
+
+        Assert.Equal(
+            expected: new(ReadyAt: "2026-01-02T00:00:00Z", Source: PrReadyAtService.SOURCE_READY_FOR_REVIEW),
+            actual: response
+        );
+    }
+
+    [Fact]
     public async Task AMissingPullRequestIsNotFoundAsync()
     {
         using RecordingHttpMessageHandler upstream = Flow(() => Responses.Status(HttpStatusCode.NotFound));
