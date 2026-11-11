@@ -306,6 +306,35 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: the repositories an owner owns, 100 a page (repo_list)
+# repositoryOwner matches a user or an organisation; a null repositoryOwner means the owner is missing or the caller
+# cannot see it. "a" is false to leave archived repositories out and is omitted to include them. Follow
+# pageInfo.endCursor as "c" while hasNextPage is true; a totalCount above 1000 is refused before any further page.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$c:String,$a:Boolean){repositoryOwner(login:$o){repositories(first:100,after:$c,isArchived:$a,ownerAffiliations:[OWNER],orderBy:{field:NAME,direction:ASC}){totalCount pageInfo{hasNextPage endCursor} nodes{nameWithOwner visibility isArchived defaultBranchRef{name}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "c": null,
+    "a": false
+  }
+}
+
+### REST: a repository's GitHub Actions workflows, disabled ones included (workflow_list)
+# Follow the Link header's rel="next" URL until there is none; the call is refused when more than 1000 workflows are
+# read. A 404 means the repository is missing or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/actions/workflows?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.

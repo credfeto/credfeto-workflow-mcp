@@ -19,9 +19,11 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
+using Credfeto.Workflow.GitHub.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
@@ -118,6 +120,8 @@ public static class GitHubSetup
             .AddSingleton<ICodeSearchService, CodeSearchService>()
             .AddSingleton<IRepoSearchService, RepoSearchService>()
             .AddSingleton<IIssueListService, IssueListService>()
+            .AddSingleton<IRepositoryListService, RepositoryListService>()
+            .AddSingleton<IWorkflowListService, WorkflowListService>()
             .AddRunServices()
             .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()

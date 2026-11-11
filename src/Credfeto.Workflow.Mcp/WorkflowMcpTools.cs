@@ -598,6 +598,67 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "repo_list", Title = "Repository list", ReadOnly = true)]
+    [Description(
+        "Lists the repositories an owner owns, excluding archived ones unless asked, with each repository's visibility, archived flag and default branch, sorted by name; more than 1000 repositories is refused rather than listed in part"
+    )]
+    public static async Task<RepositoryListResponse> RepoListAsync(
+        [Description("The user or organisation that owns the repositories")] string owner,
+        IRepositoryListService service,
+        [Description("Whether to include archived repositories; false when not given")] bool includeArchived = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(
+                owner: owner,
+                includeArchived: includeArchived,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is OwnerNotFoundException
+                        or RepositoryListFailedException
+                        or RepositoryListRefusedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "workflow_list", Title = "Workflow list", ReadOnly = true)]
+    [Description(
+        "Lists a repository's GitHub Actions workflows, disabled ones included, with each workflow's name, path and state, sorted by path; more than 1000 workflows is refused rather than listed in part"
+    )]
+    public static async Task<WorkflowListResponse> WorkflowListAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IWorkflowListService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is RepositoryNotFoundException
+                        or WorkflowListFailedException
+                        or WorkflowListRefusedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "run_list", Title = "Run list", ReadOnly = true)]
     [Description(
         "Lists a repository's GitHub Actions runs for one branch or one commit, newest first, started by any event, with each run's id, workflow, status, conclusion, head SHA, event and creation time"

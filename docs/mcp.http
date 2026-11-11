@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_search", "pr_status", "pr_view", "repo_search", "run_list", "run_log", "run_view", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_search", "pr_status", "pr_view", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1126,6 +1126,61 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the repo_list tool with the defaults; expects the owner and every non-archived repository it owns, sorted by name, each with repository, visibility, archived and defaultBranch; more than 1000 is a tool error
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 96,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_list",
+    "arguments": {
+      "owner": "credfeto"
+    }
+  }
+}
+
+### Call the repo_list tool including archived repositories; expects archived repositories to be listed with archived true
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 97,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_list",
+    "arguments": {
+      "owner": "credfeto",
+      "includeArchived": true
+    }
+  }
+}
+
+### Call the repo_list tool with an invalid owner; expects a tool error naming the "owner" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 98,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_list",
+    "arguments": {
+      "owner": "credfeto/credfeto-workflow-mcp"
+    }
+  }
+}
+
 ### Call the repo_search tool with the defaults; expects the owner, up to 30 non-archived repositories with repository, visibility, status and defaultBranch sorted by name, and truncated
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
@@ -1603,6 +1658,42 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "body": "\u200B\u3000\n"
+    }
+  }
+}
+
+### Call the workflow_list tool; expects the repository and every GitHub Actions workflow, disabled ones included, sorted by path, each with name, path and state
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 99,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp"
+    }
+  }
+}
+
+### Call the workflow_list tool with an invalid repository name; expects a tool error naming the "repository" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 100,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_list",
+    "arguments": {
+      "repo": "credfeto"
     }
   }
 }
