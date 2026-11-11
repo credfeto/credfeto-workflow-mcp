@@ -125,10 +125,8 @@ public static class GitHubSetup
             .AddRunServices()
             .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
-            .AddSingleton<IPrChecksService, PrChecksService>()
             .AddSingleton<IWorkflowStatusCheckService, WorkflowStatusCheckService>()
-            .AddSingleton<IPrReadyAtService, PrReadyAtService>()
-            .AddSingleton<IPrStatusService, PrStatusService>()
+            .AddPullRequestStatusServices()
             .AddSingleton<IWorkflowStatusSetService, WorkflowStatusSetService>()
             .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
             .AddSingleton<ILeakChecker, LeakChecker>()
@@ -148,6 +146,15 @@ public static class GitHubSetup
             .AddSingleton<IRunViewService, RunViewService>()
             .AddSingleton<IRunRerunService, RunRerunService>()
             .AddSingleton<IRunLogService, RunLogService>();
+    }
+
+    private static IServiceCollection AddPullRequestStatusServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IPrChecksService, PrChecksService>()
+            .AddSingleton<IPrReadyAtService, PrReadyAtService>()
+            .AddSingleton<IPrAutoMergeAtService, PrAutoMergeAtService>()
+            .AddSingleton<IPrStatusService, PrStatusService>();
     }
 
     // The signed URL is its own credential, so no token handler is added and every header is redacted from logs

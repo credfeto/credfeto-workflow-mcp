@@ -370,6 +370,22 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: a pull request's number and creation time, read first so an issue number is reported as not found (pr_ready_at, pr_auto_merge_at)
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/pulls/115
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: a pull request's timeline, oldest first (pr_ready_at, pr_auto_merge_at)
+# Follow the Link header's rel="next" URL until there is none. pr_ready_at takes the last ready_for_review
+# event and pr_auto_merge_at the last auto_merge_enabled event; either fails rather than read a partial timeline.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/115/timeline?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a repository's open pull requests (pr_list)
 # Follow the Link header's rel="next" URL until there is none. The head, issue and label filters are applied
 # to the listed pull requests, and the call is refused when more than 1000 remain after the head filter.
