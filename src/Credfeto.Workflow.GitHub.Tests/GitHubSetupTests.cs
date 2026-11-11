@@ -485,6 +485,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrAutoMergeAtServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrAutoMergeAtService>();
+    }
+
+    [Fact]
+    public void PrAutoMergeAtServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrAutoMergeAtService, PrAutoMergeAtService>();
+    }
+
+    [Fact]
     public void PrStatusServiceShouldBeRegistered()
     {
         this.RequireService<IPrStatusService>();

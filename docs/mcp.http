@@ -317,6 +317,44 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the pr_auto_merge_at tool; expects pr and enabledAt, the time auto-merge was last enabled or - when it never was
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 101,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_auto_merge_at",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 115
+    }
+  }
+}
+
+### Call the pr_auto_merge_at tool with pull request 0; expects a tool error naming the "pullRequest" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 102,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_auto_merge_at",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 0
+    }
+  }
+}
+
 ### Call the pr_list tool with no filters; expects every open pull request, sorted by number
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}

@@ -320,6 +320,34 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "pr_auto_merge_at", Title = "Pull request auto-merge enabled at", ReadOnly = true)]
+    [Description(
+        "Reads when auto-merge was last enabled on a pull request from its whole timeline: the time of the latest auto_merge_enabled event, or - when auto-merge was never enabled"
+    )]
+    public static async Task<PrAutoMergeAtResponse> PrAutoMergeAtAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPrAutoMergeAtService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(repository: repo, pullRequest: pr, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is PullRequestNotFoundException
+                        or PrAutoMergeAtFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "closing_issue_labels", Title = "Closing issue labels", ReadOnly = true)]
     [Description(
         "Collects the labels of every issue a pull request closes, leaving out Blocked, On Hold and On-Hold in any case, and reports any closing issue whose labels could not be read"
