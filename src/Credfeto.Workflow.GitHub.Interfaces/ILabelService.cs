@@ -22,4 +22,12 @@ public interface ILabelService
         IReadOnlyList<string> labels,
         CancellationToken cancellationToken
     );
+
+    ValueTask<LabelCreateResponse> CreateAsync(
+        string repository,
+        string name,
+        string description,
+        string colour,
+        CancellationToken cancellationToken
+    );
 }

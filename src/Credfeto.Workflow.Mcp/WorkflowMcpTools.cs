@@ -1382,6 +1382,43 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(
+        Name = "label_create",
+        Title = "Label create",
+        ReadOnly = false,
+        Destructive = true,
+        Idempotent = true
+    )]
+    [Description(
+        "Creates a standard label in a repository with the given description and colour, or updates an existing label to them, and returns whether it was created, updated or already unchanged"
+    )]
+    public static async Task<LabelCreateResponse> LabelCreateAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The standard label to create, in any case; it is written in its standard spelling")] string name,
+        [Description("The label description, at most 100 characters")] string description,
+        [Description("The label colour, as 6 hexadecimal digits without '#'")] string color,
+        ILabelService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.CreateAsync(
+                repository: repo,
+                name: name,
+                description: description,
+                colour: color,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsLabelCreateError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     private static bool IsIssueCreateError(Exception exception)
     {
         return IsBoardOrRepositoryError(exception)
@@ -1460,6 +1497,11 @@ public sealed class WorkflowMcpTools
                 or PullRequestNotFoundException
                 or IssueNotFoundException
                 or ParameterValidationException;
+    }
+
+    private static bool IsLabelCreateError(Exception exception)
+    {
+        return exception is LabelChangeFailedException or RepositoryNotFoundException or ParameterValidationException;
     }
 
     private static bool IsPullRequestStateChangeError(Exception exception)
