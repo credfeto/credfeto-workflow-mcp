@@ -52,6 +52,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added issue_edit MCP tool that edits an issue's title and body and assigns the agent to the issue, reporting each outcome as Edited, Unchanged, Refused, NotFound or Failed, so workflows can correct issue text through the server without calling GitHub directly
 - Added pr_status MCP tool that reads a PR's whole state in one call: its metadata, Workflow board status, ready-at time (via IPrReadyAtService), required-check verdict and comment activity, plus a changed-files field on pr_view (#73)
 - Added pr_ready_at MCP tool returning when a pull request was last marked ready for review (#51)
+- Added run_rerun MCP tool (repo, run) that reruns the failed jobs of a GitHub Actions run on an open pull request head within limits (#52)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
