@@ -90,4 +90,8 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(WorkflowJobResponse))]
 [JsonSerializable(typeof(WorkflowJobsPageResponse))]
 [JsonSerializable(typeof(WorkflowsPageResponse))]
+[JsonSerializable(typeof(RunPullRequestResponse))]
+[JsonSerializable(typeof(RunPullRequestResponse[]))]
+[JsonSerializable(typeof(RunRerunRequest))]
+[JsonSerializable(typeof(RunRerunResponse))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

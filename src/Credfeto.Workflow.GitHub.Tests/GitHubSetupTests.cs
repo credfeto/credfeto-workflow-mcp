@@ -375,6 +375,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void RunRerunServiceShouldBeRegistered()
+    {
+        this.RequireService<IRunRerunService>();
+    }
+
+    [Fact]
+    public void RunRerunServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRunRerunService, RunRerunService>();
+    }
+
+    [Fact]
     public void RunLogServiceShouldBeRegistered()
     {
         this.RequireService<IRunLogService>();
