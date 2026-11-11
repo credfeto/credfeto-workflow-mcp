@@ -48,6 +48,29 @@ internal static class PrChecksEvaluator
         );
     }
 
+    // The first required check, by name, that nothing reported in any state, finished or not
+    public static RequiredCheck? FirstNeverRan(
+        IReadOnlyList<RequiredCheck> required,
+        IReadOnlyList<CheckRunResponse?> runs,
+        IReadOnlyList<CommitStatusResponse?> statuses
+    )
+    {
+        IReadOnlyList<PrCheckEntry> entries = [.. runs.Select(ToEntry).Concat(statuses.Select(ToEntry))];
+
+        return required
+            .Where(requirement => !entries.Any(entry => Reports(entry: entry, requirement: requirement)))
+            .OrderBy(keySelector: requirement => requirement.Name, comparer: StringComparer.Ordinal)
+            .ThenBy(requirement => requirement.AppId)
+            .FirstOrDefault();
+    }
+
+    // A check pinned to an app is only reported by that app's runs, but a status of the same name reports it in any state
+    private static bool Reports(PrCheckEntry entry, RequiredCheck requirement)
+    {
+        return StringComparer.Ordinal.Equals(x: entry.Name, y: requirement.Name)
+            && (entry.IsStatus || requirement.AppId is null || entry.AppId == requirement.AppId);
+    }
+
     private static PrCheckEntry ToEntry(CheckRunResponse? run)
     {
         if (run is null)

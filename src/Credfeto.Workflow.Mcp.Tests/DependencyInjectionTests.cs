@@ -59,6 +59,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "repo_search",
                 "run_list",
                 "run_log",
+                "run_rerun",
                 "run_view",
                 "workflow_status_check",
                 "workflow_status_set",
@@ -282,6 +283,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["job", "lines", "repo", "run"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo", "run"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RunRerunTakesRepoAndRun()
+    {
+        JsonElement schema = this.GetTool("run_rerun").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo", "run"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "run"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RunRerunIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("run_rerun");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "run_rerun starts a run attempt");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "run_rerun is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "run_rerun is not idempotent");
     }
 
     [Fact]
@@ -580,6 +600,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IRunListService>()
             .AddMockedService<IRunViewService>()
             .AddMockedService<IRunLogService>()
+            .AddMockedService<IRunRerunService>()
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrEditService>()

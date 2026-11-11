@@ -118,9 +118,7 @@ public static class GitHubSetup
             .AddSingleton<ICodeSearchService, CodeSearchService>()
             .AddSingleton<IRepoSearchService, RepoSearchService>()
             .AddSingleton<IIssueListService, IssueListService>()
-            .AddSingleton<IRunListService, RunListService>()
-            .AddSingleton<IRunViewService, RunViewService>()
-            .AddSingleton<IRunLogService, RunLogService>()
+            .AddRunServices()
             .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IPrChecksService, PrChecksService>()
@@ -137,6 +135,15 @@ public static class GitHubSetup
             .AddHttpMessageHandler<CallerTokenForwardingHandler>()
             .AddResilienceHandler(pipelineName: RESILIENCE_PIPELINE_NAME, configure: ConfigureResilience)
             .Services;
+    }
+
+    private static IServiceCollection AddRunServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IRunListService, RunListService>()
+            .AddSingleton<IRunViewService, RunViewService>()
+            .AddSingleton<IRunRerunService, RunRerunService>()
+            .AddSingleton<IRunLogService, RunLogService>();
     }
 
     // The signed URL is its own credential, so no token handler is added and every header is redacted from logs

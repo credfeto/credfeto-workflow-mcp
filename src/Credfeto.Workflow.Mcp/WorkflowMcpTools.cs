@@ -691,6 +691,30 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: each call that is not refused starts another attempt of the run, until the attempt limit
+    [McpServerTool(Name = "run_rerun", Title = "Run rerun", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [Description(
+        "Reruns one GitHub Actions run of an open pull request's head: its failed jobs, or, when it has none and a check the pull request's base branch requires never ran on the head commit, the whole run. Refused, naming the rule, when the run is on attempt 3 or later, is on the default branch, is not the head of an open pull request, or has no failed jobs and no required check missing; the outcome is pending while the run has not completed and not found when the run is not in the repository"
+    )]
+    public static async Task<RunRerunResult> RunRerunAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The run's id, digits only")] string run,
+        IRunRerunService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.RerunAsync(repository: repo, run: run, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (exception is RunRerunFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(
         Name = "issue_close",
         Title = "Issue close",
