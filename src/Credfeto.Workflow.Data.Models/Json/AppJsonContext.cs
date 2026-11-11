@@ -20,6 +20,7 @@ namespace Credfeto.Workflow.Data.Models.Json;
 [JsonSerializable(typeof(LabelChangeResponse))]
 [JsonSerializable(typeof(PingResponse))]
 [JsonSerializable(typeof(PrChecksResponse))]
+[JsonSerializable(typeof(PrAutoMergeAtResponse))]
 [JsonSerializable(typeof(PrCreateResponse))]
 [JsonSerializable(typeof(PrEditResult))]
 [JsonSerializable(typeof(PrHandOffResult))]

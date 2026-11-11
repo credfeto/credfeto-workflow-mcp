@@ -43,6 +43,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "label_add",
                 "label_remove",
                 "ping",
+                "pr_auto_merge_at",
                 "pr_checks",
                 "pr_close",
                 "pr_comments",
@@ -88,6 +89,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_checks")]
     [InlineData("pr_status")]
     [InlineData("pr_ready_at")]
+    [InlineData("pr_auto_merge_at")]
     [InlineData("workflow_status_check")]
     [InlineData("body_check")]
     [InlineData("closing_issue_labels")]
@@ -510,6 +512,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrAutoMergeAtTakesRepoAndPr()
+    {
+        JsonElement schema = this.GetTool("pr_auto_merge_at").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void WorkflowStatusCheckTakesRepoAndOptionalWorkItems()
     {
         JsonElement schema = this.GetTool("workflow_status_check").ProtocolTool.InputSchema;
@@ -638,6 +649,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IWorkflowStatusSetService>()
             .AddMockedService<IPrStatusService>()
             .AddMockedService<IPrReadyAtService>()
+            .AddMockedService<IPrAutoMergeAtService>()
             .AddMcpTools();
     }
 }
