@@ -93,14 +93,14 @@ public sealed class PrReadyAtService : IPrReadyAtService
 
         string createdAt = Timestamp(pull.CreatedAt);
 
-        IReadOnlyList<ReadyTimelineEventResponse?> events = await this._restClient.GetAllPagesAsync(
+        IReadOnlyList<TimelineEventResponse?> events = await this._restClient.GetAllPagesAsync(
             relativeUri: $"repos/{repository}/issues/{number}/timeline?per_page=100",
-            pageTypeInfo: GitHubJsonContext.Default.ReadyTimelineEventResponseArray,
+            pageTypeInfo: GitHubJsonContext.Default.TimelineEventResponseArray,
             cancellationToken: cancellationToken
         );
 
         // The timeline is oldest first, so the last ready event is the most recent time it was marked ready
-        ReadyTimelineEventResponse? ready = events.LastOrDefault(item =>
+        TimelineEventResponse? ready = events.LastOrDefault(item =>
             StringComparer.Ordinal.Equals(x: item?.Event, y: READY_FOR_REVIEW_EVENT)
         );
 
