@@ -9,6 +9,8 @@ public static class GitHubNames
     private const int MAX_COMMENT_ID_DIGITS = 19;
     private const int COMMIT_SHA_LENGTH = 40;
     private const int MAX_LABEL_LENGTH = 50;
+    private const int LABEL_COLOUR_LENGTH = 6;
+    private const int MAX_LABEL_DESCRIPTION_LENGTH = 100;
     private const string BOT_SUFFIX = "[bot]";
 
     private static readonly SearchValues<char> RepositoryNameCharacters = SearchValues.Create(
@@ -93,11 +95,7 @@ public static class GitHubNames
             rule: "it must be a full 40 character hexadecimal commit SHA"
         );
 
-        return string.Create(
-            length: value.Length,
-            state: value,
-            action: static (span, source) => Ascii.ToLower(source: source, destination: span, out _)
-        );
+        return HexToLower(value);
     }
 
     public static string Branch(string value, string parameterName)
@@ -185,6 +183,41 @@ public static class GitHubNames
             );
     }
 
+    // GitHub stores a label colour as six hex digits without '#', and returns it in lower case
+    public static string LabelColour(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: value.Length != LABEL_COLOUR_LENGTH || value.AsSpan().ContainsAnyExcept(HexDigits),
+            parameterName: parameterName,
+            rule: "it must be 6 hexadecimal digits without '#'"
+        );
+
+        return HexToLower(value);
+    }
+
+    public static string LabelDescription(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: string.IsNullOrWhiteSpace(value),
+            parameterName: parameterName,
+            rule: "it must not be empty or whitespace"
+        );
+
+        ThrowIf(
+            invalid: GitRefFormat.ContainsControlCharacter(value),
+            parameterName: parameterName,
+            rule: "it must not contain control characters"
+        );
+
+        ThrowIf(
+            invalid: HasMoreRunesThan(value: value, maximum: MAX_LABEL_DESCRIPTION_LENGTH),
+            parameterName: parameterName,
+            rule: "it must be at most 100 characters long"
+        );
+
+        return value;
+    }
+
     public static string Login(string value, string parameterName)
     {
         ReadOnlySpan<char> name = value.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal)
@@ -217,6 +250,15 @@ public static class GitHubNames
         {
             throw ParameterValidationException.For(parameterName: parameterName, rule: rule);
         }
+    }
+
+    private static string HexToLower(string value)
+    {
+        return string.Create(
+            length: value.Length,
+            state: value,
+            action: static (span, source) => Ascii.ToLower(source: source, destination: span, out _)
+        );
     }
 
     // Every rune is at least one UTF-16 char, so a string no longer than the maximum cannot exceed it in runes

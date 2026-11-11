@@ -7,6 +7,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
@@ -20,6 +21,7 @@ public sealed class LabelService : ILabelService
     private const string PRIORITY_RULE = "a priority label may only be changed by a human";
     private const string ON_HOLD_RULE = "On Hold may only be removed by a human";
     private const string BLOCKED_RULE = "Blocked may only be removed when it was last added by this agent";
+    private const string ALREADY_EXISTS = "already_exists";
 
     private readonly IGitHubRestClient _restClient;
 
@@ -54,6 +56,143 @@ public sealed class LabelService : ILabelService
         IReadOnlyList<string> validLabels = ValidLabels(labels: labels, removing: true);
 
         return this.RemoveLabelsAsync(target: target, validLabels: validLabels, cancellationToken: cancellationToken);
+    }
+
+    public ValueTask<LabelCreateResponse> CreateAsync(
+        string repository,
+        string name,
+        string description,
+        string colour,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+        string validName = GitHubNames.StandardLabel(value: name, parameterName: nameof(name));
+        string validDescription = GitHubNames.LabelDescription(value: description, parameterName: nameof(description));
+        // Named as the tool parameter is, in GitHub's spelling
+        string validColour = GitHubNames.LabelColour(value: colour, parameterName: "color");
+
+        return this.CreateLabelAsync(
+            requested: new(
+                Outcome: LabelCreateOutcome.Created,
+                Repository: validRepository,
+                Name: validName,
+                Colour: validColour,
+                Description: validDescription
+            ),
+            cancellationToken: cancellationToken
+        );
+    }
+
+    private async ValueTask<LabelCreateResponse> CreateLabelAsync(
+        LabelCreateResponse requested,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            if (await this.TryCreateLabelAsync(requested: requested, cancellationToken: cancellationToken))
+            {
+                return requested;
+            }
+
+            return await this.UpdateLabelAsync(requested: requested, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (IsUpstreamFailure(exception))
+        {
+            // The name is a standard label, so it is safe to name; the upstream detail stays in the inner exception
+            // for diagnostics
+            throw new LabelChangeFailedException(
+                message: $"could not create the label '{requested.Name}' in {requested.Repository}",
+                innerException: exception
+            );
+        }
+    }
+
+    private async ValueTask<bool> TryCreateLabelAsync(
+        LabelCreateResponse requested,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            await this._restClient.PostAsync(
+                relativeUri: $"repos/{requested.Repository}/labels",
+                body: new LabelCreateRequest(
+                    Name: requested.Name,
+                    Color: requested.Colour,
+                    Description: requested.Description
+                ),
+                requestTypeInfo: GitHubJsonContext.Default.LabelCreateRequest,
+                responseTypeInfo: GitHubJsonContext.Default.LabelResponse,
+                cancellationToken: cancellationToken
+            );
+
+            return true;
+        }
+        catch (HttpRequestException exception) when (IsAlreadyExists(exception))
+        {
+            return false;
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Only the create names the repository alone; a label that vanishes before its update is a failure instead
+            throw new RepositoryNotFoundException(
+                message: $"the repository {requested.Repository} was not found, or the caller cannot see it",
+                innerException: exception
+            );
+        }
+    }
+
+    // GitHub reports an existing label only as a validation failure, so any other refusal is never read as one
+    private static bool IsAlreadyExists(HttpRequestException exception)
+    {
+        return exception.StatusCode == HttpStatusCode.UnprocessableEntity
+            && GitHubHttpFailure.HasErrorCode(exception: exception, code: ALREADY_EXISTS);
+    }
+
+    private async ValueTask<LabelCreateResponse> UpdateLabelAsync(
+        LabelCreateResponse requested,
+        CancellationToken cancellationToken
+    )
+    {
+        string labelUri = $"repos/{requested.Repository}/labels/{Uri.EscapeDataString(requested.Name)}";
+
+        LabelResponse existing = await this._restClient.GetAsync(
+            relativeUri: labelUri,
+            responseTypeInfo: GitHubJsonContext.Default.LabelResponse,
+            cancellationToken: cancellationToken
+        );
+
+        if (IsSameLabel(existing: existing, requested: requested))
+        {
+            return requested with { Outcome = LabelCreateOutcome.Unchanged };
+        }
+
+        await this._restClient.PatchAsync(
+            relativeUri: labelUri,
+            body: new LabelUpdateRequest(
+                NewName: requested.Name,
+                Color: requested.Colour,
+                Description: requested.Description
+            ),
+            requestTypeInfo: GitHubJsonContext.Default.LabelUpdateRequest,
+            responseTypeInfo: GitHubJsonContext.Default.LabelResponse,
+            cancellationToken: cancellationToken
+        );
+
+        return requested with
+        {
+            Outcome = LabelCreateOutcome.Updated,
+        };
+    }
+
+    // GitHub returns no description as null, which never matches because a description is always requested
+    private static bool IsSameLabel(LabelResponse existing, LabelCreateResponse requested)
+    {
+        return StringComparer.Ordinal.Equals(x: existing.Name, y: requested.Name)
+            && StringComparer.OrdinalIgnoreCase.Equals(x: existing.Color, y: requested.Colour)
+            && StringComparer.Ordinal.Equals(x: existing.Description, y: requested.Description);
     }
 
     private async ValueTask<LabelChangeResponse> AddLabelsAsync(

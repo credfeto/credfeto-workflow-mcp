@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_search", "pr_status", "pr_view", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_search", "pr_status", "pr_view", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -2067,6 +2067,48 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 0
+    }
+  }
+}
+
+### Call the label_create tool; creates the label, or updates an existing one, and expects outcome "Created", "Updated" or "Unchanged" with the repository, the standard name "Bug", the lower-case colour and the description
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 103,
+  "method": "tools/call",
+  "params": {
+    "name": "label_create",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "name": "bug",
+      "description": "Generic bug fix",
+      "color": "D73A4A"
+    }
+  }
+}
+
+### Call the label_create tool with a colour that starts with "#"; expects a tool error naming the "color" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 104,
+  "method": "tools/call",
+  "params": {
+    "name": "label_create",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "name": "Bug",
+      "description": "Generic bug fix",
+      "color": "#d73a4a"
     }
   }
 }
