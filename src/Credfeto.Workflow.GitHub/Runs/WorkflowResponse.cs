@@ -7,5 +7,6 @@ namespace Credfeto.Workflow.GitHub.Runs;
 internal sealed record WorkflowResponse(
     [property: JsonPropertyName("id")] long? Id,
     [property: JsonPropertyName("name")] string? Name,
-    [property: JsonPropertyName("path")] string? Path
+    [property: JsonPropertyName("path")] string? Path,
+    [property: JsonPropertyName("state")] string? State
 );

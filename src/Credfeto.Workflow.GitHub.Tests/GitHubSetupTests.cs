@@ -12,9 +12,11 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
+using Credfeto.Workflow.GitHub.Workflows;
 using FunFair.Test.Common;
 using FunFair.Test.Infrastructure;
 using Microsoft.AspNetCore.Http;
@@ -348,6 +350,30 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void IssueListServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IIssueListService, IssueListService>();
+    }
+
+    [Fact]
+    public void RepositoryListServiceShouldBeRegistered()
+    {
+        this.RequireService<IRepositoryListService>();
+    }
+
+    [Fact]
+    public void RepositoryListServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepositoryListService, RepositoryListService>();
+    }
+
+    [Fact]
+    public void WorkflowListServiceShouldBeRegistered()
+    {
+        this.RequireService<IWorkflowListService>();
+    }
+
+    [Fact]
+    public void WorkflowListServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IWorkflowListService, WorkflowListService>();
     }
 
     [Fact]

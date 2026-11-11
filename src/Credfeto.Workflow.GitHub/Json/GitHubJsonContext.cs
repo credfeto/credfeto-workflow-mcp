@@ -9,6 +9,7 @@ using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
@@ -75,6 +76,8 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(FieldsQueryData))]
 [JsonSerializable(typeof(VisibilityQueryVariables))]
 [JsonSerializable(typeof(VisibilityQueryData))]
+[JsonSerializable(typeof(RepositoryListQueryVariables))]
+[JsonSerializable(typeof(RepositoryListQueryData))]
 [JsonSerializable(typeof(IssueLabelResponse[]))]
 [JsonSerializable(typeof(IssueLabelResponse))]
 [JsonSerializable(typeof(IssueUserResponse))]

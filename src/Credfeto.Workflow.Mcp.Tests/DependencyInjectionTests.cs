@@ -56,11 +56,13 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_search",
                 "pr_status",
                 "pr_view",
+                "repo_list",
                 "repo_search",
                 "run_list",
                 "run_log",
                 "run_rerun",
                 "run_view",
+                "workflow_list",
                 "workflow_status_check",
                 "workflow_status_set",
             ],
@@ -80,6 +82,8 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_search")]
     [InlineData("code_search")]
     [InlineData("repo_search")]
+    [InlineData("repo_list")]
+    [InlineData("workflow_list")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
     [InlineData("pr_status")]
@@ -247,6 +251,24 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["includeArchived", "limit", "owner", "text"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["owner", "text"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RepoListTakesOwnerAndOptionalArchived()
+    {
+        JsonElement schema = this.GetTool("repo_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["includeArchived", "owner"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["owner"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void WorkflowListTakesRepo()
+    {
+        JsonElement schema = this.GetTool("workflow_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -597,6 +619,8 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ICodeSearchService>()
             .AddMockedService<IRepoSearchService>()
             .AddMockedService<IIssueListService>()
+            .AddMockedService<IRepositoryListService>()
+            .AddMockedService<IWorkflowListService>()
             .AddMockedService<IRunListService>()
             .AddMockedService<IRunViewService>()
             .AddMockedService<IRunLogService>()
