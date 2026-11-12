@@ -42,6 +42,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "issue_view",
                 "label_add",
                 "label_create",
+                "label_list",
                 "label_remove",
                 "ping",
                 "pr_auto_merge_at",
@@ -86,6 +87,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("repo_search")]
     [InlineData("repo_list")]
     [InlineData("workflow_list")]
+    [InlineData("label_list")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
     [InlineData("pr_status")]
@@ -269,6 +271,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     public void WorkflowListTakesRepo()
     {
         JsonElement schema = this.GetTool("workflow_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void LabelListTakesRepo()
+    {
+        JsonElement schema = this.GetTool("label_list").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
@@ -645,6 +656,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IPullRequestListService>()
             .AddMockedService<ILabelService>()
+            .AddMockedService<ILabelListService>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
             .AddMockedService<IIssueEditService>()

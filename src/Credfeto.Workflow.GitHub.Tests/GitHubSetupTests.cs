@@ -257,6 +257,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void LabelListServiceShouldBeRegistered()
+    {
+        this.RequireService<ILabelListService>();
+    }
+
+    [Fact]
+    public void LabelListServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ILabelListService, LabelListService>();
+    }
+
+    [Fact]
     public void IssueServiceShouldBeRegistered()
     {
         this.RequireService<IIssueService>();

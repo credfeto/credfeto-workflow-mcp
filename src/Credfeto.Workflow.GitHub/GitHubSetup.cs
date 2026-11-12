@@ -111,6 +111,7 @@ public static class GitHubSetup
             .AddSingleton<IPrEditService, PrEditService>()
             .AddSingleton<ICommentAddService, CommentAddService>()
             .AddSingleton<ILabelService, LabelService>()
+            .AddSingleton<ILabelListService, LabelListService>()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssuePlanStatusReader, IssuePlanStatusReader>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()
