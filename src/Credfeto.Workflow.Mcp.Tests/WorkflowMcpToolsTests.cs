@@ -7,6 +7,7 @@ using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
+using Credfeto.Workflow.GitHub.Runs;
 using FunFair.Test.Common;
 using ModelContextProtocol;
 using NSubstitute;
@@ -1616,11 +1617,55 @@ public sealed class WorkflowMcpToolsTests : TestBase
             Steps: 1,
             Lines: 1,
             Redacted: 0,
-            Masked: 0
+            Masked: 0,
+            Matches: null,
+            Truncated: false
         );
         this.RunLogServiceCallAsync().Returns(expected);
 
         RunLogResponse actual = await this.RunLogAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task RunLogPassesTheSearchToTheServiceAsync()
+    {
+        RunLogResponse expected = new(
+            Outcome: RunLogOutcome.Log,
+            Message: "read the failed steps' logs of the run 5 of " + REPOSITORY,
+            Log: "== job build step Test\n| 12: not ok 1 test\n",
+            Jobs: 1,
+            Steps: 1,
+            Lines: 1,
+            Redacted: 0,
+            Masked: 0,
+            Matches: 3,
+            Truncated: true
+        );
+        this._runLogService.ReadFailedAsync(
+                repository: REPOSITORY,
+                run: "5",
+                job: null,
+                lines: RunQuery.DEFAULT_LINES,
+                grep: "not ok",
+                context: 3,
+                maxMatches: 1,
+                fromLine: 10,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        RunLogResponse actual = await WorkflowMcpTools.RunLogAsync(
+            repo: REPOSITORY,
+            run: "5",
+            service: this._runLogService,
+            grep: "not ok",
+            context: 3,
+            maxMatches: 1,
+            fromLine: 10,
+            cancellationToken: this.CancellationToken()
+        );
 
         Assert.Same(expected: expected, actual: actual);
     }
@@ -1668,6 +1713,10 @@ public sealed class WorkflowMcpToolsTests : TestBase
             run: "5",
             job: "20",
             lines: 30,
+            grep: null,
+            context: RunQuery.DEFAULT_CONTEXT,
+            maxMatches: RunQuery.DEFAULT_MAX_MATCHES,
+            fromLine: RunQuery.DEFAULT_FROM_LINE,
             cancellationToken: Arg.Any<CancellationToken>()
         );
     }

@@ -750,15 +750,25 @@ public sealed class WorkflowMcpTools
 
     [McpServerTool(Name = "run_log", Title = "Run log", ReadOnly = true)]
     [Description(
-        "Reads the last lines of the logs of a completed GitHub Actions run's failed steps, from its latest attempt, with each line made printable, a line holding a token redacted and long secrets masked; the outcome is pending while the run or job has not completed and not found when the run or job is not in the repository"
+        "Reads the last lines of the logs of a completed GitHub Actions run's failed steps, from its latest attempt, with each line made printable, a line holding a token redacted and long secrets masked; with grep, searches each failed step's whole log instead and returns the matching lines numbered as 'N:', their context lines as 'N-' and gaps as '--', with the total match count and whether more matched than were kept; the outcome is pending while the run or job has not completed and not found when the run or job is not in the repository"
     )]
     public static async Task<RunLogResponse> RunLogAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The run's id, digits only")] string run,
         IRunLogService service,
         [Description("Only this job of the run: its id, digits only")] string? job = null,
-        [Description("The most of the last lines of each failed step to keep, from 1 to 2000")]
+        [Description("The most of the last lines of each failed step to keep, from 1 to 2000; ignored with grep")]
             int lines = RunQuery.DEFAULT_LINES,
+        [Description(
+            "A .NET regular expression, 1 to 256 characters, matched against each sanitised line of each failed step's whole log; POSIX classes such as [[:digit:]] are not supported"
+        )]
+            string? grep = null,
+        [Description("With grep, how many lines to keep before and after each match, from 0 to 20")]
+            int context = RunQuery.DEFAULT_CONTEXT,
+        [Description("With grep, the most matching lines to keep across the whole run, from 1 to 200")]
+            int maxMatches = RunQuery.DEFAULT_MAX_MATCHES,
+        [Description("With grep, the line of each failed step's log to start searching from, at least 1")]
+            int fromLine = RunQuery.DEFAULT_FROM_LINE,
         CancellationToken cancellationToken = default
     )
     {
@@ -769,6 +779,10 @@ public sealed class WorkflowMcpTools
                 run: run,
                 job: job,
                 lines: lines,
+                grep: grep,
+                context: context,
+                maxMatches: maxMatches,
+                fromLine: fromLine,
                 cancellationToken: cancellationToken
             );
         }

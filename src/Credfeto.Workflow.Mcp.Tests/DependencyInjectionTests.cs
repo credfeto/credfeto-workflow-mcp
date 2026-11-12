@@ -313,11 +313,14 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
-    public void RunLogTakesRepoAndRunAndOptionalJobAndLines()
+    public void RunLogTakesRepoAndRunAndOptionalJobLinesAndSearch()
     {
         JsonElement schema = this.GetTool("run_log").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["job", "lines", "repo", "run"], actual: PropertyNames(schema));
+        Assert.Equal(
+            expected: ["context", "fromLine", "grep", "job", "lines", "maxMatches", "repo", "run"],
+            actual: PropertyNames(schema)
+        );
         Assert.Equal(expected: ["repo", "run"], actual: RequiredNames(schema));
     }
 

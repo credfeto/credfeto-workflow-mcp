@@ -119,7 +119,11 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
         RecordingHttpMessageHandler? storage = null,
         string? job = null,
         int lines = 100,
-        string run = "5"
+        string run = "5",
+        string? grep = null,
+        int context = RunQuery.DEFAULT_CONTEXT,
+        int maxMatches = RunQuery.DEFAULT_MAX_MATCHES,
+        int fromLine = RunQuery.DEFAULT_FROM_LINE
     )
     {
         IHttpClientFactory factory = MockHttpClientFactoryCreateClient(upstream);
@@ -138,6 +142,10 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
             run: run,
             job: job,
             lines: lines,
+            grep: grep,
+            context: context,
+            maxMatches: maxMatches,
+            fromLine: fromLine,
             cancellationToken: this.CancellationToken()
         );
     }
@@ -150,9 +158,77 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
         return await this.ReadAsync(upstream: upstream, storage: storage, job: job, lines: lines);
     }
 
+    private async Task<RunLogResponse> SearchZipAsync(
+        string jobs,
+        byte[] zip,
+        string grep,
+        int context = RunQuery.DEFAULT_CONTEXT,
+        int maxMatches = RunQuery.DEFAULT_MAX_MATCHES,
+        int fromLine = RunQuery.DEFAULT_FROM_LINE
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(Upstream(jobs));
+        using RecordingHttpMessageHandler storage = new(_ => Content(zip));
+
+        return await this.ReadAsync(
+            upstream: upstream,
+            storage: storage,
+            lines: 1,
+            grep: grep,
+            context: context,
+            maxMatches: maxMatches,
+            fromLine: fromLine
+        );
+    }
+
+    private async Task<RunLogResponse> SearchCompileAsync(
+        string text,
+        string grep,
+        int context = RunQuery.DEFAULT_CONTEXT,
+        int maxMatches = RunQuery.DEFAULT_MAX_MATCHES,
+        int fromLine = RunQuery.DEFAULT_FROM_LINE
+    )
+    {
+        return await this.SearchZipAsync(
+            jobs: FailedBuild(),
+            zip: await this.ZipAsync(("build/3_Compile.txt", text)),
+            grep: grep,
+            context: context,
+            maxMatches: maxMatches,
+            fromLine: fromLine
+        );
+    }
+
     private static RunLogResponse Outcome(RunLogOutcome outcome, string message)
     {
-        return new(Outcome: outcome, Message: message, Log: null, Jobs: 0, Steps: 0, Lines: 0, Redacted: 0, Masked: 0);
+        return new(
+            Outcome: outcome,
+            Message: message,
+            Log: null,
+            Jobs: 0,
+            Steps: 0,
+            Lines: 0,
+            Redacted: 0,
+            Masked: 0,
+            Matches: null,
+            Truncated: false
+        );
+    }
+
+    private static RunLogResponse Searched(string log, int lines, int matches, bool truncated, int jobs = 1)
+    {
+        return new(
+            Outcome: RunLogOutcome.Log,
+            Message: READ,
+            Log: log,
+            Jobs: jobs,
+            Steps: jobs,
+            Lines: lines,
+            Redacted: 0,
+            Masked: 0,
+            Matches: matches,
+            Truncated: truncated
+        );
     }
 
     [Fact]
@@ -176,7 +252,9 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
                 Steps: 1,
                 Lines: 3,
                 Redacted: 0,
-                Masked: 0
+                Masked: 0,
+                Matches: null,
+                Truncated: false
             ),
             actual: response
         );
@@ -332,7 +410,9 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
                 Steps: 0,
                 Lines: 0,
                 Redacted: 0,
-                Masked: 0
+                Masked: 0,
+                Matches: null,
+                Truncated: false
             ),
             actual: response
         );
@@ -417,7 +497,9 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
                 Steps: 0,
                 Lines: 0,
                 Redacted: 0,
-                Masked: 0
+                Masked: 0,
+                Matches: null,
+                Truncated: false
             ),
             actual: response
         );
@@ -630,5 +712,254 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
 
         Assert.Equal(expected: parameter, actual: exception.ParameterName);
         Assert.Empty(upstream.Requests);
+    }
+
+    [Theory]
+    [InlineData("", 0, 20, 1, "grep")]
+    [InlineData("(", 0, 20, 1, "grep")]
+    [InlineData("err", -1, 20, 1, "context")]
+    [InlineData("err", 21, 20, 1, "context")]
+    [InlineData("err", 0, 0, 1, "maxMatches")]
+    [InlineData("err", 0, 201, 1, "maxMatches")]
+    [InlineData("err", 0, 20, 0, "fromLine")]
+    public async Task InvalidSearchIsRejectedWithoutRequestAsync(
+        string grep,
+        int context,
+        int maxMatches,
+        int fromLine,
+        string parameter
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(Unexpected);
+
+        ParameterValidationException exception = await Assert.ThrowsAsync<ParameterValidationException>(() =>
+            this.ReadAsync(upstream: upstream, grep: grep, context: context, maxMatches: maxMatches, fromLine: fromLine)
+        );
+
+        Assert.Equal(expected: parameter, actual: exception.ParameterName);
+        Assert.Empty(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task SearchSettingsAreIgnoredWithoutGrepAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(Upstream(FailedBuild()));
+        byte[] zip = await this.ZipAsync(("build/3_Compile.txt", "a\n"));
+        using RecordingHttpMessageHandler storage = new(_ => Content(zip));
+
+        RunLogResponse response = await this.ReadAsync(
+            upstream: upstream,
+            storage: storage,
+            context: -1,
+            maxMatches: 0,
+            fromLine: 0
+        );
+
+        Assert.Equal(expected: "== job build step Compile\n| a\n", actual: response.Log);
+        Assert.Null(response.Matches);
+    }
+
+    [Fact]
+    public async Task MatchBeforeTheTailIsFoundAsync()
+    {
+        string text =
+            "not ok 1\n"
+            + string.Concat(
+                Enumerable
+                    .Range(start: 2, count: 5000)
+                    .Select(number => "ok " + number.ToString(CultureInfo.InvariantCulture) + "\n")
+            );
+
+        RunLogResponse response = await this.SearchCompileAsync(text: text, grep: "not ok", context: 1);
+
+        Assert.Equal(
+            expected: Searched(
+                log: "== job build step Compile\n| 1: not ok 1\n| 2- ok 2\n",
+                lines: 2,
+                matches: 1,
+                truncated: false
+            ),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task SearchWithNoMatchKeepsNoLinesAsync()
+    {
+        RunLogResponse response = await this.SearchCompileAsync(text: "a\nb\n", grep: "missing", context: 3);
+
+        Assert.Equal(
+            expected: Searched(log: "== job build step Compile\n", lines: 0, matches: 0, truncated: false),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task MatchesPastTheMostAreCountedButNotKeptAsync()
+    {
+        RunLogResponse response = await this.SearchCompileAsync(
+            text: "e1\nx\ne2\ny\ne3\n",
+            grep: "^e",
+            context: 1,
+            maxMatches: 1
+        );
+
+        Assert.Equal(
+            expected: Searched(
+                log: "== job build step Compile\n| 1: e1\n| 2- x\n",
+                lines: 2,
+                matches: 3,
+                truncated: true
+            ),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task ContextIsKeptAroundEachMatchWithGapsMarkedAsync()
+    {
+        RunLogResponse response = await this.SearchCompileAsync(
+            text: "a\nerr\nb\nc\nd\nerr\n\nerr\n",
+            grep: "err",
+            context: 1
+        );
+
+        Assert.Equal(
+            expected: Searched(
+                log: "== job build step Compile\n| 1- a\n| 2: err\n| 3- b\n"
+                    + RunLogService.GAP
+                    + "\n| 5- d\n| 6: err\n| 7-\n| 8: err\n",
+                lines: 7,
+                matches: 3,
+                truncated: false
+            ),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task LinesBeforeTheFromLineAreNotSearchedAsync()
+    {
+        RunLogResponse response = await this.SearchCompileAsync(
+            text: "err 1\nok\nerr 3\n",
+            grep: "err",
+            context: 1,
+            fromLine: 2
+        );
+
+        Assert.Equal(
+            expected: Searched(
+                log: "== job build step Compile\n| 2- ok\n| 3: err 3\n",
+                lines: 2,
+                matches: 1,
+                truncated: false
+            ),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task MostMatchesAppliesToTheWholeRunAsync()
+    {
+        string jobs = RunJson.Jobs(
+            2,
+            RunJson.Job(id: 20, runId: 5, name: "build", steps: FailedSteps),
+            RunJson.Job(id: 30, runId: 5, name: "test", steps: FailedSteps)
+        );
+
+        RunLogResponse response = await this.SearchZipAsync(
+            jobs: jobs,
+            zip: await this.ZipAsync(("build/3_Compile.txt", "err b\n"), ("test/3_Compile.txt", "err t\n")),
+            grep: "err",
+            maxMatches: 1
+        );
+
+        Assert.Equal(
+            expected: Searched(
+                log: "== job build step Compile\n| 1: err b\n== job test step Compile\n",
+                lines: 1,
+                matches: 2,
+                truncated: true,
+                jobs: 2
+            ),
+            actual: response
+        );
+    }
+
+    [Theory]
+    [InlineData("gh" + "p_")]
+    [InlineData("0123456789")]
+    public async Task SearchCannotFindTextThatIsHiddenAsync(string grep)
+    {
+        string hex = string.Concat(Enumerable.Repeat(element: "0123456789", count: 5));
+
+        RunLogResponse response = await this.SearchCompileAsync(
+            text: "token gh" + "p_abc\nvalue " + hex + "\n",
+            grep: grep
+        );
+
+        Assert.Equal(
+            expected: Searched(log: "== job build step Compile\n", lines: 0, matches: 0, truncated: false),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task LongLineIsSearchedAndShownCutAsync()
+    {
+        RunLogResponse response = await this.SearchCompileAsync(
+            text: "ok\n" + new string('x', RunLogSanitiser.MAX_LINE_BYTES + 500) + "\n",
+            grep: "^x"
+        );
+
+        Assert.Equal(
+            expected: Searched(
+                log: "== job build step Compile\n| 2: "
+                    + new string('x', RunLogSanitiser.MAX_LINE_BYTES)
+                    + RunLogSanitiser.CUT_SUFFIX
+                    + "\n",
+                lines: 1,
+                matches: 1,
+                truncated: false
+            ),
+            actual: response
+        );
+    }
+
+    [Fact]
+    public async Task SearchThatTakesTooLongIsAFailureAsync()
+    {
+        RunLogFailedException exception = await Assert.ThrowsAsync<RunLogFailedException>(() =>
+            this.SearchCompileAsync(text: new string('x', 40) + "zy\n", grep: "(x+)+\\1y")
+        );
+
+        Assert.Equal(
+            expected: "the grep pattern took too long to match a line of the log; use a simpler pattern",
+            actual: exception.Message
+        );
+    }
+
+    [Fact]
+    public async Task SearchOverTheCapIsAFailureAsync()
+    {
+        string pair =
+            new string('x', RunLogSanitiser.MAX_LINE_BYTES)
+            + "\n"
+            + new string('y', RunLogSanitiser.MAX_LINE_BYTES)
+            + "\n";
+
+        RunLogFailedException exception = await Assert.ThrowsAsync<RunLogFailedException>(() =>
+            this.SearchCompileAsync(
+                text: string.Concat(Enumerable.Repeat(element: pair, count: 300)),
+                grep: "^x",
+                context: 1,
+                maxMatches: RunQuery.MAX_MAX_MATCHES
+            )
+        );
+
+        Assert.Equal(
+            expected: "the failed steps' logs of the run 5 of credfeto/credfeto-workflow-mcp are over 262144 bytes; ask for fewer matches or less context, or one job",
+            actual: exception.Message
+        );
     }
 }

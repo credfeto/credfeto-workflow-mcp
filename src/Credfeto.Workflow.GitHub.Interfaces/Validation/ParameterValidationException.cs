@@ -15,4 +15,13 @@ public sealed partial class ParameterValidationException : Exception
     {
         return new($"Parameter '{parameterName}' is not valid: {rule}") { ParameterName = parameterName, Rule = rule };
     }
+
+    public static ParameterValidationException For(string parameterName, string rule, Exception innerException)
+    {
+        return new(message: $"Parameter '{parameterName}' is not valid: {rule}", innerException: innerException)
+        {
+            ParameterName = parameterName,
+            Rule = rule,
+        };
+    }
 }
