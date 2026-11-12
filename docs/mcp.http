@@ -1455,6 +1455,70 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the run_log tool with a search; expects outcome "Log" with at most 5 lines matching "not ok" in each failed step's whole log from line 100, numbered, with 3 lines either side, plus "matches" counting every match and "truncated" when more matched
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 107,
+  "method": "tools/call",
+  "params": {
+    "name": "run_log",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1",
+      "grep": "not ok",
+      "context": 3,
+      "maxMatches": 5,
+      "fromLine": 100
+    }
+  }
+}
+
+### Call the run_log tool with an invalid search pattern; expects a tool error naming the "grep" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 108,
+  "method": "tools/call",
+  "params": {
+    "name": "run_log",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1",
+      "grep": "("
+    }
+  }
+}
+
+### Call the run_log tool with too much context; expects a tool error naming the "context" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 109,
+  "method": "tools/call",
+  "params": {
+    "name": "run_log",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "run": "1",
+      "grep": "error",
+      "context": 21
+    }
+  }
+}
+
 ### Call the pr_reply tool on an inline review comment; expects outcome "Posted" with the new comment id, the root comment id it replied to and its URL
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}

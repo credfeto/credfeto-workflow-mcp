@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -22,6 +23,8 @@ public sealed class RunLogService : IRunLogService
     public const int MAX_OUTPUT_BYTES = 262144;
 
     public const string UNKNOWN_STEP = "UNKNOWN STEP";
+
+    public const string GAP = "--";
 
     private const string COMPLETED = "completed";
 
@@ -48,6 +51,10 @@ public sealed class RunLogService : IRunLogService
         string run,
         string? job,
         int lines,
+        string? grep,
+        int context,
+        int maxMatches,
+        int fromLine,
         CancellationToken cancellationToken
     )
     {
@@ -55,7 +62,15 @@ public sealed class RunLogService : IRunLogService
             Repository: GitHubNames.Repository(value: repository, parameterName: nameof(repository)),
             Run: RunQuery.Id(value: run, parameterName: nameof(run)),
             Job: job is null ? null : RunQuery.Id(value: job, parameterName: nameof(job)),
-            Lines: RunQuery.Lines(value: lines, parameterName: nameof(lines))
+            Lines: RunQuery.Lines(value: lines, parameterName: nameof(lines)),
+            Search: grep is null
+                ? null
+                : new(
+                    Pattern: RunQuery.Grep(value: grep, parameterName: nameof(grep)),
+                    Context: RunQuery.Context(value: context, parameterName: nameof(context)),
+                    MaxMatches: RunQuery.MaxMatches(value: maxMatches, parameterName: nameof(maxMatches)),
+                    FromLine: RunQuery.FromLine(value: fromLine, parameterName: nameof(fromLine))
+                )
         );
 
         return this.ReadAsync(request: request, cancellationToken: cancellationToken);
@@ -164,8 +179,9 @@ public sealed class RunLogService : IRunLogService
             log = log.Add(
                 await SectionsAsync(
                     archive: archive,
+                    request: request,
                     job: job,
-                    lines: request.Lines,
+                    kept: log.Kept,
                     cancellationToken: cancellationToken
                 )
             );
@@ -208,33 +224,35 @@ public sealed class RunLogService : IRunLogService
     }
 
     // A failed job's failed steps are read from their own files; a job with none, such as one that failed to
-    // start, or whose step files are missing, falls back to the job's whole log under the unknown step
+    // start, or whose step files are missing, falls back to the job's whole log under the unknown step. kept is how
+    // many matches earlier jobs kept, so the most matches a search keeps applies to the whole run
     private static async ValueTask<IReadOnlyList<RunLogSection>> SectionsAsync(
         RunLogArchive archive,
+        RunLogRequest request,
         WorkflowJobResponse job,
-        int lines,
+        int kept,
         CancellationToken cancellationToken
     )
     {
         string jobName = RunLogSanitiser.Name(job.Name);
         List<RunLogSection> steps = [];
+        int keptSoFar = kept;
 
         foreach ((int number, string? name) in FailedSteps(job))
         {
-            RunLogSection? section = Section(
-                job: jobName,
-                step: RunLogSanitiser.Name(name),
-                raw: await archive.StepLinesAsync(
+            RunLogLineReader reader = Reader(request: request, kept: keptSoFar);
+
+            if (
+                await archive.ReadStepAsync(
                     jobName: job.Name,
                     stepNumber: number,
-                    lines: lines,
+                    reader: reader,
                     cancellationToken: cancellationToken
                 )
-            );
-
-            if (section is not null)
+            )
             {
-                steps.Add(section);
+                steps.Add(Section(job: jobName, step: RunLogSanitiser.Name(name), reader: reader));
+                keptSoFar += reader.Kept;
             }
         }
 
@@ -243,13 +261,18 @@ public sealed class RunLogService : IRunLogService
             return steps;
         }
 
-        RunLogSection? whole = Section(
-            job: jobName,
-            step: UNKNOWN_STEP,
-            raw: await archive.JobLinesAsync(jobName: job.Name, lines: lines, cancellationToken: cancellationToken)
-        );
+        RunLogLineReader whole = Reader(request: request, kept: kept);
 
-        return whole is null ? [] : [whole];
+        return await archive.ReadJobAsync(jobName: job.Name, reader: whole, cancellationToken: cancellationToken)
+            ? [Section(job: jobName, step: UNKNOWN_STEP, reader: whole)]
+            : [];
+    }
+
+    private static RunLogLineReader Reader(RunLogRequest request, int kept)
+    {
+        return request.Search is { } search
+            ? new RunLogSearchReader(search: search, budget: search.MaxMatches - kept)
+            : new RunLogTailReader(request.Lines);
     }
 
     private static IEnumerable<(int Number, string? Name)> FailedSteps(WorkflowJobResponse job)
@@ -260,15 +283,9 @@ public sealed class RunLogService : IRunLogService
             .OrderBy(step => step.Number);
     }
 
-    private static RunLogSection? Section(string job, string step, IReadOnlyList<RunLogArchive.RawLine>? raw)
+    private static RunLogSection Section(string job, string step, RunLogLineReader reader)
     {
-        return raw is null
-            ? null
-            : new(
-                Job: job,
-                Step: step,
-                Lines: [.. raw.Select(line => RunLogSanitiser.Line(bytes: line.Bytes, over: line.Over))]
-            );
+        return new(Job: job, Step: step, Lines: reader.Entries, Matches: reader.Matches, Kept: reader.Kept);
     }
 
     private static RunLogResponse Logged(RunLogRequest request, RunLogText log)
@@ -277,12 +294,15 @@ public sealed class RunLogService : IRunLogService
 
         if (Encoding.UTF8.GetByteCount(text) > MAX_OUTPUT_BYTES)
         {
+            string fewer = request.Search is null ? "fewer lines" : "fewer matches or less context";
+
             throw new RunLogFailedException(
-                $"the failed steps' logs of the run {request.Run} of {request.Repository} are over {MAX_OUTPUT_BYTES} bytes; ask for fewer lines, or one job"
+                $"the failed steps' logs of the run {request.Run} of {request.Repository} are over {MAX_OUTPUT_BYTES} bytes; ask for {fewer}, or one job"
             );
         }
 
         (int lines, int redacted, int masked) = log.CountLines();
+        int? matches = request.Search is null ? null : log.Matches;
 
         return new(
             Outcome: RunLogOutcome.Log,
@@ -292,13 +312,26 @@ public sealed class RunLogService : IRunLogService
             Steps: log.Sections.Count,
             Lines: lines,
             Redacted: redacted,
-            Masked: masked
+            Masked: masked,
+            Matches: matches,
+            Truncated: matches > log.Kept
         );
     }
 
     private static RunLogResponse Outcome(RunLogOutcome outcome, string message)
     {
-        return new(Outcome: outcome, Message: message, Log: null, Jobs: 0, Steps: 0, Lines: 0, Redacted: 0, Masked: 0);
+        return new(
+            Outcome: outcome,
+            Message: message,
+            Log: null,
+            Jobs: 0,
+            Steps: 0,
+            Lines: 0,
+            Redacted: 0,
+            Masked: 0,
+            Matches: null,
+            Truncated: false
+        );
     }
 
     private static bool IsCompleted(string? status)
@@ -311,17 +344,28 @@ public sealed class RunLogService : IRunLogService
         return conclusion is not null && FailedConclusions.Contains(conclusion);
     }
 
+    // Search is null when the tail of each failed step is read
     [DebuggerDisplay("{Repository} {Run} {Job} {Lines}")]
-    private readonly record struct RunLogRequest(string Repository, long Run, long? Job, int Lines);
+    private sealed record RunLogRequest(string Repository, long Run, long? Job, int Lines, RunLogSearch? Search);
 
     [DebuggerDisplay("{Job}: {Step}")]
-    private sealed record RunLogSection(string Job, string Step, IReadOnlyList<RunLogLine> Lines);
+    private sealed record RunLogSection(
+        string Job,
+        string Step,
+        IReadOnlyList<RunLogEntry> Lines,
+        int Matches,
+        int Kept
+    );
 
     // Jobs counts the jobs that gave at least one section
     [DebuggerDisplay("{Jobs} jobs, {Sections.Count} steps")]
     private sealed record RunLogText(int Jobs, IReadOnlyList<RunLogSection> Sections)
     {
         public static RunLogText Empty { get; } = new(Jobs: 0, Sections: []);
+
+        public int Matches => this.Sections.Sum(section => section.Matches);
+
+        public int Kept => this.Sections.Sum(section => section.Kept);
 
         public RunLogText Add(IReadOnlyList<RunLogSection> sections)
         {
@@ -335,7 +379,7 @@ public sealed class RunLogService : IRunLogService
             int redacted = 0;
             int masked = 0;
 
-            foreach (RunLogLine line in this.Sections.SelectMany(section => section.Lines))
+            foreach (RunLogLine line in this.Sections.SelectMany(section => section.Lines).Select(entry => entry.Line))
             {
                 ++lines;
 
@@ -361,14 +405,42 @@ public sealed class RunLogService : IRunLogService
             foreach (RunLogSection section in this.Sections)
             {
                 _ = builder.Append("== job ").Append(section.Job).Append(" step ").Append(section.Step).Append('\n');
+                int? previous = null;
 
-                foreach (string text in section.Lines.Select(line => line.Text))
+                foreach (RunLogEntry entry in section.Lines)
                 {
-                    _ = text.Length == 0 ? builder.Append("|\n") : builder.Append("| ").Append(text).Append('\n');
+                    RenderEntry(builder: builder, entry: entry, previous: previous);
+                    previous = entry.Number;
                 }
             }
 
             return builder.ToString();
+        }
+
+        // A searched line shows its number then ':' when it matched or '-' when it is context, as grep shows them,
+        // and a gap between the searched lines kept is marked as grep marks it
+        private static void RenderEntry(StringBuilder builder, in RunLogEntry entry, int? previous)
+        {
+            if (entry.Number is { } number)
+            {
+                if (previous is { } last && number != last + 1)
+                {
+                    _ = builder.Append(GAP).Append('\n');
+                }
+
+                _ = builder
+                    .Append("| ")
+                    .Append(number.ToString(CultureInfo.InvariantCulture))
+                    .Append(entry.Match ? ':' : '-');
+            }
+            else
+            {
+                _ = builder.Append('|');
+            }
+
+            string text = entry.Line.Text;
+
+            _ = text.Length == 0 ? builder.Append('\n') : builder.Append(' ').Append(text).Append('\n');
         }
     }
 }
