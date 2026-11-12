@@ -3090,6 +3090,95 @@ public sealed class WorkflowMcpToolsTests : TestBase
         );
     }
 
+    [Fact]
+    public async Task LabelCreateReturnsWhatTheServiceDidAsync()
+    {
+        LabelCreateResponse expected = new(
+            Outcome: LabelCreateOutcome.Updated,
+            Repository: REPOSITORY,
+            Name: "Bug",
+            Colour: "d73a4a",
+            Description: "Generic bug fix"
+        );
+        this._labelService.CreateAsync(
+                repository: REPOSITORY,
+                name: "bug",
+                description: "Generic bug fix",
+                colour: "D73A4A",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        LabelCreateResponse actual = await WorkflowMcpTools.LabelCreateAsync(
+            repo: REPOSITORY,
+            name: "bug",
+            description: "Generic bug fix",
+            color: "D73A4A",
+            service: this._labelService,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task LabelCreateFailuresAreReportedToTheCallerAsync()
+    {
+        IReadOnlyList<Exception> failures =
+        [
+            new LabelChangeFailedException("could not create the label 'Bug' in " + REPOSITORY),
+            new RepositoryNotFoundException("the repository " + REPOSITORY + " was not found"),
+            ParameterValidationException.For(parameterName: "color", rule: "it must be 6 hexadecimal digits"),
+        ];
+
+        foreach (Exception failure in failures)
+        {
+            this.LabelCreateFailsWith(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.LabelCreateAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task LabelCreateOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.LabelCreateFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.LabelCreateAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private void LabelCreateFailsWith(Exception failure)
+    {
+        this._labelService.CreateAsync(
+                repository: REPOSITORY,
+                name: Arg.Any<string>(),
+                description: Arg.Any<string>(),
+                colour: Arg.Any<string>(),
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<LabelCreateResponse> LabelCreateAsync()
+    {
+        return WorkflowMcpTools.LabelCreateAsync(
+            repo: REPOSITORY,
+            name: "Bug",
+            description: "Generic bug fix",
+            color: "d73a4a",
+            service: this._labelService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
     private async Task AssertListFailureReportedAsync(Exception failure)
     {
         this.ListServiceFailsWith(failure);

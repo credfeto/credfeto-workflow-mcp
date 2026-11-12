@@ -88,6 +88,8 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(LabelTimelineEventResponse[]))]
 [JsonSerializable(typeof(LabelAddRequest))]
 [JsonSerializable(typeof(LabelCreateRequest))]
+[JsonSerializable(typeof(LabelResponse))]
+[JsonSerializable(typeof(LabelUpdateRequest))]
 [JsonSerializable(typeof(WorkflowRunResponse))]
 [JsonSerializable(typeof(WorkflowRunsPageResponse))]
 [JsonSerializable(typeof(WorkflowJobResponse))]

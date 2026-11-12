@@ -41,6 +41,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "issue_search",
                 "issue_view",
                 "label_add",
+                "label_create",
                 "label_remove",
                 "ping",
                 "pr_auto_merge_at",
@@ -580,6 +581,28 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "label_remove writes labels");
         Assert.True(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "label_remove is destructive");
         Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "label_remove is idempotent");
+    }
+
+    [Fact]
+    public void LabelCreateTakesRepoNameDescriptionAndColor()
+    {
+        JsonElement schema = this.GetTool("label_create").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["color", "description", "name", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["color", "description", "name", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void LabelCreateIsAnIdempotentDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("label_create");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "label_create writes labels");
+        Assert.True(
+            tool.ProtocolTool.Annotations?.DestructiveHint,
+            userMessage: "label_create can overwrite an existing label"
+        );
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "label_create is idempotent");
     }
 
     private static string[] PropertyNames(JsonElement schema)

@@ -270,6 +270,60 @@ public sealed class GitHubNamesTests : TestBase
     }
 
     [Theory]
+    [InlineData("d73a4a", "d73a4a")]
+    [InlineData("D73A4A", "d73a4a")]
+    [InlineData("000000", "000000")]
+    [InlineData("FfFfFf", "ffffff")]
+    public static void LabelColourIsNormalisedToLowerCase(string value, string expected)
+    {
+        Assert.Equal(expected: expected, actual: GitHubNames.LabelColour(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("      ")]
+    [InlineData("#d73a4")]
+    [InlineData("d73a4")]
+    [InlineData("d73a4a0")]
+    [InlineData("d73a4g")]
+    [InlineData("١٢٣٤٥٦")]
+    public static void LabelColourRejectsInvalidValues(string value)
+    {
+        AssertRejected(() => GitHubNames.LabelColour(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("Generic bug fix")]
+    [InlineData("a")]
+    [InlineData("1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890")]
+    public static void LabelDescriptionAcceptsValidValues(string value)
+    {
+        Assert.Equal(expected: value, actual: GitHubNames.LabelDescription(value: value, parameterName: PARAMETER));
+    }
+
+    [Fact]
+    public void LabelDescriptionCountsEmojiAsOneCharacter()
+    {
+        string value = string.Concat(Enumerable.Repeat(element: "\U0001F600", count: 100));
+
+        Assert.Equal(expected: value, actual: GitHubNames.LabelDescription(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData("a\tb")]
+    [InlineData("a\nb")]
+    [InlineData("a\u0085b")]
+    [InlineData(
+        "12345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901"
+    )]
+    public static void LabelDescriptionRejectsInvalidValues(string value)
+    {
+        AssertRejected(() => GitHubNames.LabelDescription(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
     [InlineData("credfeto")]
     [InlineData("dependabot[bot]")]
     [InlineData("user_name-1")]

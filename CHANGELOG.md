@@ -55,6 +55,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added run_rerun MCP tool that reruns the failed jobs of a GitHub Actions run on an open pull request head, or the whole run when no job failed but a required check never ran, within attempt, default-branch and open-PR-head limits (#52)
 - Added repo_list MCP tool (owner, optional include-archived) that lists an owner's repositories, and workflow_list MCP tool (repo) that lists a repository's GitHub Actions workflows, so workflows can discover repositories and their workflows through the server (#60)
 - Added read-only pr_auto_merge_at MCP tool (repo, pr) that reports when auto-merge was last enabled on a pull request, or - when never enabled (#62)
+- Added label_create MCP tool that creates a standard repository label, and updates it when its colour or description differs from the standard, so labels can be set up consistently through the server (#63)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)

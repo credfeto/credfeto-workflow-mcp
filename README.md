@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `pr_status`, `pr_ready_at`, `pr_auto_merge_at`, `run_list`, `run_view`, `run_log`, `run_rerun`, `repo_list`, `workflow_list`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `label_create`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `pr_status`, `pr_ready_at`, `pr_auto_merge_at`, `run_list`, `run_view`, `run_log`, `run_rerun`, `repo_list`, `workflow_list`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -61,6 +61,7 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | `issue_reopen`           | Takes `repo` (`owner/repo`), `issue` and optional `comment`, posted first; reopens a closed issue and returns the outcome (`open` or `already-open`) and URL. An open issue is left as it is and the comment is not posted.                   |
 | `issue_search`           | Read only. Takes `repo` (`owner/repo`), `text` and optional `state` (`open`, `closed` or `all`; default `open`) and `limit` (1 to 100, default 30); returns each matching issue's number, state, title and labels, and whether more matched.  |
 | `issue_view`             | Read only. Takes `repo` (`owner/repo`) and `issue`; returns the issue number, title, state (`OPEN` or `CLOSED`), label names, assignee logins and body. A pull request number is reported as not found.                                       |
+| `label_create`           | Takes `repo` (`owner/repo`), a standard label `name` (any case), `description` and `color` (6 hex digits, no `#`); creates or updates the label to its standard spelling, colour and text; returns `Created`, `Updated` or `Unchanged`.       |
 | `ping`                   | Returns `{"value":"pong"}`, the same payload as `GET /ping`.                                                                                                                                                                                  |
 | `pr_auto_merge_at`       | Read only. Takes `repo` (`owner/repo`) and `pr`; reads its whole timeline and returns `pr` and `enabledAt` (UTC), the time auto-merge was last enabled, or `-` when it never was. A number that is not a pull request is not found.           |
 | `pr_close`               | Takes `repo` (`owner/repo`), `pr` and optional `comment`, posted first; closes the pull request without merging or deleting its branch; returns the outcome (`closed` or `already-closed`) and URL. Refused when merged.                      |
@@ -140,19 +141,21 @@ curl https://<host>:8081/ping
 Tool parameters are checked before any GitHub call is made.
 A value that breaks a rule is rejected with a message that names the parameter and the rule, never the value itself.
 
-| Parameter        | Rule                                                                                                                                                   |
-|------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Repository       | `owner/repo`: exactly one `/`; each part uses only letters, digits, `_`, `.` and `-`, and is not `.` or `..`.                                          |
-| Number           | Digits `0-9` only; leading zeros are removed, and zero is allowed.                                                                                     |
-| Issue/PR number  | Digits `0-9` only, greater than zero; leading zeros are removed.                                                                                       |
-| Comment ID       | Digits `0-9` only, greater than zero, at most 19 digits once leading zeros are removed.                                                                |
-| Commit SHA       | Exactly 40 hexadecimal characters; returned in lower case.                                                                                             |
-| Branch           | A valid git ref name (see below) that does not start with `-` and is not `HEAD`.                                                                       |
-| Tag              | A valid git ref name (see below).                                                                                                                      |
-| Status           | Any text without control characters (`U+0000`-`U+001F`, `U+007F`-`U+009F`).                                                                            |
-| Label            | Not empty or whitespace, no `,` or control characters, at most 50 characters counted as Unicode scalar values (an emoji counts once).                  |
-| Login            | Letters, digits, `_` and `-` only, optionally followed by `[bot]`.                                                                                     |
-| Owner            | Letters, digits and `-` only, and does not start with `-`.                                                                                             |
+| Parameter         | Rule                                                                                                                                                   |
+|-------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Repository        | `owner/repo`: exactly one `/`; each part uses only letters, digits, `_`, `.` and `-`, and is not `.` or `..`.                                          |
+| Number            | Digits `0-9` only; leading zeros are removed, and zero is allowed.                                                                                     |
+| Issue/PR number   | Digits `0-9` only, greater than zero; leading zeros are removed.                                                                                       |
+| Comment ID        | Digits `0-9` only, greater than zero, at most 19 digits once leading zeros are removed.                                                                |
+| Commit SHA        | Exactly 40 hexadecimal characters; returned in lower case.                                                                                             |
+| Branch            | A valid git ref name (see below) that does not start with `-` and is not `HEAD`.                                                                       |
+| Tag               | A valid git ref name (see below).                                                                                                                      |
+| Status            | Any text without control characters (`U+0000`-`U+001F`, `U+007F`-`U+009F`).                                                                            |
+| Label             | Not empty or whitespace, no `,` or control characters, at most 50 characters counted as Unicode scalar values (an emoji counts once).                  |
+| Label colour      | Exactly 6 hexadecimal characters without `#`; returned in lower case.                                                                                  |
+| Label description | Not empty or whitespace, no control characters, at most 100 characters counted as Unicode scalar values (an emoji counts once).                        |
+| Login             | Letters, digits, `_` and `-` only, optionally followed by `[bot]`.                                                                                     |
+| Owner             | Letters, digits and `-` only, and does not start with `-`.                                                                                             |
 
 A valid git ref name is not empty or `@`; does not contain `..`, `@{`, `//`, a space, `~`, `^`, `:`, `?`, `*`, `[`, `\` or a control character; does not start with `/` or end with `/` or `.`; and has no `/`-separated component that starts with `.` or ends with `.lock`.
 
