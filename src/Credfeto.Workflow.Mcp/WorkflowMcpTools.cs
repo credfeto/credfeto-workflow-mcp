@@ -1419,6 +1419,29 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "label_list", Title = "Label list", ReadOnly = true)]
+    [Description(
+        "Lists the names of a repository's labels in GitHub's order; more than 1000 labels is refused rather than listed in part"
+    )]
+    public static async Task<LabelListResponse> LabelListAsync(
+        [Description("The repository, as owner/name")] string repo,
+        ILabelListService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is RepositoryNotFoundException or LabelListFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     private static bool IsIssueCreateError(Exception exception)
     {
         return IsBoardOrRepositoryError(exception)
