@@ -9,6 +9,9 @@ COPY appsettings.json .
 
 USER 1654
 
+# Fail the image build, not production, when the binary cannot start in this runtime image
+RUN [ "/usr/src/app/Credfeto.Workflow.Mcp.Server", "--self-test" ]
+
 # HTTPS only listens when server.pfx is mounted at /usr/src/app/server.pfx; plain HTTP on 8080 is loopback-only
 EXPOSE 8081/tcp
 ENTRYPOINT [ "/usr/src/app/Credfeto.Workflow.Mcp.Server" ]

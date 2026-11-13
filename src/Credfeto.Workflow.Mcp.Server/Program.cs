@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Docker.HealthCheck.Http.Client;
@@ -12,12 +13,26 @@ public static class Program
     {
         // The process entry point has no caller-supplied token; host shutdown is driven by the
         // application lifetime (SIGTERM/Ctrl+C) instead
-        return HealthCheckClient.IsHealthCheck(args: args, out string? checkUrl)
-            ? await HealthCheckRunner.ExecuteAsync(checkUrl: checkUrl, cancellationToken: CancellationToken.None)
-            : await ServerRunner.RunAsync(
-                appFactory: () => ServerStartup.BuildApp(args),
+        if (HealthCheckClient.IsHealthCheck(args: args, out string? checkUrl))
+        {
+            return await HealthCheckRunner.ExecuteAsync(checkUrl: checkUrl, cancellationToken: CancellationToken.None);
+        }
+
+        if (SelfTestRunner.IsSelfTest(args))
+        {
+            IReadOnlyList<string> serverArgs = SelfTestRunner.ServerArguments(args);
+
+            return await SelfTestRunner.RunAsync(
+                appFactory: () => ServerStartup.BuildApp(serverArgs),
                 errorWriter: Console.Error,
                 cancellationToken: CancellationToken.None
             );
+        }
+
+        return await ServerRunner.RunAsync(
+            appFactory: () => ServerStartup.BuildApp(args),
+            errorWriter: Console.Error,
+            cancellationToken: CancellationToken.None
+        );
     }
 }
