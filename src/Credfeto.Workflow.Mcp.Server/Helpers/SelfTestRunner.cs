@@ -18,7 +18,6 @@ namespace Credfeto.Workflow.Mcp.Server.Helpers;
 public static class SelfTestRunner
 {
     private const string SELF_TEST_SWITCH = "--self-test";
-    private const string GLOBALISATION_CULTURE = "en-GB";
     private const int EXIT_SUCCESS = 0;
     private const int EXIT_FAILURE = 1;
 
@@ -78,12 +77,16 @@ public static class SelfTestRunner
         _ = routes.DataSources.SelectMany(static dataSource => dataSource.Endpoints).Count();
     }
 
-    // A named culture's comparison loads ICU, which is missing from images that only suit invariant globalisation
+    // The image runs in invariant globalisation mode (no ICU) and the app never uses a named culture, so asking
+    // for one would fail the self-test for a capability the server does not need; the invariant culture's
+    // comparison still exercises the globalisation code path the server uses
     private static void LoadGlobalisation()
     {
-        _ = CultureInfo
-            .GetCultureInfo(GLOBALISATION_CULTURE)
-            .CompareInfo.Compare(string1: "self-test", string2: "SELF-TEST", options: CompareOptions.IgnoreCase);
+        _ = CultureInfo.InvariantCulture.CompareInfo.Compare(
+            string1: "self-test",
+            string2: "SELF-TEST",
+            options: CompareOptions.IgnoreCase
+        );
     }
 
     // Hashing goes through the platform crypto library (OpenSSL on Linux), which TLS to GitHub also needs
