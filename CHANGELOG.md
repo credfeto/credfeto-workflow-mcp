@@ -58,6 +58,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added label_create MCP tool that creates a standard repository label, and updates it when its colour or description differs from the standard, so labels can be set up consistently through the server (#63)
 - Added read-only label_list MCP tool (repo) that lists a repository's label names, fully paginated with a 1000 label limit, mirroring cfwf label list (#65)
 - The run_log MCP tool gains optional grep, context, maxMatches and fromLine parameters that search the whole failed-step log and return matching lines with their line numbers, a total match count and a truncated flag, so failures can be investigated without downloading the full log (#110)
+- Added a build-time --self-test switch to the MCP server, run in the Docker image build so a binary that cannot start fails the image build instead of shipping (#109)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
