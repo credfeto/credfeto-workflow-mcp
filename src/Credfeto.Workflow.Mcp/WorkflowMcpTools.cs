@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.Dependabot;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
@@ -678,6 +679,46 @@ public sealed class WorkflowMcpTools
                     is RepositoryNotFoundException
                         or WorkflowListFailedException
                         or WorkflowListRefusedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "repo_dependabot_alerts", Title = "Repository Dependabot alerts", ReadOnly = true)]
+    [Description(
+        "Lists a repository's Dependabot alerts, newest first, with each alert's number, severity, state, ecosystem, package, manifest path, vulnerable version range, first patched version ('-' when there is none) and GHSA id; a missing repository, alerts being disabled and the caller's token lacking permission to read them are each reported as a distinct error"
+    )]
+    public static async Task<DependabotAlertsResult> RepoDependabotAlertsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IDependabotAlertsService service,
+        [Description("Which alerts to list: open, fixed, dismissed, auto_dismissed or all; open when not given")]
+            string? state = null,
+        [Description("Only the alerts of this severity: low, medium, high or critical; every severity when not given")]
+            string? severity = null,
+        [Description("The most alerts to return, from 1 to 100")] int limit = DependabotAlertsQuery.DEFAULT_LIMIT,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(
+                repository: repo,
+                state: state,
+                severity: severity,
+                limit: limit,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is DependabotAlertsNotFoundException
+                        or DependabotAlertsDisabledException
+                        or DependabotAlertsPermissionException
+                        or DependabotAlertsFailedException
                         or ParameterValidationException
             )
         {

@@ -335,6 +335,15 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: a repository's Dependabot alerts, newest first, one page of up to limit alerts (repo_dependabot_alerts)
+# state is left out for "all", and severity only when given. A 404 means the repository is missing or the caller
+# cannot see it; a 403 saying alerts are disabled, or that the resource is not accessible, is reported as such.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/dependabot/alerts?state=open&per_page=30
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.

@@ -59,6 +59,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only label_list MCP tool (repo) that lists a repository's label names, fully paginated with a 1000 label limit, mirroring cfwf label list (#65)
 - The run_log MCP tool gains optional grep, context, maxMatches and fromLine parameters that search the whole failed-step log and return matching lines with their line numbers, a total match count and a truncated flag, so failures can be investigated without downloading the full log (#110)
 - Added a build-time --self-test switch to the MCP server, run in the Docker image build so a binary that cannot start fails the image build instead of shipping (#109)
+- Added read-only repo_dependabot_alerts MCP tool (repo) that lists a repository's Dependabot alerts with optional state and severity filters, so dependency vulnerabilities can be checked through the MCP server (#112)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)

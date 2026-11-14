@@ -6,6 +6,7 @@ using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.ClosingIssues;
 using Credfeto.Workflow.GitHub.Comments;
 using Credfeto.Workflow.GitHub.Configuration;
+using Credfeto.Workflow.GitHub.Dependabot;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Issues;
@@ -386,6 +387,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void WorkflowListServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IWorkflowListService, WorkflowListService>();
+    }
+
+    [Fact]
+    public void DependabotAlertsServiceShouldBeRegistered()
+    {
+        this.RequireService<IDependabotAlertsService>();
+    }
+
+    [Fact]
+    public void DependabotAlertsServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IDependabotAlertsService, DependabotAlertsService>();
     }
 
     [Fact]
