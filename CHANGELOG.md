@@ -63,6 +63,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
 - Enabled runtime-async (Features strict;flow-analysis;runtime-async=on) in all projects and moved the Dockerfile runtime image to .NET 11 rc.3 (#74)
+- SDK - Updated DotNet SDK to 11.0.100
 ### Deprecated
 ### Removed
 ### Deployment Changes
