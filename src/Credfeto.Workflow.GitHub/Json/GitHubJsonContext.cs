@@ -3,6 +3,7 @@ using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.ClosingIssues;
+using Credfeto.Workflow.GitHub.Dependabot;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
@@ -99,4 +100,5 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(RunPullRequestResponse[]))]
 [JsonSerializable(typeof(RunRerunRequest))]
 [JsonSerializable(typeof(RunRerunResponse))]
+[JsonSerializable(typeof(DependabotAlertResponse[]))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

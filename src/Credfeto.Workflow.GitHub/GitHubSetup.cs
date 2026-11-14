@@ -13,6 +13,7 @@ using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.ClosingIssues;
 using Credfeto.Workflow.GitHub.Comments;
 using Credfeto.Workflow.GitHub.Configuration;
+using Credfeto.Workflow.GitHub.Dependabot;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Issues;
@@ -123,6 +124,7 @@ public static class GitHubSetup
             .AddSingleton<IIssueListService, IssueListService>()
             .AddSingleton<IRepositoryListService, RepositoryListService>()
             .AddSingleton<IWorkflowListService, WorkflowListService>()
+            .AddSingleton<IDependabotAlertsService, DependabotAlertsService>()
             .AddRunServices()
             .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
