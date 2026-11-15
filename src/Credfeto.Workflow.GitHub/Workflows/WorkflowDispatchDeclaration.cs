@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Frozen;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -18,6 +19,9 @@ public static class WorkflowDispatchDeclaration
     private const string ON_KEY = "on";
     private const string DISPATCH_KEY = "workflow_dispatch";
     private const string INPUTS_KEY = "inputs";
+
+    // Shared because an empty set is never modified, so every declaration without inputs can return the same one
+    private static readonly FrozenSet<string> NoInputNames = [with(StringComparer.Ordinal)];
 
     // The declared input names, or null when workflow_dispatch is not declared in a form that can be read
     public static IReadOnlySet<string>? TryRead(string text)
@@ -322,9 +326,9 @@ public static class WorkflowDispatchDeclaration
             : value;
     }
 
-    private static HashSet<string> NoInputs()
+    private static IReadOnlySet<string> NoInputs()
     {
-        return [with(StringComparer.Ordinal)];
+        return NoInputNames;
     }
 
     [DebuggerDisplay("{Indent}: {Content}")]

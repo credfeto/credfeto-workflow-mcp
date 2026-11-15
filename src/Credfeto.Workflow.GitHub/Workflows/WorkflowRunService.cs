@@ -133,7 +133,7 @@ public sealed class WorkflowRunService : IWorkflowRunService
             // The message is fixed text and the validated repository, so it is passed on as the failure
             throw new WorkflowRunFailedException(message: exception.Message, innerException: exception);
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception) when (IsUpstreamFailure(exception))
         {
             // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
             throw new WorkflowRunFailedException(
@@ -352,7 +352,7 @@ public sealed class WorkflowRunService : IWorkflowRunService
                 innerException: exception
             );
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception) when (IsUpstreamFailure(exception))
         {
             // Not retried here: the dispatch may have started a run, and a second request would start another
             throw new WorkflowRunFailedException(
@@ -387,7 +387,7 @@ public sealed class WorkflowRunService : IWorkflowRunService
 
             newest = page.WorkflowRuns?.FirstOrDefault();
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception) when (IsUpstreamFailure(exception))
         {
             // The dispatch itself succeeded, so failing to read the run back is not reported as a failure
             newest = null;
@@ -395,33 +395,34 @@ public sealed class WorkflowRunService : IWorkflowRunService
 
         if (newest?.Id is not { } run)
         {
-            return new(
-                Outcome: WorkflowRunOutcome.Success,
-                Message: "dispatched; the run is not visible yet",
-                Workflow: request.Workflow,
-                Ref: gitRef,
-                Run: null,
-                Url: null,
-                Rule: null
+            return Result(
+                outcome: WorkflowRunOutcome.Success,
+                message: "dispatched; the run is not visible yet",
+                workflow: request.Workflow,
+                gitRef: gitRef
             );
         }
 
-        return new(
-            Outcome: WorkflowRunOutcome.Success,
-            Message: $"dispatched; newest run on {gitRef} is {run.ToString(CultureInfo.InvariantCulture)}",
-            Workflow: request.Workflow,
-            Ref: gitRef,
-            Run: run,
-            Url: SafeUrl(newest.HtmlUrl),
-            Rule: null
-        );
+        return Result(
+            outcome: WorkflowRunOutcome.Success,
+            message: $"dispatched; newest run on {gitRef} is {run.ToString(CultureInfo.InvariantCulture)}",
+            workflow: request.Workflow,
+            gitRef: gitRef
+        ) with
+        {
+            Run = run,
+            Url = SafeUrl(newest.HtmlUrl),
+        };
     }
 
     private static Uri? SafeUrl(Uri? url)
     {
-        return url is { IsAbsoluteUri: true } && StringComparer.Ordinal.Equals(x: url.Scheme, y: Uri.UriSchemeHttps)
-            ? url
-            : null;
+        return url is { IsAbsoluteUri: true } && UriSchemes.IsHttps(url) ? url : null;
+    }
+
+    private static bool IsUpstreamFailure(Exception exception)
+    {
+        return exception is GitHubInvalidResponseException or HttpRequestException;
     }
 
     private static WorkflowRunResult Refused(string workflow, string gitRef, string rule)
@@ -431,34 +432,36 @@ public sealed class WorkflowRunService : IWorkflowRunService
 
     private static WorkflowRunResult Refused(string workflow, string gitRef, string rule, string message)
     {
-        return new(
-            Outcome: WorkflowRunOutcome.Refused,
-            Message: "workflow run refused: " + message,
-            Workflow: workflow,
-            Ref: gitRef,
-            Run: null,
-            Url: null,
-            Rule: rule
-        );
+        return Result(
+            outcome: WorkflowRunOutcome.Refused,
+            message: "workflow run refused: " + message,
+            workflow: workflow,
+            gitRef: gitRef
+        ) with
+        {
+            Rule = rule,
+        };
     }
 
     private static WorkflowRunResult NotFound(DispatchRequest request, string gitRef, string message)
     {
-        return new(
-            Outcome: WorkflowRunOutcome.NotFound,
-            Message: message,
-            Workflow: request.Workflow,
-            Ref: gitRef,
-            Run: null,
-            Url: null,
-            Rule: null
+        return Result(
+            outcome: WorkflowRunOutcome.NotFound,
+            message: message,
+            workflow: request.Workflow,
+            gitRef: gitRef
         );
     }
 
     private static WorkflowRunResult InvalidInput(string workflow, string? gitRef, string message)
     {
+        return Result(outcome: WorkflowRunOutcome.InvalidInput, message: message, workflow: workflow, gitRef: gitRef);
+    }
+
+    private static WorkflowRunResult Result(WorkflowRunOutcome outcome, string message, string workflow, string? gitRef)
+    {
         return new(
-            Outcome: WorkflowRunOutcome.InvalidInput,
+            Outcome: outcome,
             Message: message,
             Workflow: workflow,
             Ref: gitRef,
