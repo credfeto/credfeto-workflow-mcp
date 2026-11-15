@@ -1070,6 +1070,51 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(
+        Name = "pr_review_comment",
+        Title = "Pull request review comment",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Posts an inline review comment on a line, or a range of lines, of a file in a pull request's diff at its head commit, refusing a comment that contains a secret; the comment is posted once and never retried"
+    )]
+    public static async Task<PrReviewCommentResult> PrReviewCommentAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        [Description("The path of the file from the repository root, using / between segments")] string path,
+        [Description("The line to comment on, or the last line of the range")] int line,
+        [Description("The comment text")] string body,
+        IPrReviewCommentService service,
+        [Description("The first line of the range, below line; omit it to comment on a single line")]
+            int? startLine = null,
+        [Description("RIGHT (the default) for the new version of the file, or LEFT for the old one")]
+            string? side = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.PostAsync(
+                repository: repo,
+                pullRequest: pr,
+                path: path,
+                line: line,
+                startLine: startLine,
+                side: side,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (ParameterValidationException exception)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     // Invalid input is answered with a UsageError outcome rather than an error, so the caller sees every outcome alike
     [McpServerTool(Name = "pr_diff", Title = "Pull request diff", ReadOnly = true)]
     [Description(

@@ -2,7 +2,6 @@ using System;
 using System.Globalization;
 using System.Net;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
@@ -15,15 +14,11 @@ using Credfeto.Workflow.GitHub.Json;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
 
-public sealed partial class PrReplyService : IPrReplyService
+public sealed class PrReplyService : IPrReplyService
 {
     private const string READ_FAILED = "the reply was not posted: could not read the comment";
 
-    private const string UNEXPECTED_ANSWER = "unexpected answer";
-
     private const string PULLS_SEGMENT = "/pulls/";
-
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     private readonly ILeakChecker _leakChecker;
 
@@ -144,54 +139,36 @@ public sealed partial class PrReplyService : IPrReplyService
         CancellationToken cancellationToken
     )
     {
-        PullRequestReviewCommentResponse posted;
-
-        try
-        {
-            posted = await this._restClient.PostAsync(
-                relativeUri: $"repos/{validRepository}/pulls/{pullRequest.ToString(CultureInfo.InvariantCulture)}/comments/{root.ToString(CultureInfo.InvariantCulture)}/replies",
-                body: new IssueCommentCreateRequest(Body: body),
-                requestTypeInfo: GitHubJsonContext.Default.IssueCommentCreateRequest,
-                responseTypeInfo: GitHubJsonContext.Default.PullRequestReviewCommentResponse,
-                cancellationToken: cancellationToken
-            );
-        }
-        catch (HttpRequestException exception) when (GitHubHttpFailure.IsRejected(exception.StatusCode))
-        {
-            return Failed(
-                outcome: PrReplyOutcome.NotPosted,
-                message: $"the reply was not posted: {GitHubHttpFailure.Describe(exception)}"
-            );
-        }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
-        {
-            // The request was sent and never retried, so GitHub may have stored the reply without the answer arriving
-            return MayHaveBeenPosted(GitHubHttpFailure.Describe(exception));
-        }
-
-        if (
-            posted is not { Id: long postedId and > 0 }
-            || ReplyUrl(
-                htmlUrl: posted.HtmlUrl,
-                validRepository: validRepository,
-                pullRequest: pullRequest,
-                id: postedId
-            )
-                is not { } url
-        )
-        {
-            return MayHaveBeenPosted(UNEXPECTED_ANSWER);
-        }
-
-        return new(
-            Outcome: PrReplyOutcome.Posted,
-            Message: $"the reply was posted to the thread of comment {root.ToString(CultureInfo.InvariantCulture)}",
-            CommentId: postedId,
-            InReplyToId: root,
-            Url: url,
-            Rule: null,
-            LineNumber: null
+        ReviewCommentPostAnswer answer = await ReviewCommentPoster.PostAsync(
+            restClient: this._restClient,
+            relativeUri: $"repos/{validRepository}/pulls/{pullRequest.ToString(CultureInfo.InvariantCulture)}/comments/{root.ToString(CultureInfo.InvariantCulture)}/replies",
+            body: new IssueCommentCreateRequest(Body: body),
+            requestTypeInfo: GitHubJsonContext.Default.IssueCommentCreateRequest,
+            validRepository: validRepository,
+            pullRequest: pullRequest,
+            cancellationToken: cancellationToken
         );
+
+        return answer switch
+        {
+            { CommentId: long postedId, Url: { } url } => new(
+                Outcome: PrReplyOutcome.Posted,
+                Message: $"the reply was posted to the thread of comment {root.ToString(CultureInfo.InvariantCulture)}",
+                CommentId: postedId,
+                InReplyToId: root,
+                Url: url,
+                Rule: null,
+                LineNumber: null
+            ),
+            { Rejected: true } => Failed(
+                outcome: PrReplyOutcome.NotPosted,
+                message: $"the reply was not posted: {answer.Error}"
+            ),
+            _ => Failed(
+                outcome: PrReplyOutcome.MayHaveBeenPosted,
+                message: $"the reply may have been posted ({answer.Error}); use the pr_comments tool and look for it in the thread before posting again"
+            ),
+        };
     }
 
     private static long? PullRequestNumber(string? pullRequestUrl)
@@ -216,40 +193,11 @@ public sealed partial class PrReplyService : IPrReplyService
             : null;
     }
 
-    private static Uri? ReplyUrl(string? htmlUrl, string validRepository, int pullRequest, long id)
-    {
-        if (!Uri.TryCreate(uriString: htmlUrl, uriKind: UriKind.Absolute, out Uri? uri) || !UriSchemes.IsHttp(uri))
-        {
-            return null;
-        }
-
-        Match match = ReplyUrlPattern().Match(htmlUrl);
-
-        return
-            match.Success
-            && StringComparer.OrdinalIgnoreCase.Equals(x: match.Groups["repo"].Value, y: validRepository)
-            && StringComparer.Ordinal.Equals(
-                x: match.Groups["pr"].Value,
-                y: pullRequest.ToString(CultureInfo.InvariantCulture)
-            )
-            && StringComparer.Ordinal.Equals(x: match.Groups["id"].Value, y: id.ToString(CultureInfo.InvariantCulture))
-            ? uri
-            : null;
-    }
-
     private static PrReplyResult NotFound(string validRepository, int pullRequest, string validCommentId)
     {
         return Failed(
             outcome: PrReplyOutcome.NotFound,
             message: $"the comment {validCommentId} is not an inline review comment of {validRepository}#{pullRequest.ToString(CultureInfo.InvariantCulture)}"
-        );
-    }
-
-    private static PrReplyResult MayHaveBeenPosted(string error)
-    {
-        return Failed(
-            outcome: PrReplyOutcome.MayHaveBeenPosted,
-            message: $"the reply may have been posted ({error}); use the pr_comments tool and look for it in the thread before posting again"
         );
     }
 
@@ -265,11 +213,4 @@ public sealed partial class PrReplyService : IPrReplyService
             LineNumber: null
         );
     }
-
-    [GeneratedRegex(
-        pattern: "^https?://[A-Za-z0-9.-]+(:[0-9]+)?/(?<repo>[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)/pull/(?<pr>[0-9]+)#discussion_r(?<id>[0-9]+)$",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex ReplyUrlPattern();
 }

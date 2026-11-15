@@ -57,6 +57,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_ready_at",
                 "pr_reopen",
                 "pr_reply",
+                "pr_review_comment",
                 "pr_search",
                 "pr_status",
                 "pr_view",
@@ -503,6 +504,31 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrReviewCommentTakesRepoAndPrAndPathAndLinesAndSideAndBody()
+    {
+        JsonElement schema = this.GetTool("pr_review_comment").ProtocolTool.InputSchema;
+
+        Assert.Equal(
+            expected: ["body", "line", "path", "pr", "repo", "side", "startLine"],
+            actual: PropertyNames(schema)
+        );
+        Assert.Equal(expected: ["body", "line", "path", "pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrReviewCommentIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("pr_review_comment");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "pr_review_comment writes a comment");
+        Assert.False(
+            tool.ProtocolTool.Annotations?.DestructiveHint,
+            userMessage: "pr_review_comment is not destructive"
+        );
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "pr_review_comment is not idempotent");
+    }
+
+    [Fact]
     public void CommentAddTakesRepoAndBodyAndOptionalTarget()
     {
         JsonElement schema = this.GetTool("comment_add").ProtocolTool.InputSchema;
@@ -702,6 +728,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPrEditService>()
             .AddMockedService<IPrHandOffService>()
             .AddMockedService<IPrReplyService>()
+            .AddMockedService<IPrReviewCommentService>()
             .AddMockedService<IPrDiffService>()
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
