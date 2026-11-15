@@ -108,7 +108,7 @@ public sealed class PrDiffService : IPrDiffService
             Outcome: PrDiffOutcome.Success,
             Message: $"read the diff of {target}",
             Mode: PrDiffMode.Diff,
-            Diff: PrDiffText.Neutralise(diff),
+            Diff: UpstreamText.ReplaceLineBreakingKeepingLayout(diff),
             Files: null
         );
     }
