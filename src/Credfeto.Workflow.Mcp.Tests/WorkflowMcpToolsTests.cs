@@ -59,6 +59,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPullRequestListService _listService;
     private readonly IPrChecksService _prChecksService;
     private readonly IPrCreateService _prCreateService;
+    private readonly IPrDiffService _prDiffService;
     private readonly IPrEditService _prEditService;
     private readonly IPrHandOffService _prHandOffService;
     private readonly IPrReplyService _prReplyService;
@@ -87,6 +88,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._labelService = GetSubstitute<ILabelService>();
         this._prChecksService = GetSubstitute<IPrChecksService>();
         this._prCreateService = GetSubstitute<IPrCreateService>();
+        this._prDiffService = GetSubstitute<IPrDiffService>();
         this._prEditService = GetSubstitute<IPrEditService>();
         this._prHandOffService = GetSubstitute<IPrHandOffService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
@@ -1934,6 +1936,63 @@ public sealed class WorkflowMcpToolsTests : TestBase
             service: this._prReplyService,
             cancellationToken: this.CancellationToken()
         );
+    }
+
+    [Fact]
+    public async Task PrDiffReturnsWhatTheServiceAnsweredAsync()
+    {
+        PrDiffResult expected = new(
+            Outcome: PrDiffOutcome.Success,
+            Message: "read the changed files of " + REPOSITORY + "#41",
+            Mode: PrDiffMode.Stat,
+            Diff: null,
+            Files: [new(Status: null, Path: "README.md", Additions: 2, Deletions: 1)]
+        );
+        this._prDiffService.DiffAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                mode: "stat",
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PrDiffResult actual = await WorkflowMcpTools.PrDiffAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._prDiffService,
+            mode: "stat",
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrDiffPassesNoModeWhenNoneIsGivenAsync()
+    {
+        PrDiffResult expected = new(
+            Outcome: PrDiffOutcome.Success,
+            Message: "read the diff of " + REPOSITORY + "#41",
+            Mode: PrDiffMode.Diff,
+            Diff: "diff --git a/README.md b/README.md\n",
+            Files: null
+        );
+        this._prDiffService.DiffAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                mode: null,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PrDiffResult actual = await WorkflowMcpTools.PrDiffAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._prDiffService,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
     }
 
     [Fact]
