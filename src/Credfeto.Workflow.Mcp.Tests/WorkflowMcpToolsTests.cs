@@ -63,6 +63,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPrEditService _prEditService;
     private readonly IPrHandOffService _prHandOffService;
     private readonly IPrReplyService _prReplyService;
+    private readonly IPrReviewCommentService _prReviewCommentService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IRunListService _runListService;
     private readonly IRunLogService _runLogService;
@@ -92,6 +93,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._prEditService = GetSubstitute<IPrEditService>();
         this._prHandOffService = GetSubstitute<IPrHandOffService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
+        this._prReviewCommentService = GetSubstitute<IPrReviewCommentService>();
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
         this._commentAddService = GetSubstitute<ICommentAddService>();
         this._closingIssueLabelsService = GetSubstitute<IClosingIssueLabelsService>();
@@ -1934,6 +1936,99 @@ public sealed class WorkflowMcpToolsTests : TestBase
             commentId: "123",
             body: "Thanks",
             service: this._prReplyService,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrReviewCommentReturnsWhatTheServiceAnsweredAsync()
+    {
+        PrReviewCommentResult expected = new(
+            Outcome: PrReviewCommentOutcome.Posted,
+            Message: "the review comment was posted on src/Program.cs lines 10-12 (LEFT)",
+            CommentId: 456,
+            Url: new("https://github.com/" + REPOSITORY + "/pull/41#discussion_r456"),
+            Rule: null,
+            LineNumber: null
+        );
+        this.PrReviewCommentServiceCallAsync().Returns(expected);
+
+        PrReviewCommentResult actual = await this.PrReviewCommentAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrReviewCommentNotFoundIsReturnedAsAnOutcomeAsync()
+    {
+        PrReviewCommentResult expected = new(
+            Outcome: PrReviewCommentOutcome.NotFound,
+            Message: "the pull request " + REPOSITORY + "#41 was not found",
+            CommentId: null,
+            Url: null,
+            Rule: null,
+            LineNumber: null
+        );
+        this.PrReviewCommentServiceCallAsync().Returns(expected);
+
+        PrReviewCommentResult actual = await this.PrReviewCommentAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrReviewCommentValidationFailuresAreReportedToTheCallerAsync()
+    {
+        ParameterValidationException failure = ParameterValidationException.For(
+            parameterName: "path",
+            rule: "it must not contain an empty, . or .. segment"
+        );
+        this.PrReviewCommentServiceCallAsync().ThrowsAsync(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.PrReviewCommentAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    [Fact]
+    public async Task PrReviewCommentOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrReviewCommentServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrReviewCommentAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private ValueTask<PrReviewCommentResult> PrReviewCommentServiceCallAsync()
+    {
+        return this._prReviewCommentService.PostAsync(
+            repository: REPOSITORY,
+            pullRequest: PULL_REQUEST,
+            path: "src/Program.cs",
+            line: 12,
+            startLine: 10,
+            side: "LEFT",
+            body: "Consider a guard here",
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<PrReviewCommentResult> PrReviewCommentAsync()
+    {
+        return WorkflowMcpTools.PrReviewCommentAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            path: "src/Program.cs",
+            line: 12,
+            body: "Consider a guard here",
+            service: this._prReviewCommentService,
+            startLine: 10,
+            side: "LEFT",
             cancellationToken: this.CancellationToken()
         );
     }

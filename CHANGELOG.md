@@ -61,6 +61,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added a build-time --self-test switch to the MCP server, run in the Docker image build so a binary that cannot start fails the image build instead of shipping (#109)
 - Added read-only repo_dependabot_alerts MCP tool (repo) that lists a repository's Dependabot alerts with optional state and severity filters, so dependency vulnerabilities can be checked through the MCP server (#112)
 - Added read-only pr_diff MCP tool with diff, name-only and stat modes, so a pull request's full diff, its changed file names or per-file change counts can be read through the MCP server without leaving the workflow (#50)
+- Added pr_review_comment MCP tool to post an inline review comment on a line of a pull request's diff, so review feedback can be left on specific code through the MCP server instead of as a general PR comment (#67)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)

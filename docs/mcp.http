@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1636,6 +1636,74 @@ Accept: application/json, text/event-stream
       "pr": 87,
       "commentId": "abc",
       "body": "Fixed."
+    }
+  }
+}
+
+### Call the pr_review_comment tool on lines of a pull request's diff; expects outcome "Posted" with the new comment id and its URL
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 113,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_review_comment",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "path": "src/Credfeto.Workflow.Mcp/WorkflowMcpTools.cs",
+      "line": 12,
+      "startLine": 10,
+      "side": "RIGHT",
+      "body": "Consider a guard clause here."
+    }
+  }
+}
+
+### Call the pr_review_comment tool with a body containing a token; expects outcome "Refused" naming the leak rule and nothing posted
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 114,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_review_comment",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "path": "README.md",
+      "line": 1,
+      "body": "token ghp_000000000000000000000000000000000000"
+    }
+  }
+}
+
+### Call the pr_review_comment tool with a path outside the repository; expects a tool error naming the "path" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 115,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_review_comment",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "path": "../secret.txt",
+      "line": 1,
+      "body": "A note."
     }
   }
 }
