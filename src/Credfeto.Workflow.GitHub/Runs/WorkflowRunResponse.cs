@@ -15,5 +15,6 @@ internal sealed record WorkflowRunResponse(
     [property: JsonPropertyName("head_branch")] string? HeadBranch,
     [property: JsonPropertyName("event")] string? Event,
     [property: JsonPropertyName("run_attempt")] int? RunAttempt,
-    [property: JsonPropertyName("created_at")] DateTimeOffset? CreatedAt
+    [property: JsonPropertyName("created_at")] DateTimeOffset? CreatedAt,
+    [property: JsonPropertyName("html_url")] Uri? HtmlUrl
 );

@@ -859,6 +859,44 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: each call that is not refused starts another run
+    [McpServerTool(
+        Name = "workflow_run",
+        Title = "Workflow run",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [Description(
+        "Starts a GitHub Actions workflow that declares workflow_dispatch and that the repository's .github/cfwf-dispatch-allow on its default branch lists, on the default branch or a ref that line permits, returning the newest dispatched run's id and URL once it is visible. Refused, naming the rule, when the repository has no allowlist, the workflow is not listed, the ref is not permitted, the workflow does not declare workflow_dispatch or an input value would leak; the outcome is not found when the workflow is not in the repository or not on the ref, and invalid input when an input is malformed, given twice or not declared by the workflow"
+    )]
+    public static async Task<WorkflowRunResult> WorkflowRunAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The workflow's file name in .github/workflows, such as build.yml")] string workflow,
+        IWorkflowRunService service,
+        [Description("The branch to run the workflow on; the default branch when not given")] string? @ref = null,
+        [Description("The workflow's inputs, each as key=value")] IReadOnlyList<string>? inputs = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.RunAsync(
+                repository: repo,
+                workflow: workflow,
+                gitRef: @ref,
+                inputs: inputs,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (exception is WorkflowRunFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(
         Name = "issue_close",
         Title = "Issue close",

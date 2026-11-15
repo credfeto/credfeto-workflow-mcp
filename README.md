@@ -11,7 +11,7 @@ An MCP (Model Context Protocol) server that gives AI agents the GitHub workflow 
 
 credfeto-workflow-mcp is an ASP.NET Core server, published as a native AOT executable, that exposes workflow tools over the MCP Streamable HTTP transport so agents can call them directly instead of shelling out to `cfwf`.
 The MCP transport is stateless, so every request stands alone.
-The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `label_create`, `label_list`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_review_comment`, `pr_diff`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `pr_status`, `pr_ready_at`, `pr_auto_merge_at`, `run_list`, `run_view`, `run_log`, `run_rerun`, `repo_dependabot_alerts`, `repo_list`, `workflow_list`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
+The server currently provides the `ping`, `pr_comments`, `pr_view`, `pr_list`, `issue_view`, `issue_comments`, `issue_plan_status`, `issue_close`, `issue_reopen`, `issue_edit`, `label_create`, `label_list`, `pr_close`, `pr_reopen`, `pr_reply`, `pr_review_comment`, `pr_diff`, `pr_edit`, `pr_hand_off`, `branch_required_checks`, `pr_checks`, `pr_status`, `pr_ready_at`, `pr_auto_merge_at`, `run_list`, `run_view`, `run_log`, `run_rerun`, `repo_dependabot_alerts`, `repo_list`, `workflow_list`, `workflow_run`, `workflow_status_check` and `workflow_status_set` tools and a matching HTTP health check; the other workflow tools that replace `cfwf` follow in later releases.
 
 ## Quick Start
 
@@ -86,10 +86,27 @@ The server never makes an unauthenticated GitHub call; with no caller token the 
 | `run_rerun`              | Takes `repo` (`owner/repo`) and `run`; reruns the failed jobs of an open pull request head's run, or the whole run when a required check never ran; returns `Success` with the attempt, `Pending`, `Refused` with the rule or `NotFound`.     |
 | `run_view`               | Read only. Takes `repo` (`owner/repo`) and `run`; returns the run's id, workflow, status, conclusion, branch, SHA, event, attempt and creation time, and the jobs of its latest attempt sorted by id.                                         |
 | `workflow_list`          | Read only. Takes `repo` (`owner/repo`); returns the repository's GitHub Actions workflows, disabled ones included, sorted by path, each with name, path and state. Fails rather than list over 1000.                                          |
+| `workflow_run`           | Takes `repo` (`owner/repo`), `workflow`, optional `ref` and `inputs` (`key=value`); starts a workflow the allowlist (below) permits; returns `Success` with the run, `Refused`, `NotFound` or `InvalidInput`.                                 |
 | `workflow_status_check`  | Read only. Takes `repo` (`owner/repo`) and exactly one of `pr` or `issue`; returns the outcome (`Found`, `Unset` or `NotOnBoard`), the Workflow board status when one is set, and a message when the item is not on the board.                |
 | `workflow_status_set`    | Takes `repo` (`owner/repo`), `status` (a workflow state, in any case) and exactly one of `pr` or `issue`; moves the item to that status on the Workflow board, adding it to the board first, and returns its URL and the status set.          |
 
 Given `grep`, a .NET regular expression of 1 to 256 characters, `run_log` searches each failed step's whole log instead of reading its tail, and ignores `lines`. It keeps at most `maxMatches` (1 to 200, default 20) matching lines across the run, each with `context` (0 to 20, default 0) lines before and after it, starting from line `fromLine` (default 1). A matching line is shown as `| N: text` and a context line as `| N- text`, where `N` is its line number in the step's log, with `--` between lines that are not next to each other. Each line is sanitised before it is matched, so a redacted token or a masked secret can never match. `Matches` counts every matching line, kept or not, and `Truncated` is true when more lines matched than were kept.
+
+### Dispatch allowlist
+
+`workflow_run` only starts a workflow that the target repository lists in `.github/cfwf-dispatch-allow`, read from its default branch. A repository without the file refuses every call.
+Each line names a workflow file, then the refs it may run on, separated by spaces; `*` permits any ref and the default branch is always permitted. A `#` starts a comment, several lines for the same workflow are combined, and a line that cannot be read, or that contains a tab, is ignored.
+
+```text
+# Runs on the default branch only
+deploy.yml
+# Runs on the default branch, release and hotfix
+publish.yml release hotfix
+# Runs on any branch
+build.yml *
+```
+
+The workflow must also declare `workflow_dispatch`, and every input given must be one it declares, with no value that would leak a secret, token or private repository name.
 
 ### Listening ports
 

@@ -120,6 +120,7 @@ public static class GitHubSetup
             .AddSingleton<IIssueListService, IssueListService>()
             .AddSingleton<IRepositoryListService, RepositoryListService>()
             .AddSingleton<IWorkflowListService, WorkflowListService>()
+            .AddSingleton<IWorkflowRunService, WorkflowRunService>()
             .AddSingleton<IDependabotAlertsService, DependabotAlertsService>()
             .AddRunServices()
             .AddPullRequestServices()
