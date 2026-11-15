@@ -277,6 +277,54 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task PostWithoutAResponseSendsJsonBodyAndIgnoresTheAnswerAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.NoContent));
+        TestItem body = new(Id: 2, Name: "body");
+
+        await this.CreateClient(upstream)
+            .PostAsync(
+                relativeUri: "repos/owner/repo/actions/workflows/build.yml/dispatches",
+                body: body,
+                requestTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Post, actual: request.Method);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/actions/workflows/build.yml/dispatches"),
+            actual: request.RequestUri
+        );
+        Assert.Equal(
+            expected: body,
+            actual: JsonSerializer.Deserialize(
+                json: request.Body ?? string.Empty,
+                jsonTypeInfo: TestJsonContext.Default.TestItem
+            )
+        );
+    }
+
+    [Fact]
+    public async Task PostWithoutAResponseFailureStatusThrowsAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.Forbidden));
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .PostAsync(
+                    relativeUri: "repos/owner/repo/actions/workflows/build.yml/dispatches",
+                    body: new TestItem(Id: 2, Name: "body"),
+                    requestTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.Forbidden, actual: exception.StatusCode);
+    }
+
+    [Fact]
     public async Task DeleteDeserialisesResponseAsync()
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":4,"name":"remaining"}"""));

@@ -69,6 +69,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "run_rerun",
                 "run_view",
                 "workflow_list",
+                "workflow_run",
                 "workflow_status_check",
                 "workflow_status_set",
             ],
@@ -345,6 +346,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["repo", "run"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo", "run"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void WorkflowRunTakesRepoAndWorkflowAndOptionalRefAndInputs()
+    {
+        JsonElement schema = this.GetTool("workflow_run").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["inputs", "ref", "repo", "workflow"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "workflow"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void WorkflowRunIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("workflow_run");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "workflow_run starts a run");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "workflow_run is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "workflow_run is not idempotent");
     }
 
     [Fact]
@@ -723,6 +743,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IRunViewService>()
             .AddMockedService<IRunLogService>()
             .AddMockedService<IRunRerunService>()
+            .AddMockedService<IWorkflowRunService>()
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrEditService>()

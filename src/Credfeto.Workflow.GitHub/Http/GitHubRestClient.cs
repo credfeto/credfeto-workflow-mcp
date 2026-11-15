@@ -136,6 +136,29 @@ public sealed class GitHubRestClient : IGitHubRestClient
         );
     }
 
+    public async ValueTask PostAsync<TRequest>(
+        string relativeUri,
+        TRequest body,
+        JsonTypeInfo<TRequest> requestTypeInfo,
+        CancellationToken cancellationToken
+    )
+    {
+        HttpClient httpClient = this.CreateHttpClient();
+        Uri requestUri = ResolveOnConfiguredHost(
+            baseAddress: GitHubBaseAddress.From(httpClient),
+            relativeUri: relativeUri
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(
+            httpClient: httpClient,
+            method: HttpMethod.Post,
+            requestUri: requestUri,
+            content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
+            mediaType: null,
+            cancellationToken: cancellationToken
+        );
+    }
+
     public ValueTask<TResponse> PatchAsync<TRequest, TResponse>(
         string relativeUri,
         TRequest body,

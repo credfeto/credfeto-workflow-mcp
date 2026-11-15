@@ -33,6 +33,14 @@ public interface IGitHubRestClient
         CancellationToken cancellationToken
     );
 
+    // For an endpoint that answers with no content, such as 204, whose body is never read
+    ValueTask PostAsync<TRequest>(
+        string relativeUri,
+        TRequest body,
+        JsonTypeInfo<TRequest> requestTypeInfo,
+        CancellationToken cancellationToken
+    );
+
     ValueTask<TResponse> PatchAsync<TRequest, TResponse>(
         string relativeUri,
         TRequest body,

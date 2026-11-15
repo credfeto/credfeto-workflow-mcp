@@ -450,6 +450,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void WorkflowRunServiceShouldBeRegistered()
+    {
+        this.RequireService<IWorkflowRunService>();
+    }
+
+    [Fact]
+    public void WorkflowRunServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IWorkflowRunService, WorkflowRunService>();
+    }
+
+    [Fact]
     public void RunRerunServiceShouldBeRegistered()
     {
         this.RequireService<IRunRerunService>();

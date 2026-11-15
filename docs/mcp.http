@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1922,6 +1922,65 @@ Accept: application/json, text/event-stream
     "name": "workflow_list",
     "arguments": {
       "repo": "credfeto"
+    }
+  }
+}
+
+### Call the workflow_run tool; expects outcome "Success" with the newest dispatched run's id and URL, or "Refused" naming the rule when the repository's .github/cfwf-dispatch-allow does not permit the workflow on the ref
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 116,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_run",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "workflow": "check-composite-action-versions.yml"
+    }
+  }
+}
+
+### Call the workflow_run tool with an input the workflow does not declare; expects outcome "InvalidInput" naming the input, or "Refused" when the allowlist does not permit the workflow on the ref, and dispatches nothing
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 117,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_run",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "workflow": "check-composite-action-versions.yml",
+      "ref": "main",
+      "inputs": ["not-declared=1"]
+    }
+  }
+}
+
+### Call the workflow_run tool with an invalid workflow file name; expects a tool error naming the "workflow" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 118,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_run",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "workflow": "../build.yml"
     }
   }
 }
