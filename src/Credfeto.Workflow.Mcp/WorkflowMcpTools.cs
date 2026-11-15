@@ -898,6 +898,47 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(
+        Name = "issue_add_sub_issue",
+        Title = "Issue add sub-issue",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true
+    )]
+    [Description(
+        "Links an issue as a sub-issue of a parent issue in the same repository; a sub-issue that is already linked to the parent is left unchanged"
+    )]
+    public static async Task<IssueAddSubIssueResponse> IssueAddSubIssueAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The parent issue number")] int issue,
+        [Description("The issue number to link as a sub-issue of the parent")] int subIssue,
+        IIssueService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.AddSubIssueAsync(
+                repository: repo,
+                issue: issue,
+                subIssue: subIssue,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueNotFoundException
+                        or IssueAddSubIssueRefusedException
+                        or IssueAddSubIssueFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(
         Name = "issue_close",
         Title = "Issue close",
         ReadOnly = false,

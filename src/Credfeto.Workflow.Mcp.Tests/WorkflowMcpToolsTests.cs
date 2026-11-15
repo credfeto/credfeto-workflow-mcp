@@ -23,6 +23,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const int ISSUE = 16;
 
+    private const int SUB_ISSUE = 17;
+
     private const string BRANCH = "main";
 
     private const string SHA = "0123456789abcdef0123456789abcdef01234567";
@@ -587,6 +589,98 @@ public sealed class WorkflowMcpToolsTests : TestBase
         );
 
         Assert.Same(expected: failure, actual: exception);
+    }
+
+    [Fact]
+    public async Task IssueAddSubIssueReturnsWhatTheServiceLinkedAsync()
+    {
+        IssueAddSubIssueResponse expected = new(
+            Parent: REPOSITORY + "#16",
+            SubIssue: REPOSITORY + "#17",
+            Outcome: "linked",
+            ParentUrl: new("https://github.com/" + REPOSITORY + "/issues/16"),
+            SubIssueUrl: new("https://github.com/" + REPOSITORY + "/issues/17")
+        );
+        this._issueService.AddSubIssueAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                subIssue: SUB_ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueAddSubIssueResponse actual = await this.IssueAddSubIssueAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueAddSubIssueFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in IssueAddSubIssueFailures())
+        {
+            await this.AssertIssueAddSubIssueFailureReportedAsync(failure);
+        }
+    }
+
+    [Fact]
+    public async Task IssueAddSubIssueOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.IssueAddSubIssueFailsWith(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.IssueAddSubIssueAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> IssueAddSubIssueFailures()
+    {
+        return
+        [
+            new IssueNotFoundException("issue " + REPOSITORY + "#17 was not found"),
+            new IssueAddSubIssueRefusedException(
+                "adding issue " + REPOSITORY + "#16 as a sub-issue of " + REPOSITORY + "#16 was refused"
+            ),
+            new IssueAddSubIssueFailedException(
+                "could not add issue " + REPOSITORY + "#17 as a sub-issue of " + REPOSITORY + "#16"
+            ),
+            ParameterValidationException.For(parameterName: "subIssue", rule: "must be above 0"),
+        ];
+    }
+
+    private async Task AssertIssueAddSubIssueFailureReportedAsync(Exception failure)
+    {
+        this.IssueAddSubIssueFailsWith(failure);
+
+        McpException exception = await Assert.ThrowsAsync<McpException>(this.IssueAddSubIssueAsync);
+
+        Assert.Equal(expected: failure.Message, actual: exception.Message);
+        Assert.Same(expected: failure, actual: exception.InnerException);
+    }
+
+    private void IssueAddSubIssueFailsWith(Exception failure)
+    {
+        this._issueService.AddSubIssueAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                subIssue: SUB_ISSUE,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .ThrowsAsync(failure);
+    }
+
+    private Task<IssueAddSubIssueResponse> IssueAddSubIssueAsync()
+    {
+        return WorkflowMcpTools.IssueAddSubIssueAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            subIssue: SUB_ISSUE,
+            service: this._issueService,
+            cancellationToken: this.CancellationToken()
+        );
     }
 
     [Fact]

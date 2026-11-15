@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -601,6 +601,66 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 0
+    }
+  }
+}
+
+### Call the issue_add_sub_issue tool; expects outcome "linked" (or "already-linked" when issue 2 is already a sub-issue of issue 1) and both issue URLs
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 119,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_add_sub_issue",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 1,
+      "subIssue": 2
+    }
+  }
+}
+
+### Call the issue_add_sub_issue tool with issue 0; expects a tool error naming the "issue" parameter
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 120,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_add_sub_issue",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 0,
+      "subIssue": 2
+    }
+  }
+}
+
+### Call the issue_add_sub_issue tool with an issue as its own sub-issue; expects a tool error saying an issue cannot be its own sub-issue, with no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 121,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_add_sub_issue",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 1,
+      "subIssue": 1
     }
   }
 }

@@ -30,4 +30,11 @@ public interface IIssueService
         string? comment,
         CancellationToken cancellationToken
     );
+
+    ValueTask<IssueAddSubIssueResponse> AddSubIssueAsync(
+        string repository,
+        int issue,
+        int subIssue,
+        CancellationToken cancellationToken
+    );
 }
