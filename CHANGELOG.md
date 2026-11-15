@@ -62,7 +62,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only repo_dependabot_alerts MCP tool (repo) that lists a repository's Dependabot alerts with optional state and severity filters, so dependency vulnerabilities can be checked through the MCP server (#112)
 - Added read-only pr_diff MCP tool with diff, name-only and stat modes, so a pull request's full diff, its changed file names or per-file change counts can be read through the MCP server without leaving the workflow (#50)
 - Added pr_review_comment MCP tool to post an inline review comment on a line of a pull request's diff, so review feedback can be left on specific code through the MCP server instead of as a general PR comment (#67)
-- TBD - to be finalized after review
+- Added workflow_run MCP tool to dispatch a GitHub workflow that the target repository has explicitly allowlisted in .github/cfwf-dispatch-allow, only from its default branch and with inputs checked against the workflow's declared inputs, so workflows can be triggered through the MCP server without opening up arbitrary workflow dispatch (#113)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
