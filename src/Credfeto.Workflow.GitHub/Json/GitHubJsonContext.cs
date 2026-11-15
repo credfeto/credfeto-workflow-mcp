@@ -54,6 +54,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(AutoMergeMutationVariables))]
 [JsonSerializable(typeof(AutoMergeMutationData))]
 [JsonSerializable(typeof(PullRequestReviewCommentResponse))]
+[JsonSerializable(typeof(PullRequestReviewCommentCreateRequest))]
 [JsonSerializable(typeof(IssueResponse))]
 [JsonSerializable(typeof(IssueCommentResponse[]))]
 [JsonSerializable(typeof(IssueCommentResponse))]
