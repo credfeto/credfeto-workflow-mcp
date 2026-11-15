@@ -5,6 +5,7 @@ namespace Credfeto.Workflow.GitHub.Issues;
 
 [DebuggerDisplay("Title={Title}, State={State}")]
 internal sealed record IssueResponse(
+    [property: JsonPropertyName("id")] long? Id,
     [property: JsonPropertyName("title")] string? Title,
     [property: JsonPropertyName("state")] string? State,
     [property: JsonPropertyName("labels")] IssueLabelResponse?[]? Labels,

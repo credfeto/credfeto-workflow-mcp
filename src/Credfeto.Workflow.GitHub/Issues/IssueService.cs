@@ -41,6 +41,12 @@ public sealed partial class IssueService : IIssueService
 
     private const string OUTCOME_ALREADY_OPEN = "already-open";
 
+    private const string OUTCOME_LINKED = "linked";
+
+    private const string OUTCOME_ALREADY_LINKED = "already-linked";
+
+    private const string OWN_SUB_ISSUE_RULE = "an issue cannot be its own sub-issue";
+
     private const string ON_HOLD_RULE = "an issue labelled On Hold may only be closed by a human";
 
     private const string CLOSING_PULL_REQUEST_RULE = "an open pull request will close the issue when it merges";
@@ -187,6 +193,57 @@ public sealed partial class IssueService : IIssueService
             );
     }
 
+    public async ValueTask<IssueAddSubIssueResponse> AddSubIssueAsync(
+        string repository,
+        int issue,
+        int subIssue,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+
+        CheckSubIssueNumbers(validRepository: validRepository, issue: issue, subIssue: subIssue);
+
+        string parentReference = $"{validRepository}#{issue}";
+        string childReference = $"{validRepository}#{subIssue}";
+        string parentUri = $"repos/{validRepository}/issues/{issue.ToString(CultureInfo.InvariantCulture)}";
+        string childUri = $"repos/{validRepository}/issues/{subIssue.ToString(CultureInfo.InvariantCulture)}";
+
+        IssueResponse parent = await this.ReadForStateChangeAsync(
+            issueUri: parentUri,
+            reference: parentReference,
+            issue: issue,
+            failed: Failed,
+            cancellationToken: cancellationToken
+        );
+
+        IssueResponse child = await this.ReadForStateChangeAsync(
+            issueUri: childUri,
+            reference: childReference,
+            issue: subIssue,
+            failed: Failed,
+            cancellationToken: cancellationToken
+        );
+
+        return await this.AddReadSubIssueAsync(
+            parentUri: parentUri,
+            parent: parent,
+            child: child,
+            parentReference: parentReference,
+            childReference: childReference,
+            cancellationToken: cancellationToken
+        );
+
+        IssueAddSubIssueFailedException Failed(Exception exception)
+        {
+            return AddSubIssueFailed(
+                parentReference: parentReference,
+                childReference: childReference,
+                exception: exception
+            );
+        }
+    }
+
     public async ValueTask<IssueComments> CommentsAsync(
         string repository,
         int issue,
@@ -309,8 +366,7 @@ public sealed partial class IssueService : IIssueService
 
     private static int ExpectedCommentCount(string reference, IssueResponse response)
     {
-        int count =
-            response.Comments
+        int count = response.Comments
             ?? throw new GitHubInvalidResponseException("GitHub returned an issue without a comment count");
 
         return count is >= 0 and <= MAX_COMMENTS_READ ? count : throw IssueCommentsFailure.Incomplete(reference);
@@ -329,8 +385,8 @@ public sealed partial class IssueService : IIssueService
             throw new IssueNotFoundException(NotFoundMessage(reference));
         }
 
-        string title =
-            response.Title ?? throw new GitHubInvalidResponseException("GitHub returned an issue without a title");
+        string title = response.Title
+            ?? throw new GitHubInvalidResponseException("GitHub returned an issue without a title");
 
         return new(
             Issue: reference,
@@ -473,6 +529,117 @@ public sealed partial class IssueService : IIssueService
         return IsPullRequest(issue: issue, response: response)
             ? throw new IssueNotFoundException(NotFoundMessage(reference))
             : response;
+    }
+
+    private static void CheckSubIssueNumbers(string validRepository, int issue, int subIssue)
+    {
+        if (issue <= 0)
+        {
+            throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0");
+        }
+
+        if (subIssue <= 0)
+        {
+            throw ParameterValidationException.For(parameterName: nameof(subIssue), rule: "must be above 0");
+        }
+
+        if (issue == subIssue)
+        {
+            throw new IssueAddSubIssueRefusedException(
+                $"adding issue {validRepository}#{subIssue} as a sub-issue of {validRepository}#{issue} was refused: {OWN_SUB_ISSUE_RULE}"
+            )
+            {
+                Rule = OWN_SUB_ISSUE_RULE,
+            };
+        }
+    }
+
+    private async ValueTask<IssueAddSubIssueResponse> AddReadSubIssueAsync(
+        string parentUri,
+        IssueResponse parent,
+        IssueResponse child,
+        string parentReference,
+        string childReference,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            // Everything the answer needs is checked before the write, so a bad read never leaves a link behind
+            Uri parentUrl = IssueUrl(parent.HtmlUrl);
+            Uri childUrl = IssueUrl(child.HtmlUrl);
+            long childId = IssueId(child);
+
+            string outcome = await this.LinkSubIssueAsync(
+                parentUri: parentUri,
+                childId: childId,
+                cancellationToken: cancellationToken
+            );
+
+            return new(
+                Parent: parentReference,
+                SubIssue: childReference,
+                Outcome: outcome,
+                ParentUrl: parentUrl,
+                SubIssueUrl: childUrl
+            );
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            throw AddSubIssueFailed(
+                parentReference: parentReference,
+                childReference: childReference,
+                exception: exception
+            );
+        }
+    }
+
+    private async ValueTask<string> LinkSubIssueAsync(
+        string parentUri,
+        long childId,
+        CancellationToken cancellationToken
+    )
+    {
+        string subIssuesUri = $"{parentUri}/sub_issues";
+
+        IReadOnlyList<IssueResponse?> existing = await this._restClient.GetAllPagesAsync(
+            relativeUri: $"{subIssuesUri}?per_page=100",
+            pageTypeInfo: GitHubJsonContext.Default.IssueResponseArray,
+            cancellationToken: cancellationToken
+        );
+
+        if (existing.Any(item => item is not null && IssueId(item) == childId))
+        {
+            return OUTCOME_ALREADY_LINKED;
+        }
+
+        _ = await this._restClient.PostAsync(
+            relativeUri: subIssuesUri,
+            body: new IssueSubIssueAddRequest(SubIssueId: childId),
+            requestTypeInfo: GitHubJsonContext.Default.IssueSubIssueAddRequest,
+            responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
+            cancellationToken: cancellationToken
+        );
+
+        return OUTCOME_LINKED;
+    }
+
+    // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
+    private static IssueAddSubIssueFailedException AddSubIssueFailed(
+        string parentReference,
+        string childReference,
+        Exception exception
+    )
+    {
+        return new(
+            message: $"could not add issue {childReference} as a sub-issue of {parentReference}",
+            innerException: exception
+        );
+    }
+
+    private static long IssueId(IssueResponse response)
+    {
+        return response.Id ?? throw new GitHubInvalidResponseException("GitHub returned an issue without an id");
     }
 
     private static IssueReopenResponse? AlreadyOpen(string reference, IssueResponse current)

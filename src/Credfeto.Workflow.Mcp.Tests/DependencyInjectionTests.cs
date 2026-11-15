@@ -31,6 +31,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "closing_issue_labels",
                 "code_search",
                 "comment_add",
+                "issue_add_sub_issue",
                 "issue_close",
                 "issue_comments",
                 "issue_create",
@@ -165,6 +166,28 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["author", "issue", "repo", "since"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssueAddSubIssueTakesRepoAndIssueAndSubIssue()
+    {
+        JsonElement schema = this.GetTool("issue_add_sub_issue").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["issue", "repo", "subIssue"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["issue", "repo", "subIssue"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssueAddSubIssueIsAnIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("issue_add_sub_issue");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_add_sub_issue writes the issue");
+        Assert.False(
+            tool.ProtocolTool.Annotations?.DestructiveHint,
+            userMessage: "issue_add_sub_issue only adds a link"
+        );
+        Assert.True(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_add_sub_issue is idempotent");
     }
 
     [Fact]

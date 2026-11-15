@@ -9,6 +9,7 @@ namespace Credfeto.Workflow.Data.Models.Json;
 [JsonSerializable(typeof(CodeSearchResult))]
 [JsonSerializable(typeof(CommentAddResult))]
 [JsonSerializable(typeof(DependabotAlertsResult))]
+[JsonSerializable(typeof(IssueAddSubIssueResponse))]
 [JsonSerializable(typeof(IssueCloseResponse))]
 [JsonSerializable(typeof(IssueComments))]
 [JsonSerializable(typeof(IssueCreateResponse))]

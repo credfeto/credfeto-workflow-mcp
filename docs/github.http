@@ -414,6 +414,28 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: a parent issue's sub-issues, read before linking so an existing link is not written again (issue_add_sub_issue)
+# The parent and the sub-issue are each read first with the issue_view request above, which gives the sub-issue's
+# database id. A sub-issue whose id is already listed is reported as already-linked with no write.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/16/sub_issues?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: link an issue as a sub-issue of the parent, by its database id rather than its number (issue_add_sub_issue)
+# A 422 means GitHub refused the link, for example because the issue already has a different parent.
+POST {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/16/sub_issues
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "sub_issue_id": 1234567890
+}
+
 ### REST: an issue's labels, for the Blocked flag (issue_plan_status)
 # A response with a pull_request link, or an html_url ending /pull/{number}, is reported as no such issue.
 # A 404 means the issue or the repository is missing, or the caller cannot see it.
