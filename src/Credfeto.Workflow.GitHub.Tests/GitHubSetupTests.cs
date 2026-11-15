@@ -198,6 +198,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrDiffServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrDiffService>();
+    }
+
+    [Fact]
+    public void PrDiffServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrDiffService, PrDiffService>();
+    }
+
+    [Fact]
     public void PrHandOffServiceShouldBeRegistered()
     {
         this.RequireService<IPrHandOffService>();

@@ -181,6 +181,48 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task GetTextReturnsTheBodyInThatMediaTypeAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.WithContentType(body: "diff --git a/x b/x\n", contentType: "text/plain")
+        );
+
+        string text = await this.CreateClient(upstream)
+            .GetTextAsync(
+                relativeUri: "repos/owner/repo/pulls/1",
+                mediaType: "application/vnd.github.diff",
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: "diff --git a/x b/x\n", actual: text);
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/pulls/1"),
+            actual: request.RequestUri
+        );
+        Assert.Equal(expected: "application/vnd.github.diff", actual: request.Accept);
+    }
+
+    [Fact]
+    public async Task GetTextFailureStatusThrowsAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.NotFound));
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .GetTextAsync(
+                    relativeUri: "repos/owner/missing/pulls/1",
+                    mediaType: "application/vnd.github.diff",
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.NotFound, actual: exception.StatusCode);
+    }
+
+    [Fact]
     public async Task PostSendsJsonBodyAndDeserialisesResponseAsync()
     {
         using RecordingHttpMessageHandler upstream = new(static _ => Responses.Json("""{"id":3,"name":"created"}"""));

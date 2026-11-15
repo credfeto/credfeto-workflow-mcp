@@ -50,6 +50,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_close",
                 "pr_comments",
                 "pr_create",
+                "pr_diff",
                 "pr_edit",
                 "pr_hand_off",
                 "pr_list",
@@ -77,6 +78,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [Theory]
     [InlineData("pr_comments")]
     [InlineData("pr_view")]
+    [InlineData("pr_diff")]
     [InlineData("pr_list")]
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
@@ -473,6 +475,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrDiffTakesRepoAndPrAndOptionalMode()
+    {
+        JsonElement schema = this.GetTool("pr_diff").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["mode", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void PrReplyTakesRepoAndPrAndCommentIdAndBody()
     {
         JsonElement schema = this.GetTool("pr_reply").ProtocolTool.InputSchema;
@@ -691,6 +702,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPrEditService>()
             .AddMockedService<IPrHandOffService>()
             .AddMockedService<IPrReplyService>()
+            .AddMockedService<IPrDiffService>()
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()

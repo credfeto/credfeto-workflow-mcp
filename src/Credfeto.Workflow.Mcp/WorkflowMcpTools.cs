@@ -1070,6 +1070,27 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Invalid input is answered with a UsageError outcome rather than an error, so the caller sees every outcome alike
+    [McpServerTool(Name = "pr_diff", Title = "Pull request diff", ReadOnly = true)]
+    [Description(
+        "Reads the changes of a pull request: its unified diff with terminal escape sequences neutralised, the status letter (A, M, D, R, C or -) and path of each changed file, or the additions and deletions of each changed file"
+    )]
+    public static async Task<PrDiffResult> PrDiffAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPrDiffService service,
+        [Description("diff, name-only or stat; diff when not given")] string? mode = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        return await service.DiffAsync(
+            repository: repo,
+            pullRequest: pr,
+            mode: mode,
+            cancellationToken: cancellationToken
+        );
+    }
+
     // Not idempotent: every successful call posts a new comment
     [McpServerTool(
         Name = "comment_add",

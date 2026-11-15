@@ -61,6 +61,30 @@ public sealed class GitHubRestClient : IGitHubRestClient
         );
     }
 
+    public async ValueTask<string> GetTextAsync(
+        string relativeUri,
+        string mediaType,
+        CancellationToken cancellationToken
+    )
+    {
+        HttpClient httpClient = this.CreateHttpClient();
+        Uri requestUri = ResolveOnConfiguredHost(
+            baseAddress: GitHubBaseAddress.From(httpClient),
+            relativeUri: relativeUri
+        );
+
+        using HttpResponseMessage response = await this.SendAsync(
+            httpClient: httpClient,
+            method: HttpMethod.Get,
+            requestUri: requestUri,
+            content: null,
+            mediaType: new MediaTypeWithQualityHeaderValue(mediaType),
+            cancellationToken: cancellationToken
+        );
+
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
     // The redirect is never followed here: the primary handler surfaces it, so the caller's token is not sent to the
     // host the Location names, and the caller decides whether that host may be read
     public async ValueTask<Uri> GetRedirectLocationAsync(string relativeUri, CancellationToken cancellationToken)

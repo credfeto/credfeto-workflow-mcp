@@ -106,10 +106,6 @@ public static class GitHubSetup
             .AddSingleton<IClosingIssueLabelsService, ClosingIssueLabelsService>()
             .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IPullRequestListService, PullRequestListService>()
-            .AddSingleton<IPrCreateService, PrCreateService>()
-            .AddSingleton<IPrReplyService, PrReplyService>()
-            .AddSingleton<IPrHandOffService, PrHandOffService>()
-            .AddSingleton<IPrEditService, PrEditService>()
             .AddSingleton<ICommentAddService, CommentAddService>()
             .AddSingleton<ILabelService, LabelService>()
             .AddSingleton<ILabelListService, LabelListService>()
@@ -126,6 +122,7 @@ public static class GitHubSetup
             .AddSingleton<IWorkflowListService, WorkflowListService>()
             .AddSingleton<IDependabotAlertsService, DependabotAlertsService>()
             .AddRunServices()
+            .AddPullRequestServices()
             .AddSingleton<IBodyCheckService, BodyCheckService>()
             .AddSingleton<IRequiredChecksReader, RequiredChecksReader>()
             .AddSingleton<IWorkflowStatusCheckService, WorkflowStatusCheckService>()
@@ -149,6 +146,16 @@ public static class GitHubSetup
             .AddSingleton<IRunViewService, RunViewService>()
             .AddSingleton<IRunRerunService, RunRerunService>()
             .AddSingleton<IRunLogService, RunLogService>();
+    }
+
+    private static IServiceCollection AddPullRequestServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IPrCreateService, PrCreateService>()
+            .AddSingleton<IPrReplyService, PrReplyService>()
+            .AddSingleton<IPrDiffService, PrDiffService>()
+            .AddSingleton<IPrHandOffService, PrHandOffService>()
+            .AddSingleton<IPrEditService, PrEditService>();
     }
 
     private static IServiceCollection AddPullRequestStatusServices(this IServiceCollection services)
