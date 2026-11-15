@@ -198,6 +198,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrReviewCommentServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrReviewCommentService>();
+    }
+
+    [Fact]
+    public void PrReviewCommentServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrReviewCommentService, PrReviewCommentService>();
+    }
+
+    [Fact]
     public void PrDiffServiceShouldBeRegistered()
     {
         this.RequireService<IPrDiffService>();

@@ -153,6 +153,7 @@ public static class GitHubSetup
         return services
             .AddSingleton<IPrCreateService, PrCreateService>()
             .AddSingleton<IPrReplyService, PrReplyService>()
+            .AddSingleton<IPrReviewCommentService, PrReviewCommentService>()
             .AddSingleton<IPrDiffService, PrDiffService>()
             .AddSingleton<IPrHandOffService, PrHandOffService>()
             .AddSingleton<IPrEditService, PrEditService>();

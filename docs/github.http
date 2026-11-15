@@ -548,6 +548,35 @@ Content-Type: application/json
   "body": "Fixed in abc1234: the reply text."
 }
 
+### REST: a pull request's head commit, read before commenting on its diff (pr_review_comment)
+# head.sha is the commit the comment is anchored to. A 404 means the pull request or the repository is missing.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/pulls/87
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: comment on lines of a pull request's diff (pr_review_comment; never retried)
+# start_line and start_side are sent only for a range of lines. A 400, 401, 403, 404, 410 or 422 means the
+# comment was not posted (a 422 is usually a line outside the diff); any other failure means it may have been
+# posted, so check with pr_comments before trying again.
+POST {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/pulls/87/comments
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "body": "Consider a guard clause here.",
+  "commit_id": "0123456789abcdef0123456789abcdef01234567",
+  "path": "src/Credfeto.Workflow.Mcp/WorkflowMcpTools.cs",
+  "line": 12,
+  "side": "RIGHT",
+  "start_line": 10,
+  "start_side": "RIGHT"
+}
+
 ### REST: post a top-level comment on a pull request or an issue (comment_add; never retried)
 # A pull request's conversation comments are issue comments, so this takes either number. The html_url names
 # /pull/ or /issues/ whichever GitHub answers with. A 400, 401, 403, 404, 410 or 422 means the comment was not
