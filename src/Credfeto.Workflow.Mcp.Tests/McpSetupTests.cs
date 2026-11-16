@@ -33,6 +33,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IPrSearchService>()
             .AddMockedService<ICodeSearchService>()
             .AddMockedService<IRepoSearchService>()
+            .AddMockedService<IRepoFileService>()
             .AddMockedService<IIssueListService>()
             .AddMockedService<IRepositoryListService>()
             .AddMockedService<IWorkflowListService>()

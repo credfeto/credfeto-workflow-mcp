@@ -10,6 +10,7 @@ using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.RepoFiles;
 using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
@@ -90,6 +91,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(PrSearchResponse))]
 [JsonSerializable(typeof(CodeSearchResponse))]
 [JsonSerializable(typeof(RepoSearchResponse))]
+[JsonSerializable(typeof(RepoContentResponse))]
 [JsonSerializable(typeof(LabelTimelineEventResponse[]))]
 [JsonSerializable(typeof(LabelAddRequest))]
 [JsonSerializable(typeof(LabelCreateRequest))]

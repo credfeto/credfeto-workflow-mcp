@@ -20,6 +20,7 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.RepoFiles;
 using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
@@ -117,6 +118,7 @@ public static class GitHubSetup
             .AddSingleton<IPrSearchService, PrSearchService>()
             .AddSingleton<ICodeSearchService, CodeSearchService>()
             .AddSingleton<IRepoSearchService, RepoSearchService>()
+            .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<IIssueListService, IssueListService>()
             .AddSingleton<IRepositoryListService, RepositoryListService>()
             .AddSingleton<IWorkflowListService, WorkflowListService>()
