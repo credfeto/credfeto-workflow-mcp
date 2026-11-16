@@ -57,6 +57,12 @@ internal static class GitHubHttpFailure
         return exception;
     }
 
+    // The reason is fixed text: the Location is upstream content, so it never reaches the message
+    public static HttpRequestException FromRedirect(HttpResponseMessage response, string reason)
+    {
+        return new(message: reason, inner: null, statusCode: response.StatusCode);
+    }
+
     public static string? UpstreamMessage(HttpRequestException exception)
     {
         return exception.Data[UPSTREAM_MESSAGE_KEY] as string;

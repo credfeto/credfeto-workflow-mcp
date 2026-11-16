@@ -808,6 +808,360 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         Assert.Equal(expected: statusCode, actual: exception.StatusCode);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.MovedPermanently)]
+    [InlineData(HttpStatusCode.Found)]
+    [InlineData(HttpStatusCode.SeeOther)]
+    [InlineData(HttpStatusCode.TemporaryRedirect)]
+    [InlineData(HttpStatusCode.PermanentRedirect)]
+    public async Task GetFollowsRedirectUnderTheBasePathAsync(HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(index =>
+            index == 0
+                ? Responses.Redirect(statusCode: statusCode, location: GitHubServices.ApiBaseUrl + "repositories/9")
+                : Responses.Json("""{"id":1,"name":"first"}""")
+        );
+
+        TestItem item = await this.CreateClient(upstream)
+            .GetAsync(
+                relativeUri: "repos/owner/repo",
+                mediaType: "application/vnd.github.text-match+json",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: new TestItem(Id: 1, Name: "first"), actual: item);
+        Assert.Equal<Uri?>(
+            expected:
+            [
+                new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo"),
+                new Uri(GitHubServices.ApiBaseUrl + "repositories/9"),
+            ],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
+        );
+        Assert.All(collection: upstream.Requests, action: static request =>
+        {
+            Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
+            Assert.Equal(expected: "application/vnd.github.text-match+json", actual: request.Accept);
+        });
+    }
+
+    [Theory]
+    [InlineData(GitHubServices.ApiBaseUrl, "other", GitHubServices.ApiBaseUrl + "repos/owner/other")]
+    [InlineData(GitHubServices.ApiBaseUrl, "/repositories/9", GitHubServices.ApiBaseUrl + "repositories/9")]
+    [InlineData(GitHubServices.ApiBaseUrl, "/", GitHubServices.ApiBaseUrl)]
+    [InlineData(
+        GitHubServices.ApiBaseUrl,
+        "//github-proxy.example/repositories/9",
+        GitHubServices.ApiBaseUrl + "repositories/9"
+    )]
+    [InlineData(GitHubServices.ApiBaseUrl, "?page=2", GitHubServices.ApiBaseUrl + "repos/owner/repo?page=2")]
+    [InlineData("https://ghe.example/api/v3/", "/api/v3/repositories/9", "https://ghe.example/api/v3/repositories/9")]
+    [InlineData("https://ghe.example/api/v3/", "../../repositories/9", "https://ghe.example/api/v3/repositories/9")]
+    public async Task RelativeRedirectIsResolvedAgainstTheRequestAsync(
+        string baseAddress,
+        string location,
+        string expected
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(index =>
+            index == 0
+                ? Responses.Redirect(statusCode: HttpStatusCode.Found, location: location)
+                : Responses.Json("""{"id":1,"name":"first"}""")
+        );
+
+        _ = await this.CreateClient(upstream: upstream, baseAddress: baseAddress)
+            .GetAsync(
+                relativeUri: "repos/owner/repo",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal<string?>(
+            expected: [baseAddress + "repos/owner/repo", expected],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri?.AbsoluteUri)],
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData(GitHubServices.ApiBaseUrl, "https://elsewhere.example/repositories/9")]
+    [InlineData(GitHubServices.ApiBaseUrl, "//elsewhere.example/repositories/9")]
+    [InlineData(GitHubServices.ApiBaseUrl, "http://github-proxy.example/repositories/9")]
+    [InlineData(GitHubServices.ApiBaseUrl, "https://github-proxy.example:8443/repositories/9")]
+    [InlineData(GitHubServices.ApiBaseUrl, "https://user@github-proxy.example/repositories/9")]
+    [InlineData("https://ghe.example/api/v3/", "/admin")]
+    [InlineData("https://ghe.example/api/v3/", "https://ghe.example/api/v3x/repositories/9")]
+    [InlineData("https://ghe.example/api/v3/", "../../../admin")]
+    [InlineData("https://ghe.example/api/v3/", "/api/v3/repos%2f..%2f..%2fadmin")]
+    public async Task RedirectOutsideTheBasePathIsNotFollowedAsync(string baseAddress, string location)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.Redirect(statusCode: HttpStatusCode.Found, location: location)
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream: upstream, baseAddress: baseAddress)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.Found, actual: exception.StatusCode);
+        Assert.DoesNotContain(
+            expectedSubstring: location,
+            actualString: exception.Message,
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task RedirectWithNoLocationIsNotFollowedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.Found));
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.Found, actual: exception.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task RedirectLoopStopsAtTheRedirectCapAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Redirect(
+                statusCode: HttpStatusCode.TemporaryRedirect,
+                location: GitHubServices.ApiBaseUrl + "repos/owner/repo"
+            )
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.TemporaryRedirect, actual: exception.StatusCode);
+        Assert.Equal(expected: GitHubHttpRedirects.MaxRedirects + 1, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task RedirectToAFailureReportsTheFailureAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Redirect(
+                    statusCode: HttpStatusCode.Found,
+                    location: GitHubServices.ApiBaseUrl + "repositories/9"
+                )
+                : Responses.Status(HttpStatusCode.NotFound)
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.CreateClient(upstream)
+                .GetAsync(
+                    relativeUri: "repos/owner/repo",
+                    responseTypeInfo: TestJsonContext.Default.TestItem,
+                    cancellationToken: this.CancellationToken()
+                )
+                .AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.NotFound, actual: exception.StatusCode);
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData("POST", HttpStatusCode.TemporaryRedirect)]
+    [InlineData("POST", HttpStatusCode.PermanentRedirect)]
+    [InlineData("PATCH", HttpStatusCode.TemporaryRedirect)]
+    [InlineData("PATCH", HttpStatusCode.PermanentRedirect)]
+    public async Task MethodAndBodyAreReplayedOnARedirectThatKeepsThemAsync(string method, HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(index =>
+            index == 0
+                ? Responses.Redirect(statusCode: statusCode, location: GitHubServices.ApiBaseUrl + "repositories/9")
+                : Responses.Json("""{"id":3,"name":"created"}""")
+        );
+        TestItem body = new(Id: 2, Name: "body");
+
+        TestItem item = await this.SendWithBodyAsync(upstream: upstream, method: method, body: body);
+
+        Assert.Equal(expected: new TestItem(Id: 3, Name: "created"), actual: item);
+        Assert.Equal<Uri?>(
+            expected:
+            [
+                new Uri(GitHubServices.ApiBaseUrl + "repos/owner/repo/issues/1"),
+                new Uri(GitHubServices.ApiBaseUrl + "repositories/9"),
+            ],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
+        );
+        Assert.All(collection: upstream.Requests, action: request =>
+        {
+            Assert.Equal(expected: HttpMethod.Parse(method), actual: request.Method);
+            Assert.Equal(
+                expected: body,
+                actual: JsonSerializer.Deserialize(
+                    json: request.Body ?? string.Empty,
+                    jsonTypeInfo: TestJsonContext.Default.TestItem
+                )
+            );
+        });
+    }
+
+    [Theory]
+    [InlineData("POST", HttpStatusCode.MovedPermanently)]
+    [InlineData("POST", HttpStatusCode.Found)]
+    [InlineData("POST", HttpStatusCode.SeeOther)]
+    [InlineData("PATCH", HttpStatusCode.Found)]
+    public async Task RedirectThatWouldChangeTheMethodIsNotFollowedAsync(string method, HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.Redirect(statusCode: statusCode, location: GitHubServices.ApiBaseUrl + "repositories/9")
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.SendWithBodyAsync(upstream: upstream, method: method, body: new TestItem(Id: 2, Name: "body"))
+        );
+
+        Assert.Equal(expected: statusCode, actual: exception.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task DeleteFollowsARedirectThatKeepsTheMethodAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Redirect(
+                    statusCode: HttpStatusCode.TemporaryRedirect,
+                    location: GitHubServices.ApiBaseUrl + "repositories/9/labels/bug"
+                )
+                : Responses.Json("""{"id":1,"name":"bug"}""")
+        );
+
+        _ = await this.CreateClient(upstream)
+            .DeleteAsync(
+                relativeUri: "repos/owner/repo/labels/bug",
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+        Assert.All(collection: upstream.Requests, action: static request =>
+            Assert.Equal(expected: HttpMethod.Delete, actual: request.Method)
+        );
+    }
+
+    [Fact]
+    public async Task PostWithoutAResponseReplaysTheBodyOnARedirectAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Redirect(
+                    statusCode: HttpStatusCode.PermanentRedirect,
+                    location: GitHubServices.ApiBaseUrl + "repositories/9/dispatches"
+                )
+                : Responses.Status(HttpStatusCode.NoContent)
+        );
+
+        await this.CreateClient(upstream)
+            .PostAsync(
+                relativeUri: "repos/owner/repo/dispatches",
+                body: new TestItem(Id: 2, Name: "body"),
+                requestTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+        Assert.All(collection: upstream.Requests, action: static request =>
+            Assert.False(
+                condition: string.IsNullOrEmpty(request.Body),
+                userMessage: "The body must be sent on every hop"
+            )
+        );
+    }
+
+    [Fact]
+    public async Task GetAllPagesResolvesTheNextLinkAgainstTheRedirectedPageAsync()
+    {
+        const string baseAddress = "https://ghe.example/api/v3/";
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index switch
+            {
+                0 => Responses.Redirect(
+                    statusCode: HttpStatusCode.MovedPermanently,
+                    location: baseAddress + "repositories/9/issues"
+                ),
+                1 => Responses.Json(json: """[{"id":1,"name":"first"}]""", nextLink: "<?page=2>; rel=\"next\""),
+                _ => Responses.Json("""[{"id":2,"name":"second"}]"""),
+            }
+        );
+
+        IReadOnlyList<TestItem> items = await this.CreateClient(upstream: upstream, baseAddress: baseAddress)
+            .GetAllPagesAsync(
+                relativeUri: "repos/owner/repo/issues",
+                pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(
+            expected: [new TestItem(Id: 1, Name: "first"), new TestItem(Id: 2, Name: "second")],
+            actual: items
+        );
+        Assert.Equal<string?>(
+            expected:
+            [
+                baseAddress + "repos/owner/repo/issues",
+                baseAddress + "repositories/9/issues",
+                baseAddress + "repositories/9/issues?page=2",
+            ],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri?.AbsoluteUri)],
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    private async Task<TestItem> SendWithBodyAsync(RecordingHttpMessageHandler upstream, string method, TestItem body)
+    {
+        GitHubRestClient client = this.CreateClient(upstream);
+
+        if (StringComparer.Ordinal.Equals(x: method, y: "PATCH"))
+        {
+            return await client.PatchAsync(
+                relativeUri: "repos/owner/repo/issues/1",
+                body: body,
+                requestTypeInfo: TestJsonContext.Default.TestItem,
+                responseTypeInfo: TestJsonContext.Default.TestItem,
+                cancellationToken: this.CancellationToken()
+            );
+        }
+
+        return await client.PostAsync(
+            relativeUri: "repos/owner/repo/issues/1",
+            body: body,
+            requestTypeInfo: TestJsonContext.Default.TestItem,
+            responseTypeInfo: TestJsonContext.Default.TestItem,
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
     private static HttpResponseMessage Redirect(Uri location)
     {
         return new(HttpStatusCode.Found) { Headers = { Location = location } };

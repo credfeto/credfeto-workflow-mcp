@@ -37,7 +37,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this.ExchangeAsync(
             method: HttpMethod.Get,
             relativeUri: relativeUri,
-            content: null,
+            createContent: null,
             responseTypeInfo: responseTypeInfo,
             mediaType: null,
             cancellationToken: cancellationToken
@@ -54,7 +54,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this.ExchangeAsync(
             method: HttpMethod.Get,
             relativeUri: relativeUri,
-            content: null,
+            createContent: null,
             responseTypeInfo: responseTypeInfo,
             mediaType: new MediaTypeWithQualityHeaderValue(mediaType),
             cancellationToken: cancellationToken
@@ -73,14 +73,16 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri
         );
 
-        using HttpResponseMessage response = await this.SendAsync(
+        GitHubHttpExchange exchange = await this.SendAsync(
             httpClient: httpClient,
             method: HttpMethod.Get,
             requestUri: requestUri,
-            content: null,
+            createContent: null,
             mediaType: new MediaTypeWithQualityHeaderValue(mediaType),
             cancellationToken: cancellationToken
         );
+
+        using HttpResponseMessage response = exchange.Response;
 
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
@@ -129,7 +131,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this.ExchangeAsync(
             method: HttpMethod.Post,
             relativeUri: relativeUri,
-            content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
+            createContent: () => JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
             responseTypeInfo: responseTypeInfo,
             mediaType: null,
             cancellationToken: cancellationToken
@@ -149,14 +151,16 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri
         );
 
-        using HttpResponseMessage response = await this.SendAsync(
+        GitHubHttpExchange exchange = await this.SendAsync(
             httpClient: httpClient,
             method: HttpMethod.Post,
             requestUri: requestUri,
-            content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
+            createContent: () => JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
             mediaType: null,
             cancellationToken: cancellationToken
         );
+
+        exchange.Response.Dispose();
     }
 
     public ValueTask<TResponse> PatchAsync<TRequest, TResponse>(
@@ -170,7 +174,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this.ExchangeAsync(
             method: HttpMethod.Patch,
             relativeUri: relativeUri,
-            content: JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
+            createContent: () => JsonContent.Create(inputValue: body, jsonTypeInfo: requestTypeInfo),
             responseTypeInfo: responseTypeInfo,
             mediaType: null,
             cancellationToken: cancellationToken
@@ -186,7 +190,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this.ExchangeAsync(
             method: HttpMethod.Delete,
             relativeUri: relativeUri,
-            content: null,
+            createContent: null,
             responseTypeInfo: responseTypeInfo,
             mediaType: null,
             cancellationToken: cancellationToken
@@ -196,7 +200,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
     private async ValueTask<TResponse> ExchangeAsync<TResponse>(
         HttpMethod method,
         string relativeUri,
-        HttpContent? content,
+        Func<HttpContent>? createContent,
         JsonTypeInfo<TResponse> responseTypeInfo,
         MediaTypeWithQualityHeaderValue? mediaType,
         CancellationToken cancellationToken
@@ -208,14 +212,16 @@ public sealed class GitHubRestClient : IGitHubRestClient
             relativeUri: relativeUri
         );
 
-        using HttpResponseMessage response = await this.SendAsync(
+        GitHubHttpExchange exchange = await this.SendAsync(
             httpClient: httpClient,
             method: method,
             requestUri: requestUri,
-            content: content,
+            createContent: createContent,
             mediaType: mediaType,
             cancellationToken: cancellationToken
         );
+
+        using HttpResponseMessage response = exchange.Response;
 
         return await ReadContentAsync(
             content: response.Content,
@@ -255,14 +261,16 @@ public sealed class GitHubRestClient : IGitHubRestClient
         {
             EnsurePageMayBeFetched(fetched: fetched, requestUri: requestUri);
 
-            using HttpResponseMessage response = await this.SendAsync(
+            GitHubHttpExchange exchange = await this.SendAsync(
                 httpClient: httpClient,
                 method: HttpMethod.Get,
                 requestUri: requestUri,
-                content: null,
+                createContent: null,
                 mediaType: null,
                 cancellationToken: cancellationToken
             );
+
+            using HttpResponseMessage response = exchange.Response;
 
             TPage page = await ReadContentAsync(
                 content: response.Content,
@@ -274,11 +282,11 @@ public sealed class GitHubRestClient : IGitHubRestClient
                 items(page) ?? throw new GitHubInvalidResponseException("GitHub returned a page with no items list")
             );
 
-            // Redirects are not followed, so the page that answered is the one requested and a relative next link
-            // is resolved against it. The link comes back already checked and is requested exactly as checked
+            // A relative next link is resolved against the page that answered, which is not the one requested once a
+            // redirect was followed. The link comes back already checked and is requested exactly as checked
             requestUri = GitHubLinkHeader.FindNextPage(
                 headers: response.Headers,
-                requestUri: requestUri,
+                requestUri: exchange.RequestUri,
                 baseAddress: baseAddress
             );
         }
@@ -307,18 +315,49 @@ public sealed class GitHubRestClient : IGitHubRestClient
         return this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
     }
 
-    // The caller owns and disposes the returned successful response; a failed one is disposed here
-    private async ValueTask<HttpResponseMessage> SendAsync(
+    // The caller owns and disposes the returned successful response; a failed one is disposed here. A request's
+    // content can only be sent once, so each redirect hop is given new content from the factory
+    private async ValueTask<GitHubHttpExchange> SendAsync(
         HttpClient httpClient,
         HttpMethod method,
         Uri requestUri,
-        HttpContent? content,
+        Func<HttpContent>? createContent,
         MediaTypeWithQualityHeaderValue? mediaType,
         CancellationToken cancellationToken
     )
     {
-        using HttpRequestMessage request = new(method: method, requestUri: requestUri);
-        request.Content = content;
+        GitHubHttpExchange exchange = await GitHubHttpRedirects.SendAsync(
+            httpClient: httpClient,
+            requestUri: requestUri,
+            allowedBase: GitHubBaseAddress.From(httpClient),
+            createRequest: hopUri =>
+                CreateRequest(method: method, requestUri: hopUri, createContent: createContent, mediaType: mediaType),
+            cancellationToken: cancellationToken
+        );
+
+        if (exchange.Response.IsSuccessStatusCode)
+        {
+            return exchange;
+        }
+
+        using (exchange.Response)
+        {
+            throw await this.FailureAsync(
+                response: exchange.Response,
+                requestUri: exchange.RequestUri,
+                cancellationToken: cancellationToken
+            );
+        }
+    }
+
+    private static HttpRequestMessage CreateRequest(
+        HttpMethod method,
+        Uri requestUri,
+        Func<HttpContent>? createContent,
+        MediaTypeWithQualityHeaderValue? mediaType
+    )
+    {
+        HttpRequestMessage request = new(method: method, requestUri: requestUri) { Content = createContent?.Invoke() };
 
         // A header set on the request is kept in place of the client's default, so this replaces the default media type
         if (mediaType is not null)
@@ -326,25 +365,7 @@ public sealed class GitHubRestClient : IGitHubRestClient
             request.Headers.Accept.Add(mediaType);
         }
 
-        HttpResponseMessage response = await GitHubHttpSender.SendAsync(
-            httpClient: httpClient,
-            request: request,
-            cancellationToken: cancellationToken
-        );
-
-        if (response.IsSuccessStatusCode)
-        {
-            return response;
-        }
-
-        using (response)
-        {
-            throw await this.FailureAsync(
-                response: response,
-                requestUri: requestUri,
-                cancellationToken: cancellationToken
-            );
-        }
+        return request;
     }
 
     private async ValueTask<HttpRequestException> FailureAsync(
