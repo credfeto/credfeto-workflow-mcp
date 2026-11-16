@@ -67,6 +67,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added repo_file MCP tool that reads a file or lists a directory at a given ref through the GitHub contents API, refusing binary and oversized files, so workflows can inspect repository files through the server (#78)
 ### Fixed
 ### Changed
+- issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
 - Enabled runtime-async (Features strict;flow-analysis;runtime-async=on) in all projects and moved the Dockerfile runtime image to .NET 11 rc.3 (#74)
 - SDK - Updated DotNet SDK to 11.0.100

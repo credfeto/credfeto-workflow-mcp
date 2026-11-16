@@ -31,6 +31,10 @@ internal static class ItemEdit
 
     private const string UNEXPECTED_ANSWER = "unexpected answer";
 
+    private const string ASSIGNED_TO_ANOTHER_USER_RULE = "already assigned to another user";
+
+    private const string ASSIGN_SELF_SUBJECT = "assignSelf";
+
     // Whitespace and invisible characters alone would show as an empty body on GitHub
     public static string ValidBody(string body)
     {
@@ -54,8 +58,7 @@ internal static class ItemEdit
         if (request.Title is not null)
         {
             // A title gets the same rules as a body except its length, which the usage checks already limit
-            LeakRefusal? titleLeak =
-                leakChecker.CheckValue(subject: LeakSubject.TITLE, value: request.Title)
+            LeakRefusal? titleLeak = leakChecker.CheckValue(subject: LeakSubject.TITLE, value: request.Title)
                 ?? await leakChecker.CheckRepositoryReferencesAsync(
                     repository: request.Repository,
                     subject: LeakSubject.TITLE,
@@ -74,8 +77,7 @@ internal static class ItemEdit
             return null;
         }
 
-        LeakRefusal? bodyLeak =
-            leakChecker.CheckBody(request.Body)
+        LeakRefusal? bodyLeak = leakChecker.CheckBody(request.Body)
             ?? await leakChecker.CheckRepositoryReferencesAsync(
                 repository: request.Repository,
                 subject: LeakSubject.BODY,
@@ -152,6 +154,15 @@ internal static class ItemEdit
         return (request.Title is null || StringComparer.Ordinal.Equals(x: request.Title, y: state.Title))
             && (request.Body is null || StringComparer.Ordinal.Equals(x: request.Body, y: state.Body))
             && (login is null || IsAssigned(assignees: state.Assignees, login: login));
+    }
+
+    // An assignee is how a worker claims an item, and the orchestrator stands off one assigned to someone else, so
+    // the signed-in account is never added beside another user unless it already holds the item
+    public static EditRefusal? CheckAssignee(EditState state, string? login)
+    {
+        return login is not null && state.Assignees.Count > 0 && !IsAssigned(assignees: state.Assignees, login: login)
+            ? new EditRefusal(Subject: ASSIGN_SELF_SUBJECT, Rule: ASSIGNED_TO_ANOTHER_USER_RULE, LineNumber: null)
+            : null;
     }
 
     // GitHub replaces the assignees with the list sent, so the current ones are kept
