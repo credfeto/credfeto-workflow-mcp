@@ -180,6 +180,76 @@ public sealed class GitHubNamesTests : TestBase
     }
 
     [Theory]
+    [InlineData("main")]
+    [InlineData("feature/78-repo-file-tool")]
+    [InlineData("v1.0.0")]
+    [InlineData("0123456789abcdef0123456789abcdef01234567")]
+    public static void GitRefAcceptsBranchTagAndCommitSha(string value)
+    {
+        Assert.Equal(expected: value, actual: GitHubNames.GitRef(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("a..b")]
+    [InlineData("a b")]
+    [InlineData("/a")]
+    [InlineData("a/")]
+    [InlineData("a.lock")]
+    [InlineData("a\n")]
+    public static void GitRefRejectsInvalidNames(string value)
+    {
+        AssertRejected(() => GitHubNames.GitRef(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("README.md")]
+    [InlineData("src/a.cs")]
+    [InlineData(".github/workflows/build.yml")]
+    [InlineData("a/.../b")]
+    [InlineData("docs/with space.md")]
+    public static void RepositoryPathAcceptsValidPaths(string value)
+    {
+        Assert.Equal(expected: value, actual: GitHubNames.RepositoryPath(value: value, parameterName: PARAMETER));
+    }
+
+    [Fact]
+    public void RepositoryPathAcceptsTheMaximumLength()
+    {
+        string value = new('a', count: 4096);
+
+        Assert.Equal(expected: value, actual: GitHubNames.RepositoryPath(value: value, parameterName: PARAMETER));
+    }
+
+    [Fact]
+    public void RepositoryPathRejectsMoreThanTheMaximumLength()
+    {
+        string value = new('a', count: 4097);
+
+        AssertRejected(() => GitHubNames.RepositoryPath(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("/a")]
+    [InlineData("a/")]
+    [InlineData("/")]
+    [InlineData("a//b")]
+    [InlineData(".")]
+    [InlineData("..")]
+    [InlineData("./a")]
+    [InlineData("a/./b")]
+    [InlineData("a/../b")]
+    [InlineData("a/..")]
+    [InlineData("a\tb")]
+    [InlineData("a\0b")]
+    [InlineData("a\u0085b")]
+    public static void RepositoryPathRejectsInvalidPaths(string value)
+    {
+        AssertRejected(() => GitHubNames.RepositoryPath(value: value, parameterName: PARAMETER));
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("In Progress")]
     [InlineData("Done ✔")]

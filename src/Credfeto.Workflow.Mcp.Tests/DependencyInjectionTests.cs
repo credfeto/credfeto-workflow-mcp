@@ -63,6 +63,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "pr_status",
                 "pr_view",
                 "repo_dependabot_alerts",
+                "repo_file",
                 "repo_list",
                 "repo_search",
                 "run_list",
@@ -94,6 +95,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("repo_list")]
     [InlineData("workflow_list")]
     [InlineData("repo_dependabot_alerts")]
+    [InlineData("repo_file")]
     [InlineData("label_list")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
@@ -276,6 +278,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["limit", "repo", "text"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo", "text"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RepoFileTakesRepoAndPathAndOptionalRef()
+    {
+        JsonElement schema = this.GetTool("repo_file").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["path", "ref", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["path", "repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -758,6 +769,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPrSearchService>()
             .AddMockedService<ICodeSearchService>()
             .AddMockedService<IRepoSearchService>()
+            .AddMockedService<IRepoFileService>()
             .AddMockedService<IIssueListService>()
             .AddMockedService<IRepositoryListService>()
             .AddMockedService<IWorkflowListService>()
