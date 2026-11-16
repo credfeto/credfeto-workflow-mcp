@@ -295,6 +295,31 @@ public sealed class GitHubHttpClientPipelineTests : TestBase
         Assert.Equal(expected: HttpStatusCode.TooManyRequests, actual: exception.StatusCode);
     }
 
+    [Fact]
+    public async Task FollowedRedirectSendsTheCallerTokenOnEveryHopAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Redirect(
+                    statusCode: HttpStatusCode.MovedPermanently,
+                    location: GitHubServices.ApiBaseUrl + "user/moved"
+                )
+                : Responses.Json("""{"id":1,"name":"first"}""")
+        );
+
+        TestItem item = await this.GetThroughRestClientAsync(upstream);
+
+        Assert.Equal(expected: new TestItem(Id: 1, Name: "first"), actual: item);
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+        Assert.Equal(
+            expected: new Uri(GitHubServices.ApiBaseUrl + "user/moved"),
+            actual: upstream.Requests[1].RequestUri
+        );
+        Assert.All(collection: upstream.Requests, action: static request =>
+            Assert.Equal(expected: "Bearer " + CallerContext.Token, actual: request.Authorization)
+        );
+    }
+
     [Theory]
     [InlineData(HttpStatusCode.TooManyRequests)]
     [InlineData(HttpStatusCode.Forbidden)]

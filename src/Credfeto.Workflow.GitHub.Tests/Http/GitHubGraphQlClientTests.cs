@@ -226,6 +226,80 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         Assert.Same(expected: rejection, actual: exception.InnerException);
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.TemporaryRedirect, GitHubServices.ApiBaseUrl, GitHubServices.ApiBaseUrl + "graphql2")]
+    [InlineData(HttpStatusCode.PermanentRedirect, GitHubServices.ApiBaseUrl, "/graphql?x=1")]
+    [InlineData(HttpStatusCode.TemporaryRedirect, "https://ghe.example/api/v3/", "https://ghe.example/api/graphql2")]
+    [InlineData(HttpStatusCode.PermanentRedirect, "https://ghe.example/api/v3/", "/api/v3/graphql")]
+    public async Task RedirectThatKeepsTheMethodReplaysTheQueryAsync(
+        HttpStatusCode statusCode,
+        string baseAddress,
+        string location
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(index =>
+            index == 0
+                ? Responses.Redirect(statusCode: statusCode, location: location)
+                : Responses.Json("""{"data":{"login":"octocat"}}""")
+        );
+
+        TestData data = await this.ExecuteAsync(upstream: upstream, baseAddress: baseAddress);
+
+        Assert.Equal(expected: new TestData("octocat"), actual: data);
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+
+        RecordedRequest original = upstream.Requests[0];
+        RecordedRequest redirected = upstream.Requests[1];
+        Assert.Equal(expected: HttpMethod.Post, actual: redirected.Method);
+        Assert.Equal(expected: new Uri(new Uri(baseAddress), location), actual: redirected.RequestUri);
+        Assert.Equal(expected: original.Body, actual: redirected.Body);
+
+        using JsonDocument body = JsonDocument.Parse(redirected.Body ?? string.Empty);
+        Assert.Equal(expected: QUERY, actual: body.RootElement.GetProperty("query").GetString());
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.MovedPermanently)]
+    [InlineData(HttpStatusCode.Found)]
+    [InlineData(HttpStatusCode.SeeOther)]
+    public async Task RedirectThatWouldChangeTheMethodIsNotFollowedAsync(HttpStatusCode statusCode)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.Redirect(statusCode: statusCode, location: GitHubServices.ApiBaseUrl + "graphql2")
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: statusCode, actual: exception.StatusCode);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Theory]
+    [InlineData(GitHubServices.ApiBaseUrl, "https://elsewhere.example/graphql")]
+    [InlineData("https://ghe.example/api/v3/", "https://ghe.example/graphql")]
+    [InlineData("https://ghe.example/api/v3/", "/admin")]
+    [InlineData("https://ghe.example/api/v3/", "../graphql")]
+    public async Task RedirectOutsideTheGraphQlScopeIsNotFollowedAsync(string baseAddress, string location)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.Redirect(statusCode: HttpStatusCode.TemporaryRedirect, location: location)
+        );
+
+        HttpRequestException exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+            this.ExecuteAsync(upstream: upstream, baseAddress: baseAddress).AsTask()
+        );
+
+        Assert.Equal(expected: HttpStatusCode.TemporaryRedirect, actual: exception.StatusCode);
+        Assert.DoesNotContain(
+            expectedSubstring: location,
+            actualString: exception.Message,
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.Single(upstream.Requests);
+    }
+
     private ValueTask<TestData> ExecuteAsync(
         HttpMessageHandler upstream,
         string baseAddress = GitHubServices.ApiBaseUrl

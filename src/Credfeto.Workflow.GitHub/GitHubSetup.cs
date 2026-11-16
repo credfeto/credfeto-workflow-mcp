@@ -253,8 +253,8 @@ public static class GitHubSetup
     }
 
     // A redirect followed by the primary handler would run below CallerTokenForwardingHandler and could reach any
-    // host the Location names without the configured host and base path check, so a 3xx is surfaced as a failure.
-    // The factory pools this handler across every caller, so it must hold no per-caller state such as cookies.
+    // host the Location names without the configured host and base path check, so a 3xx is surfaced here and
+    // GitHubHttpRedirects follows it above the pipeline once its target has passed that check. The factory pools this handler across every caller, so it must hold no per-caller state such as cookies.
     // Compression keeps the many large pages a paged listing can fetch small on the wire.
     private static HttpMessageHandler CreatePrimaryHandler()
     {
