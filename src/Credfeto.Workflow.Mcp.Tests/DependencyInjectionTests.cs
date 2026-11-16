@@ -70,6 +70,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
                 "run_log",
                 "run_rerun",
                 "run_view",
+                "tag_view",
                 "workflow_list",
                 "workflow_run",
                 "workflow_status_check",
@@ -108,6 +109,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("run_list")]
     [InlineData("run_view")]
     [InlineData("run_log")]
+    [InlineData("tag_view")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -287,6 +289,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["path", "ref", "repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["path", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void TagViewTakesRepoAndTag()
+    {
+        JsonElement schema = this.GetTool("tag_view").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo", "tag"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "tag"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -770,6 +781,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ICodeSearchService>()
             .AddMockedService<IRepoSearchService>()
             .AddMockedService<IRepoFileService>()
+            .AddMockedService<ITagViewService>()
             .AddMockedService<IIssueListService>()
             .AddMockedService<IRepositoryListService>()
             .AddMockedService<IWorkflowListService>()

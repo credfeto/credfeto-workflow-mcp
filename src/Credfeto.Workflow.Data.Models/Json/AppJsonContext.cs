@@ -45,6 +45,7 @@ namespace Credfeto.Workflow.Data.Models.Json;
 [JsonSerializable(typeof(RunLogResponse))]
 [JsonSerializable(typeof(RunRerunResult))]
 [JsonSerializable(typeof(RunViewResponse))]
+[JsonSerializable(typeof(TagViewResponse))]
 [JsonSerializable(typeof(WorkflowListResponse))]
 [JsonSerializable(typeof(WorkflowRunResult))]
 [JsonSerializable(typeof(WorkflowStatusCheckResult))]
