@@ -65,6 +65,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added workflow_run MCP tool to dispatch a GitHub workflow that the target repository has explicitly allowlisted in .github/cfwf-dispatch-allow, only from its default branch and with inputs checked against the workflow's declared inputs, so workflows can be triggered through the MCP server without opening up arbitrary workflow dispatch (#113)
 - Added issue_add_sub_issue MCP tool (repo, issue, sub_issue) that links a sub-issue to a parent issue, so workflows can attach sub-issues to their parent issue through the server (#57)
 - Added repo_file MCP tool that reads a file or lists a directory at a given ref through the GitHub contents API, refusing binary and oversized files, so workflows can inspect repository files through the server (#78)
+- REST and GraphQL GitHub API calls now follow redirects (301/302/303/307/308 for GET; 307/308 only for other methods, max 5 hops) only to targets within the configured base path (#36)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)

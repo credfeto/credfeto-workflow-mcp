@@ -46,6 +46,15 @@ internal static class Responses
         return new(statusCode);
     }
 
+    // Set as text so the header is parsed as it would be off the wire
+    public static HttpResponseMessage Redirect(HttpStatusCode statusCode, string location)
+    {
+        HttpResponseMessage response = new(statusCode);
+        response.Headers.TryAddWithoutValidation(name: "Location", value: location);
+
+        return response;
+    }
+
     public static HttpResponseMessage StatusWithJson(HttpStatusCode statusCode, string json)
     {
         return new(statusCode)
