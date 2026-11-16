@@ -66,7 +66,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added issue_add_sub_issue MCP tool (repo, issue, sub_issue) that links a sub-issue to a parent issue, so workflows can attach sub-issues to their parent issue through the server (#57)
 - Added repo_file MCP tool that reads a file or lists a directory at a given ref through the GitHub contents API, refusing binary and oversized files, so workflows can inspect repository files through the server (#78)
 - REST and GraphQL GitHub API calls now follow redirects (301/302/303/307/308 for GET; 307/308 only for other methods, max 5 hops) only to targets within the configured base path (#36)
-- TBD - to be finalized after review
+- Added optional GitHub:UpstreamBasePath setting so proxied upstream next-page links and the GraphQL endpoint are resolved correctly (#35)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
