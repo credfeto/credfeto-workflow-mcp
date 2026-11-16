@@ -1104,7 +1104,7 @@ public sealed class WorkflowMcpTools
     // finds the issue already as asked and writes nothing
     [McpServerTool(Name = "issue_edit", Title = "Issue edit", ReadOnly = false, Destructive = true, Idempotent = true)]
     [Description(
-        "Edits an issue in one write: replaces its title and body and adds the signed-in account to its assignees, keeping the others; the title and body are leak checked before anything is written. Returns Edited or Unchanged with the issue URL, Refused with the rule and line, NotFound (a pull request number is not found) or Failed"
+        "Edits an issue in one write: replaces its title and body and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account; the title and body are leak checked before anything is written. Returns Edited or Unchanged with the issue URL, Refused with the rule and line, NotFound (a pull request number is not found) or Failed"
     )]
     public static async Task<IssueEditResult> IssueEditAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -1115,7 +1115,10 @@ public sealed class WorkflowMcpTools
         )]
             string? title = null,
         [Description("The new issue body, in Markdown")] string? body = null,
-        [Description("Whether to add the signed-in account to the issue's assignees")] bool assignSelf = false,
+        [Description(
+            "Whether to add the signed-in account to the issue's assignees; refused when the issue is already assigned to another user"
+        )]
+            bool assignSelf = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -1388,7 +1391,7 @@ public sealed class WorkflowMcpTools
         Idempotent = true
     )]
     [Description(
-        "Edits a pull request in one write: replaces its title and description and adds the signed-in account to its assignees, keeping the others; the title and description are leak checked before anything is written. Returns Edited or Unchanged with the pull request URL, Refused with the rule and line, NotFound, NotEdited or MayHaveBeenEdited"
+        "Edits a pull request in one write: replaces its title and description and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account; the title and description are leak checked before anything is written. Returns Edited or Unchanged with the pull request URL, Refused with the rule and line, NotFound, NotEdited or MayHaveBeenEdited"
     )]
     public static async Task<PrEditResult> PrEditAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -1399,7 +1402,10 @@ public sealed class WorkflowMcpTools
         )]
             string? title = null,
         [Description("The new pull request description, in Markdown")] string? body = null,
-        [Description("Whether to add the signed-in account to the pull request's assignees")] bool assignSelf = false,
+        [Description(
+            "Whether to add the signed-in account to the pull request's assignees; refused when the pull request is already assigned to another user"
+        )]
+            bool assignSelf = false,
         CancellationToken cancellationToken = default
     )
     {
