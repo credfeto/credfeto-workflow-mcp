@@ -30,6 +30,8 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
     // GitHub Enterprise Server serves REST under /api/v3/ but GraphQL at the sibling /api/graphql
     private static readonly Uri EnterpriseGraphQlUri = new(uriString: "../graphql", uriKind: UriKind.Relative);
 
+    private static readonly Uri CurrentDirectory = new(uriString: "./", uriKind: UriKind.Relative);
+
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GitHubGraphQlClient> _logger;
 
@@ -48,23 +50,26 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
     )
     {
         HttpClient httpClient = this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
+        Uri graphQlUri = ResolveGraphQlUri(GitHubBaseAddress.From(httpClient));
 
-        using HttpRequestMessage request = new(
-            method: HttpMethod.Post,
-            requestUri: ResolveGraphQlUri(GitHubBaseAddress.From(httpClient))
-        );
-        request.Content = await BuildRequestContentAsync(
+        // The body is serialised once; a request's content can only be sent once, so each redirect hop gets new
+        // content over the same bytes
+        ReadOnlyMemory<byte> body = await BuildRequestBodyAsync(
             query: query,
             variables: variables,
             variablesTypeInfo: variablesTypeInfo,
             cancellationToken: cancellationToken
         );
 
-        using HttpResponseMessage response = await GitHubHttpSender.SendAsync(
+        GitHubHttpExchange exchange = await GitHubHttpRedirects.SendAsync(
             httpClient: httpClient,
-            request: request,
+            requestUri: graphQlUri,
+            allowedBase: GraphQlRedirectBase(graphQlUri),
+            createRequest: hopUri => new(method: HttpMethod.Post, requestUri: hopUri) { Content = CreateContent(body) },
             cancellationToken: cancellationToken
         );
+
+        using HttpResponseMessage response = exchange.Response;
 
         if (!response.IsSuccessStatusCode)
         {
@@ -83,18 +88,37 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         return ReadData(graphQlResponse: graphQlResponse, dataTypeInfo: dataTypeInfo);
     }
 
-    // Kept relative so HttpClient resolves it against BaseAddress and it can only reach the configured host
+    // Resolved from the fixed relative path against BaseAddress, so it can only reach the configured host
     private static Uri ResolveGraphQlUri(Uri baseAddress)
     {
-        return baseAddress.AbsolutePath.EndsWith(
-            value: ENTERPRISE_REST_PATH_SUFFIX,
-            comparisonType: StringComparison.Ordinal
-        )
-            ? EnterpriseGraphQlUri
-            : GraphQlUri;
+        return new(
+            baseUri: baseAddress,
+            relativeUri: baseAddress.AbsolutePath.EndsWith(
+                value: ENTERPRISE_REST_PATH_SUFFIX,
+                comparisonType: StringComparison.Ordinal
+            )
+                ? EnterpriseGraphQlUri
+                : GraphQlUri
+        );
     }
 
-    private static async ValueTask<ReadOnlyMemoryContent> BuildRequestContentAsync<TVariables>(
+    // A redirect may stay anywhere under the directory GraphQL is served from. That is the configured base path
+    // except on GitHub Enterprise Server, where GraphQL sits beside /api/v3/ rather than under it, so the base path
+    // would refuse every redirect there
+    private static Uri GraphQlRedirectBase(Uri graphQlUri)
+    {
+        return new(baseUri: graphQlUri, relativeUri: CurrentDirectory);
+    }
+
+    private static ReadOnlyMemoryContent CreateContent(ReadOnlyMemory<byte> body)
+    {
+        ReadOnlyMemoryContent content = new(body);
+        content.Headers.ContentType = new MediaTypeHeaderValue(mediaType: "application/json", charSet: "utf-8");
+
+        return content;
+    }
+
+    private static async ValueTask<ReadOnlyMemory<byte>> BuildRequestBodyAsync<TVariables>(
         string query,
         TVariables variables,
         JsonTypeInfo<TVariables> variablesTypeInfo,
@@ -113,10 +137,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
             await writer.FlushAsync(cancellationToken);
         }
 
-        ReadOnlyMemoryContent content = new(buffer.WrittenMemory);
-        content.Headers.ContentType = new MediaTypeHeaderValue(mediaType: "application/json", charSet: "utf-8");
-
-        return content;
+        return buffer.WrittenMemory;
     }
 
     private static TData ReadData<TData>(GraphQlResponse graphQlResponse, JsonTypeInfo<TData> dataTypeInfo)
