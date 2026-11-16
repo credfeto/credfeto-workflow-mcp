@@ -504,6 +504,16 @@ Accept: application/vnd.github.text-match+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: a file's content or a directory's entries at a ref (repo_file)
+# Each path part is URL-encoded and ref is left off for the default branch. The object media type answers a
+# directory with an object holding its entries rather than a bare array. A file's content is base64 and is
+# decoded; a 404, or a 422 for a ref with no commit, means not found.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/contents/README.md?ref=main
+Authorization: Bearer {{token}}
+Accept: application/vnd.github.object+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: search an owner's repository names and descriptions for text (repo_search)
 # q is "in:name,description <words> user:<owner>", plus "archived:false" unless archived repositories are wanted,
 # URL-encoded as one value; "user:" matches organisations too. per_page is the limit plus one, at most 100, so a

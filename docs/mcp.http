@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1220,6 +1220,83 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "text": "McpServerTool",
       "limit": 0
+    }
+  }
+}
+
+### Call the repo_file tool for a file at the default branch; expects kind File with the repository, path, size and the file's exact content
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 122,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_file",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "path": "README.md"
+    }
+  }
+}
+
+### Call the repo_file tool for a directory at a ref; expects kind Directory with the ref and each entry's type and name, sorted by name
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 123,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_file",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "path": "src",
+      "ref": "main"
+    }
+  }
+}
+
+### Call the repo_file tool for a path that does not exist; expects kind NotFound with a message that names neither the path nor the ref
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 124,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_file",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "path": "does/not/exist.md"
+    }
+  }
+}
+
+### Call the repo_file tool with a ".." path part; expects a tool error naming the "path" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 125,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_file",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "path": "src/../README.md"
     }
   }
 }

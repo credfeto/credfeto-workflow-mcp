@@ -1,5 +1,6 @@
 using System;
 using System.Buffers;
+using System.Linq;
 using System.Text;
 
 namespace Credfeto.Workflow.GitHub.Interfaces.Validation;
@@ -11,6 +12,7 @@ public static class GitHubNames
     private const int MAX_LABEL_LENGTH = 50;
     private const int LABEL_COLOUR_LENGTH = 6;
     private const int MAX_LABEL_DESCRIPTION_LENGTH = 100;
+    private const int MAX_REPOSITORY_PATH_LENGTH = 4096;
     private const string BOT_SUFFIX = "[bot]";
 
     private static readonly SearchValues<char> RepositoryNameCharacters = SearchValues.Create(
@@ -117,6 +119,41 @@ public static class GitHubNames
             invalid: !GitRefFormat.IsValidRefName(value),
             parameterName: parameterName,
             rule: "it must be a valid git ref name"
+        );
+
+        return value;
+    }
+
+    // A full commit SHA is also a valid ref name, so this one rule covers a branch, a tag and a commit
+    public static string GitRef(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: !GitRefFormat.IsValidRefName(value),
+            parameterName: parameterName,
+            rule: "it must be a valid git branch or tag name, or a commit SHA"
+        );
+
+        return value;
+    }
+
+    public static string RepositoryPath(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: value.Length > MAX_REPOSITORY_PATH_LENGTH,
+            parameterName: parameterName,
+            rule: "it must be at most 4096 characters long"
+        );
+
+        ThrowIf(
+            invalid: GitRefFormat.ContainsControlCharacter(value),
+            parameterName: parameterName,
+            rule: "it must not contain control characters"
+        );
+
+        ThrowIf(
+            invalid: value.Split('/').Any(IsInvalidPathPart),
+            parameterName: parameterName,
+            rule: "it must not start or end with '/' or have an empty, '.' or '..' part"
         );
 
         return value;
@@ -254,10 +291,8 @@ public static class GitHubNames
 
     private static string HexToLower(string value)
     {
-        return string.Create(
-            length: value.Length,
-            state: value,
-            action: static (span, source) => Ascii.ToLower(source: source, destination: span, out _)
+        return string.Create(length: value.Length, state: value, action: static (span, source) =>
+            Ascii.ToLower(source: source, destination: span, out _)
         );
     }
 
@@ -287,5 +322,12 @@ public static class GitHubNames
     private static bool IsRepositoryPart(ReadOnlySpan<char> part)
     {
         return !part.IsEmpty && !part.ContainsAnyExcept(RepositoryNameCharacters) && part is not "." and not "..";
+    }
+
+    private static bool IsInvalidPathPart(string part)
+    {
+        return part.Length == 0
+            || StringComparer.Ordinal.Equals(x: part, y: ".")
+            || StringComparer.Ordinal.Equals(x: part, y: "..");
     }
 }
