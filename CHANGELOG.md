@@ -64,6 +64,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added pr_review_comment MCP tool to post an inline review comment on a line of a pull request's diff, so review feedback can be left on specific code through the MCP server instead of as a general PR comment (#67)
 - Added workflow_run MCP tool to dispatch a GitHub workflow that the target repository has explicitly allowlisted in .github/cfwf-dispatch-allow, only from its default branch and with inputs checked against the workflow's declared inputs, so workflows can be triggered through the MCP server without opening up arbitrary workflow dispatch (#113)
 - Added issue_add_sub_issue MCP tool (repo, issue, sub_issue) that links a sub-issue to a parent issue, so workflows can attach sub-issues to their parent issue through the server (#57)
+- Added read-only repo_file MCP tool (repo, path, optional ref) that returns a repository file's decoded text at a ref, listing directory entries and refusing binary, oversized or unsupported files (#78)
 ### Fixed
 ### Changed
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
