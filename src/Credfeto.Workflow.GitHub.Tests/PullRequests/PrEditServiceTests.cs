@@ -193,21 +193,59 @@ public sealed class PrEditServiceTests : GitHubClientTestBase
     }
 
     [Fact]
-    public async Task AssignSelfKeepsTheOtherAssigneesAsync()
+    public async Task AssignSelfOnAnItemAssignedToAnotherUserIsRefusedAndWritesNothingAsync()
     {
         using RecordingHttpMessageHandler upstream = Flow(
             static () => Responses.Json(USER),
-            static () => PullRequest("""{"login":"credfeto"}"""),
-            Edited
+            static () => PullRequest("""{"login":"credfeto"}""")
         );
 
-        PrEditResult result = await this.EditAsync(upstream: upstream, assignSelf: true);
+        PrEditResult result = await this.EditAsync(
+            upstream: upstream,
+            title: NEW_TITLE,
+            body: NEW_BODY,
+            assignSelf: true
+        );
 
-        AssertEdited(result);
+        Assert.Equal(expected: PrEditOutcome.Refused, actual: result.Outcome);
+        Assert.Equal(expected: "already assigned to another user", actual: result.Rule);
+        Assert.Equal(expected: "assignSelf refused: already assigned to another user", actual: result.Message);
+        Assert.Null(result.LineNumber);
+        Assert.Null(result.Url);
         Assert.Equal(expected: HttpMethod.Get, actual: upstream.Requests[0].Method);
         Assert.Equal(expected: UserUri, actual: upstream.Requests[0].RequestUri);
         AssertReadPullRequest(upstream: upstream, index: 1);
-        AssertWrite(upstream: upstream, index: 2, body: """{"assignees":["credfeto","steward-warden"]}""");
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task AssignSelfAlreadyHeldAlongsideAnotherUserKeepsBothAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Responses.Json(USER),
+            static () => PullRequest("""{"login":"credfeto"},{"login":"STEWARD-WARDEN"}"""),
+            Edited
+        );
+
+        PrEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, assignSelf: true);
+
+        AssertEdited(result);
+        AssertWrite(
+            upstream: upstream,
+            index: 2,
+            body: """{"title":"feat: new title","assignees":["credfeto","STEWARD-WARDEN"]}"""
+        );
+    }
+
+    [Fact]
+    public async Task EditWithoutAssignSelfOnAnItemAssignedToAnotherUserIsSentAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(static () => PullRequest("""{"login":"credfeto"}"""), Edited);
+
+        PrEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE);
+
+        AssertEdited(result);
+        AssertWrite(upstream: upstream, index: 1, body: """{"title":"feat: new title"}""");
     }
 
     [Fact]

@@ -114,6 +114,11 @@ public sealed class IssueEditService : IIssueEditService
 
         EditState state = read.State;
 
+        if (ItemEdit.CheckAssignee(state: state, login: login) is { } assigneeRefusal)
+        {
+            return Refused(assigneeRefusal);
+        }
+
         if (ItemEdit.IsUnchanged(request: request, state: state, login: login))
         {
             return Result(
