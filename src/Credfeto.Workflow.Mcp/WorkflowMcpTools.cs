@@ -636,6 +636,35 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "tag_view", Title = "Tag view", ReadOnly = true)]
+    [Description(
+        "Returns the commit SHA a repository's tag points to now, the SHA to pin a GitHub Action to, and whether the tag is lightweight or annotated. Only a tag of exactly that name is looked up, never a branch, a SHA or a prefix; an annotated tag is followed one step, and fails unless it reaches a commit. Not found when the tag does not exist, distinct from a repository that does not exist or cannot be seen"
+    )]
+    public static async Task<TagViewResponse> TagViewAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The tag name, such as v4 or v4.2.2, without refs/tags/")] string tag,
+        ITagViewService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ViewAsync(repository: repo, tag: tag, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is TagNotFoundException
+                        or RepositoryNotFoundException
+                        or TagViewFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_list", Title = "Issue list", ReadOnly = true)]
     [Description(
         "Lists a repository's open issues, excluding pull requests, most urgent priority first and then by number, with each issue's priority, blocked and on-hold flags, assignees, title and labels"

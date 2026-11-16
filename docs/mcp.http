@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1297,6 +1297,82 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "path": "src/../README.md"
+    }
+  }
+}
+
+### Call the tag_view tool for a tag that exists; expects the sha of the commit the tag points to (never the tag object's own sha) and type lightweight or annotated
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 126,
+  "method": "tools/call",
+  "params": {
+    "name": "tag_view",
+    "arguments": {
+      "repo": "actions/checkout",
+      "tag": "v4.2.2"
+    }
+  }
+}
+
+### Call the tag_view tool for a tag that does not exist in a repository that does; expects a tool error saying the tag was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 127,
+  "method": "tools/call",
+  "params": {
+    "name": "tag_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "tag": "does-not-exist"
+    }
+  }
+}
+
+### Call the tag_view tool for a repository that does not exist; expects a tool error saying the repository was not found, distinct from a missing tag
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 128,
+  "method": "tools/call",
+  "params": {
+    "name": "tag_view",
+    "arguments": {
+      "repo": "credfeto/does-not-exist",
+      "tag": "v1.0.0"
+    }
+  }
+}
+
+### Call the tag_view tool with a tag that is not a valid git ref name; expects a tool error naming the "tag" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 129,
+  "method": "tools/call",
+  "params": {
+    "name": "tag_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "tag": "v1..0"
     }
   }
 }
