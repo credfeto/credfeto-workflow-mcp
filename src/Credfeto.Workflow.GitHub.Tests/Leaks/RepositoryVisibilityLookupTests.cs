@@ -159,6 +159,7 @@ public sealed class RepositoryVisibilityLookupTests : GitHubClientTestBase
     {
         GitHubGraphQlClient client = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 

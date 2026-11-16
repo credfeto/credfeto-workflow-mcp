@@ -81,6 +81,7 @@ public sealed class RepoFileServiceTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 

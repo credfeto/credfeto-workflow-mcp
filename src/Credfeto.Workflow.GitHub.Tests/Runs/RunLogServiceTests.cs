@@ -135,7 +135,11 @@ public sealed class RunLogServiceTests : GitHubClientTestBase
                 .Returns(_ => new HttpClient(handler: storage, disposeHandler: false));
         }
 
-        GitHubRestClient rest = new(httpClientFactory: factory, logger: this.GetTypedLogger<GitHubRestClient>());
+        GitHubRestClient rest = new(
+            httpClientFactory: factory,
+            options: GitHubOptionsWith(),
+            logger: this.GetTypedLogger<GitHubRestClient>()
+        );
 
         return await new RunLogService(restClient: rest, httpClientFactory: factory).ReadFailedAsync(
             repository: REPOSITORY,

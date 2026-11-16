@@ -67,6 +67,7 @@ public sealed class PullRequestServiceStateTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(restUpstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 

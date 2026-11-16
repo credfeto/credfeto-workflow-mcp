@@ -76,7 +76,11 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
 
                 return client;
             });
-        GitHubRestClient rest = new(httpClientFactory: factory, logger: this.GetTypedLogger<GitHubRestClient>());
+        GitHubRestClient rest = new(
+            httpClientFactory: factory,
+            options: GitHubOptionsWith(),
+            logger: this.GetTypedLogger<GitHubRestClient>()
+        );
 
         _ = await rest.GetAsync(
             relativeUri: "repos/owner/repo",
@@ -157,6 +161,42 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         // Compared as text so that a rewrite such as collapsing an empty path segment is caught
         Assert.Equal<string?>(
             expected: [baseAddress + "repos/owner/repo/issues", expectedSecondPage],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri?.AbsoluteUri)],
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task GetAllPagesStripsTheUpstreamBasePathFromACrossHostNextLinkAsync()
+    {
+        const string baseAddress = "https://proxy.example/ghe/";
+
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            index == 0
+                ? Responses.Json(
+                    json: """[{"id":1,"name":"first"}]""",
+                    nextLink: "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\""
+                )
+                : Responses.Json("""[{"id":2,"name":"second"}]""")
+        );
+
+        IReadOnlyList<TestItem> items = await this.CreateClient(
+                upstream: upstream,
+                baseAddress: baseAddress,
+                upstreamBasePath: "/api/v3/"
+            )
+            .GetAllPagesAsync(
+                relativeUri: "repos/owner/repo/issues",
+                pageTypeInfo: TestJsonContext.Default.TestItemArray,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(
+            expected: [new TestItem(Id: 1, Name: "first"), new TestItem(Id: 2, Name: "second")],
+            actual: items
+        );
+        Assert.Equal<string?>(
+            expected: [baseAddress + "repos/owner/repo/issues", baseAddress + "repositories/9/issues?page=2"],
             actual: [.. upstream.Requests.Select(static request => request.RequestUri?.AbsoluteUri)],
             comparer: StringComparer.Ordinal
         );
@@ -1185,10 +1225,15 @@ public sealed class GitHubRestClientTests : GitHubClientTestBase
         );
     }
 
-    private GitHubRestClient CreateClient(HttpMessageHandler upstream, string? baseAddress = GitHubServices.ApiBaseUrl)
+    private GitHubRestClient CreateClient(
+        HttpMessageHandler upstream,
+        string? baseAddress = GitHubServices.ApiBaseUrl,
+        string? upstreamBasePath = null
+    )
     {
         return new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: baseAddress),
+            options: GitHubOptionsWith(upstreamBasePath),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
     }

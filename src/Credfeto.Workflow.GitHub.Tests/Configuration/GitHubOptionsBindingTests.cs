@@ -61,4 +61,34 @@ public sealed class GitHubOptionsBindingTests : TestBase
 
         Assert.Throws<OptionsValidationException>(() => options.Value);
     }
+
+    [Fact]
+    public async Task UpstreamBasePathIsUnsetWhenNotConfiguredAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build();
+
+        GitHubOptions options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>().Value;
+
+        Assert.Null(options.UpstreamBasePath);
+    }
+
+    [Fact]
+    public async Task UpstreamBasePathIsBoundFromGitHubSectionAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build(upstreamBasePath: "/api/v3/");
+
+        GitHubOptions options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>().Value;
+
+        Assert.Equal(expected: "/api/v3/", actual: options.UpstreamBasePath);
+    }
+
+    [Fact]
+    public async Task InvalidUpstreamBasePathFailsValidationAsync()
+    {
+        await using ServiceProvider serviceProvider = GitHubServices.Build(upstreamBasePath: "api/v3");
+
+        IOptions<GitHubOptions> options = serviceProvider.GetRequiredService<IOptions<GitHubOptions>>();
+
+        Assert.Throws<OptionsValidationException>(() => options.Value);
+    }
 }

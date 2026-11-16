@@ -99,6 +99,7 @@ public abstract class IssueCreateServiceTestBase : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 

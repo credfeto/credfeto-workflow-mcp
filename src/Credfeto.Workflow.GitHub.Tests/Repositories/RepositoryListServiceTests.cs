@@ -103,6 +103,7 @@ public sealed class RepositoryListServiceTests : GitHubClientTestBase
     {
         GitHubGraphQlClient client = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 

@@ -179,7 +179,8 @@ public sealed class GitHubLinkHeaderTests : TestBase
                 .FindNextPage(
                     headers: response.Headers,
                     requestUri: FirstPageUnder(baseAddress),
-                    baseAddress: new Uri(baseAddress)
+                    baseAddress: new Uri(baseAddress),
+                    upstreamBasePath: null
                 )
                 ?.AbsoluteUri
         );
@@ -261,7 +262,8 @@ public sealed class GitHubLinkHeaderTests : TestBase
                 .FindNextPage(
                     headers: response.Headers,
                     requestUri: new Uri(requestUri),
-                    baseAddress: new Uri(baseAddress)
+                    baseAddress: new Uri(baseAddress),
+                    upstreamBasePath: null
                 )
                 ?.AbsoluteUri
         );
@@ -280,13 +282,100 @@ public sealed class GitHubLinkHeaderTests : TestBase
             GitHubLinkHeader.FindNextPage(
                 headers: headers,
                 requestUri: new Uri(requestUri),
-                baseAddress: new Uri("https://ghe.example/api/v3/")
+                baseAddress: new Uri("https://ghe.example/api/v3/"),
+                upstreamBasePath: null
             )
         );
 
         Assert.Equal(
             expected: "GitHub returned a next page link outside the configured GitHub API host and base path",
             actual: exception.Message
+        );
+    }
+
+    [Theory]
+    [InlineData(
+        "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/api/v3/",
+        "https://proxy.example/ghe/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://api.github.com/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/",
+        "https://proxy.example/ghe/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://ghe.example/other/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/api/v3/",
+        "https://proxy.example/ghe/other/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://ghe.example/API/V3/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/api/v3/",
+        "https://proxy.example/ghe/API/V3/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://ghe.example/ghe/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/api/v3/",
+        "https://proxy.example/ghe/ghe/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<https://proxy.example/ghe/repositories/9/issues?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/api/v3/",
+        "https://proxy.example/ghe/repositories/9/issues?page=2"
+    )]
+    [InlineData(
+        "<items?page=2>; rel=\"next\"",
+        "https://proxy.example/ghe/",
+        "/api/v3/",
+        "https://proxy.example/ghe/items?page=2"
+    )]
+    public static void CrossHostNextLinkHasUpstreamBasePathStripped(
+        string link,
+        string baseAddress,
+        string upstreamBasePath,
+        string expected
+    )
+    {
+        using HttpResponseMessage response = Responses.Json(json: "[]", nextLink: link);
+
+        Assert.Equal(
+            expected: expected,
+            actual: GitHubLinkHeader
+                .FindNextPage(
+                    headers: response.Headers,
+                    requestUri: FirstPageUnder(baseAddress),
+                    baseAddress: new Uri(baseAddress),
+                    upstreamBasePath: upstreamBasePath
+                )
+                ?.AbsoluteUri
+        );
+    }
+
+    [Fact]
+    public static void CrossHostNextLinkWithoutUpstreamBasePathKeepsTheUpstreamPath()
+    {
+        using HttpResponseMessage response = Responses.Json(
+            json: "[]",
+            nextLink: "<https://ghe.example/api/v3/repositories/9/issues?page=2>; rel=\"next\""
+        );
+
+        Assert.Equal(
+            expected: "https://proxy.example/ghe/api/v3/repositories/9/issues?page=2",
+            actual: GitHubLinkHeader
+                .FindNextPage(
+                    headers: response.Headers,
+                    requestUri: FirstPageUnder("https://proxy.example/ghe/"),
+                    baseAddress: new Uri("https://proxy.example/ghe/"),
+                    upstreamBasePath: null
+                )
+                ?.AbsoluteUri
         );
     }
 
@@ -511,7 +600,8 @@ public sealed class GitHubLinkHeaderTests : TestBase
             GitHubLinkHeader.FindNextPage(
                 headers: headers,
                 requestUri: FirstPageUnder(baseAddress),
-                baseAddress: new Uri(baseAddress)
+                baseAddress: new Uri(baseAddress),
+                upstreamBasePath: null
             )
         );
 

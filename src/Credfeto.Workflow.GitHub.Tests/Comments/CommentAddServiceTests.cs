@@ -79,6 +79,7 @@ public sealed class CommentAddServiceTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 
@@ -136,7 +137,9 @@ public sealed class CommentAddServiceTests : GitHubClientTestBase
 
     private static void AssertRefused(CommentAddResult result, string rule, int? line)
     {
-        string lineText = line is { } number ? " (line " + number.ToString(CultureInfo.InvariantCulture) + ")" : string.Empty;
+        string lineText = line is { } number
+            ? " (line " + number.ToString(CultureInfo.InvariantCulture) + ")"
+            : string.Empty;
 
         Assert.Equal(
             expected: new CommentAddResult(
@@ -424,15 +427,25 @@ public sealed class CommentAddServiceTests : GitHubClientTestBase
     [InlineData("""{"id":99}""")]
     [InlineData("""{"id":99,"html_url":null}""")]
     [InlineData("""{"id":99,"html_url":""}""")]
-    [InlineData("""{"id":99,"html_url":"http://github.com/credfeto/credfeto-workflow-mcp/issues/31#issuecomment-99"}""")]
-    [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/32#issuecomment-99"}""")]
-    [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/pulls/31#issuecomment-99"}""")]
+    [InlineData(
+        """{"id":99,"html_url":"http://github.com/credfeto/credfeto-workflow-mcp/issues/31#issuecomment-99"}"""
+    )]
+    [InlineData(
+        """{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/32#issuecomment-99"}"""
+    )]
+    [InlineData(
+        """{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/pulls/31#issuecomment-99"}"""
+    )]
     [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/31"}""")]
     [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/31#issuecomment-"}""")]
     [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/pull/31#discussion_r99"}""")]
     [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/issues/31#issuecomment-99"}""")]
-    [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/31#issuecomment-99\n"}""")]
-    [InlineData("""{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/0#issuecomment-99"}""")]
+    [InlineData(
+        """{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/31#issuecomment-99\n"}"""
+    )]
+    [InlineData(
+        """{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/0#issuecomment-99"}"""
+    )]
     [InlineData(
         """{"id":99,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/99999999999#issuecomment-99"}"""
     )]
