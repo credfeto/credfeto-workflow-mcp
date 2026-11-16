@@ -30,6 +30,7 @@ public sealed class RunViewServiceTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 

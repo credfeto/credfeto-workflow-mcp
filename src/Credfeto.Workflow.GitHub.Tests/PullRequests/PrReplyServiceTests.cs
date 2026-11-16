@@ -70,6 +70,7 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 
@@ -113,9 +114,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     [Fact]
     public async Task ReplyToTopCommentPostsToItsThreadAsync()
     {
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: static () => Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: POSTED)
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: static () =>
+            Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: POSTED)
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -150,9 +150,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
             {"id":456,"in_reply_to_id":100,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/pull/87#discussion_r456"}
             """;
 
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: NESTED_COMMENT,
-            post: static () => Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: posted)
+        using RecordingHttpMessageHandler upstream = Flow(comment: NESTED_COMMENT, post: static () =>
+            Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: posted)
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -174,9 +173,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
             {"id":456,"html_url":"https://github.com/Credfeto/Credfeto-Workflow-Mcp/pull/87#discussion_r456"}
             """;
 
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: static () => Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: posted)
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: static () =>
+            Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: posted)
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -395,9 +393,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     [InlineData(HttpStatusCode.UnprocessableEntity)]
     public async Task RejectedReplyIsNotPostedAsync(HttpStatusCode statusCode)
     {
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: () => Responses.Status(statusCode)
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: () =>
+            Responses.Status(statusCode)
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -419,9 +416,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     [InlineData(HttpStatusCode.TooManyRequests)]
     public async Task FailedReplyMayHaveBeenPostedAndIsNotRetriedAsync(HttpStatusCode statusCode)
     {
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: () => Responses.Status(statusCode)
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: () =>
+            Responses.Status(statusCode)
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -442,9 +438,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     [Fact]
     public async Task UnreadableReplyAnswerMayHaveBeenPostedAsync()
     {
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: static () => Responses.Json("not json")
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: static () =>
+            Responses.Json("not json")
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -459,9 +454,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     [Fact]
     public async Task ReplyRequestFailureMayHaveBeenPostedAsync()
     {
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: static () => Throw("connection reset with secret detail")
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: static () =>
+            Throw("connection reset with secret detail")
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);
@@ -494,9 +488,8 @@ public sealed class PrReplyServiceTests : GitHubClientTestBase
     [InlineData("""{"id":456,"html_url":"https://github.com/credfeto/another-repository/pull/87#discussion_r456"}""")]
     public async Task UnexpectedReplyAnswerMayHaveBeenPostedAsync(string posted)
     {
-        using RecordingHttpMessageHandler upstream = Flow(
-            comment: TOP_COMMENT,
-            post: () => Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: posted)
+        using RecordingHttpMessageHandler upstream = Flow(comment: TOP_COMMENT, post: () =>
+            Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: posted)
         );
 
         PrReplyResult result = await this.ReplyAsync(upstream);

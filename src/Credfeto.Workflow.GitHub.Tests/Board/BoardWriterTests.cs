@@ -450,6 +450,7 @@ public sealed class BoardWriterTests : GitHubClientTestBase
     {
         GitHubGraphQlClient client = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 

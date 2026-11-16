@@ -41,6 +41,42 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
         Assert.Equal(expected: 42, actual: variables.GetProperty("number").GetInt32());
     }
 
+    [Theory]
+    [InlineData("https://proxy.example/ghe/", "/api/v3/", "https://proxy.example/ghe/api/graphql")]
+    [InlineData("https://proxy.example/ghe/", "/", "https://proxy.example/ghe/graphql")]
+    [InlineData("https://proxy.example/ghe/", "/ghe/", "https://proxy.example/ghe/graphql")]
+    [InlineData(
+        "https://proxy.example/ghe/",
+        "/enterprise/api/v3/",
+        "https://proxy.example/ghe/enterprise/api/graphql"
+    )]
+    [InlineData("https://ghe.example/api/v3/", "/api/v3/", "https://ghe.example/api/graphql")]
+    [InlineData("https://proxy.example/p/api/v3/", "/api/v3/", "https://proxy.example/p/api/graphql")]
+    [InlineData("https://proxy.example/api/v3/", "/", "https://proxy.example/api/v3/graphql")]
+    [InlineData("https://proxy.example/x/", "/api/", "https://proxy.example/x/api/graphql")]
+    public async Task UpstreamBasePathMountsTheUpstreamGraphQlEndpointUnderTheProxyAsync(
+        string baseAddress,
+        string upstreamBasePath,
+        string expectedUri
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Json("""{"data":{"login":"octocat"}}""")
+        );
+
+        TestData data = await this.ExecuteAsync(
+            upstream: upstream,
+            dataTypeInfo: TestJsonContext.Default.TestData,
+            baseAddress: baseAddress,
+            upstreamBasePath: upstreamBasePath
+        );
+
+        Assert.Equal(expected: new TestData("octocat"), actual: data);
+
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: new Uri(expectedUri), actual: request.RequestUri);
+    }
+
     [Fact]
     public async Task EmptyErrorsArrayIsNotAFailureAsync()
     {
@@ -315,11 +351,13 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
     private ValueTask<TData> ExecuteAsync<TData>(
         HttpMessageHandler upstream,
         JsonTypeInfo<TData> dataTypeInfo,
-        string baseAddress = GitHubServices.ApiBaseUrl
+        string baseAddress = GitHubServices.ApiBaseUrl,
+        string? upstreamBasePath = null
     )
     {
         GitHubGraphQlClient client = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream: upstream, baseAddress: baseAddress),
+            options: GitHubOptionsWith(upstreamBasePath),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 

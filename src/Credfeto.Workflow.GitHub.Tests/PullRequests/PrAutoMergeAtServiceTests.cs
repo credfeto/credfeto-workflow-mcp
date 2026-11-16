@@ -51,6 +51,7 @@ public sealed class PrAutoMergeAtServiceTests : GitHubClientTestBase
         PrAutoMergeAtService service = new(
             new GitHubRestClient(
                 httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+                options: GitHubOptionsWith(),
                 logger: this.GetTypedLogger<GitHubRestClient>()
             )
         );

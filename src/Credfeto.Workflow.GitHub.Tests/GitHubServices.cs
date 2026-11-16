@@ -17,7 +17,8 @@ internal static class GitHubServices
         TimeSpan? httpClientTimeout = null,
         long? maxResponseContentBufferSize = null,
         TimeSpan? attemptTimeout = null,
-        string? apiVersion = null
+        string? apiVersion = null,
+        string? upstreamBasePath = null
     )
     {
         List<KeyValuePair<string, string?>> settings = [new(key: "GitHub:ApiBaseUrl", value: apiBaseUrl)];
@@ -25,6 +26,11 @@ internal static class GitHubServices
         if (apiVersion is not null)
         {
             settings.Add(new(key: "GitHub:ApiVersion", value: apiVersion));
+        }
+
+        if (upstreamBasePath is not null)
+        {
+            settings.Add(new(key: "GitHub:UpstreamBasePath", value: upstreamBasePath));
         }
 
         IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
@@ -39,16 +45,15 @@ internal static class GitHubServices
                 .ConfigureHttpClient(client =>
                 {
                     client.Timeout = httpClientTimeout ?? client.Timeout;
-                    client.MaxResponseContentBufferSize =
-                        maxResponseContentBufferSize ?? client.MaxResponseContentBufferSize;
+                    client.MaxResponseContentBufferSize = maxResponseContentBufferSize
+                        ?? client.MaxResponseContentBufferSize;
                 })
                 .Services.Configure<HttpRetryStrategyOptions>(
                     name: GitHubSetup.HttpClientName,
                     configureOptions: static options => options.Delay = TimeSpan.Zero
                 )
-                .Configure<HttpTimeoutStrategyOptions>(
-                    name: GitHubSetup.HttpClientName,
-                    configureOptions: options => options.Timeout = attemptTimeout ?? options.Timeout
+                .Configure<HttpTimeoutStrategyOptions>(name: GitHubSetup.HttpClientName, configureOptions: options =>
+                    options.Timeout = attemptTimeout ?? options.Timeout
                 );
         }
 

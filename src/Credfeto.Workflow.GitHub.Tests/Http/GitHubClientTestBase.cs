@@ -1,6 +1,8 @@
 using System;
 using System.Net.Http;
+using Credfeto.Workflow.GitHub.Configuration;
 using FunFair.Test.Common;
+using Microsoft.Extensions.Options;
 using NSubstitute;
 
 namespace Credfeto.Workflow.GitHub.Tests.Http;
@@ -22,5 +24,10 @@ public abstract class GitHubClientTestBase : TestBase
             });
 
         return factory;
+    }
+
+    protected static IOptions<GitHubOptions> GitHubOptionsWith(string? upstreamBasePath = null)
+    {
+        return Options.Create(new GitHubOptions { UpstreamBasePath = upstreamBasePath });
     }
 }

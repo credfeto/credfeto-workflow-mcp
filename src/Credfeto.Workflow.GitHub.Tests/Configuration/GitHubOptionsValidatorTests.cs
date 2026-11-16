@@ -116,6 +116,80 @@ public sealed class GitHubOptionsValidatorTests : TestBase
         );
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("/")]
+    [InlineData("/api/v3/")]
+    [InlineData("/a%20b/")]
+    [InlineData("/a%2Fb/")]
+    [InlineData("/.github/")]
+    public void ValidUpstreamBasePathSucceeds(string? upstreamBasePath)
+    {
+        ValidateOptionsResult result = this.ValidateUpstreamBasePath(upstreamBasePath);
+
+        Assert.True(condition: result.Succeeded, userMessage: result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("api/v3/")]
+    [InlineData("/api/v3")]
+    [InlineData("/a b/")]
+    [InlineData("/a?x/")]
+    [InlineData("/a#x/")]
+    [InlineData("/a/../b/")]
+    [InlineData("/a/./b/")]
+    [InlineData("/a\\b/")]
+    [InlineData("https://ghe.example/api/v3/")]
+    public void MalformedUpstreamBasePathFails(string upstreamBasePath)
+    {
+        ValidateOptionsResult result = this.ValidateUpstreamBasePath(upstreamBasePath);
+
+        Assert.Equal(
+            expected: "GitHub:UpstreamBasePath must be a URL path that starts and ends in '/', is already percent-encoded, and has no query or fragment.",
+            actual: result.FailureMessage
+        );
+    }
+
+    [Theory]
+    [InlineData("/a%2f..%2fb/")]
+    [InlineData("/%252e%252e/")]
+    [InlineData("/a/..;/b/")]
+    [InlineData("/a/..%00/b/")]
+    [InlineData("/a/%c0%ae%c0%ae/b/")]
+    public void TraversingUpstreamBasePathFails(string upstreamBasePath)
+    {
+        ValidateOptionsResult result = this.ValidateUpstreamBasePath(upstreamBasePath);
+
+        Assert.Equal(
+            expected: "GitHub:UpstreamBasePath must not contain segments that decode or normalise to '.' or '..', or escapes that cannot be decoded.",
+            actual: result.FailureMessage
+        );
+    }
+
+    [Fact]
+    public void InvalidApiBaseUrlIsReportedBeforeUpstreamBasePath()
+    {
+        ValidateOptionsResult result = this._validator.Validate(
+            name: null,
+            options: new GitHubOptions { ApiBaseUrl = null, UpstreamBasePath = "api/v3" }
+        );
+
+        Assert.Equal(expected: "GitHub:ApiBaseUrl must be configured.", actual: result.FailureMessage);
+    }
+
+    private ValidateOptionsResult ValidateUpstreamBasePath(string? upstreamBasePath)
+    {
+        return this._validator.Validate(
+            name: null,
+            options: new GitHubOptions
+            {
+                ApiBaseUrl = new Uri("https://proxy.example/ghe/"),
+                UpstreamBasePath = upstreamBasePath,
+            }
+        );
+    }
+
     private ValidateOptionsResult ValidateApiVersion(string? apiVersion)
     {
         return this._validator.Validate(

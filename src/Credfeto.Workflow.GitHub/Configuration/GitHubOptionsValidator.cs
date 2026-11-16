@@ -17,7 +17,38 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
             );
         }
 
-        return ValidateApiBaseUrl(options.ApiBaseUrl);
+        ValidateOptionsResult apiBaseUrlResult = ValidateApiBaseUrl(options.ApiBaseUrl);
+
+        return apiBaseUrlResult.Failed ? apiBaseUrlResult : ValidateUpstreamBasePath(options.UpstreamBasePath);
+    }
+
+    private static ValidateOptionsResult ValidateUpstreamBasePath(string? upstreamBasePath)
+    {
+        if (upstreamBasePath is null)
+        {
+            return ValidateOptionsResult.Success;
+        }
+
+        // Parsing and reading the path back must give the same text, so a value that is not already
+        // percent-encoded, carries a query or fragment, or would be normalised (a literal dot segment) never
+        // reaches the prefix match on next page links, where it would silently never match
+        if (
+            upstreamBasePath is not (['/'] or ['/', .., '/'])
+            || !UpstreamBasePaths.TryCreate(upstreamBasePath: upstreamBasePath, out Uri? upstream)
+            || !StringComparer.Ordinal.Equals(x: upstream.AbsolutePath, y: upstreamBasePath)
+        )
+        {
+            return ValidateOptionsResult.Fail(
+                "GitHub:UpstreamBasePath must be a URL path that starts and ends in '/', is already percent-encoded, and has no query or fragment."
+            );
+        }
+
+        // The derived GraphQL endpoint is built from this path, so it must obey the same rule as every request
+        return UriHosts.HasEncodedPathTraversal(upstream)
+            ? ValidateOptionsResult.Fail(
+                "GitHub:UpstreamBasePath must not contain segments that decode or normalise to '.' or '..', or escapes that cannot be decoded."
+            )
+            : ValidateOptionsResult.Success;
     }
 
     private static bool IsHeaderSafe(string? apiVersion)

@@ -21,7 +21,12 @@ public static class GitHubLinkHeader
     // A null result tells the caller it has the last page, so a header that could hide a next relation (an
     // unterminated '<' or '"') or a next relation whose target is not a lone <URI-Reference> is an invalid
     // response rather than the end of the listing
-    public static Uri? FindNextPage(HttpResponseHeaders headers, Uri requestUri, Uri baseAddress)
+    public static Uri? FindNextPage(
+        HttpResponseHeaders headers,
+        Uri requestUri,
+        Uri baseAddress,
+        string? upstreamBasePath
+    )
     {
         if (!headers.TryGetValues(name: "Link", out IEnumerable<string>? linkValues))
         {
@@ -33,7 +38,14 @@ public static class GitHubLinkHeader
             .Select(static link => SplitOutsideDelimiters(text: link, separator: PARAMETER_SEPARATOR))
             .Where(static link => IsNextRelation(FirstRelation(link.Skip(1))))
             .Select(static link => UriReference(link[0].Trim()))
-            .Select(url => ResolveNextPage(url: url, requestUri: requestUri, baseAddress: baseAddress))
+            .Select(url =>
+                ResolveNextPage(
+                    url: url,
+                    requestUri: requestUri,
+                    baseAddress: baseAddress,
+                    upstreamBasePath: upstreamBasePath
+                )
+            )
             .FirstOrDefault();
     }
 
@@ -135,20 +147,27 @@ public static class GitHubLinkHeader
     // host and base path. The checked absolute URI is handed back to be requested exactly as checked; anything
     // that resolves elsewhere (a dot-segment climb, a rooted path outside the base path) is upstream content, so
     // it is an invalid response rather than the request-building failure the client raises for a caller URI
-    private static Uri ResolveNextPage(string url, Uri requestUri, Uri baseAddress)
+    private static Uri ResolveNextPage(string url, Uri requestUri, Uri baseAddress, string? upstreamBasePath)
     {
         return
-            ToReference(url: url, absolute: ParseAbsoluteLink(url), baseAddress: baseAddress) is { } reference
+            ToReference(
+                url: url,
+                absolute: ParseAbsoluteLink(url),
+                baseAddress: baseAddress,
+                upstreamBasePath: upstreamBasePath
+            )
+                is { } reference
             && Uri.TryCreate(baseUri: requestUri, relativeUri: reference, out Uri? resolved)
             && UriHosts.IsUnderBasePath(link: resolved, baseAddress: baseAddress)
             ? resolved
             : throw OutsideBasePath();
     }
 
-    // A link on another host keeps only its path, mapped under the configured base path. A path stripped from
+    // A link on another host keeps only its path, mapped under the configured base path once the upstream's own
+    // base path (GitHub:UpstreamBasePath, or the configured base path when unset) is removed. A path stripped from
     // another host can fail to parse as a relative reference (a first segment containing ':' reads as a scheme
     // or drive letter), so it cannot be mapped onto the base path and is rejected
-    private static Uri? ToReference(string url, Uri? absolute, Uri baseAddress)
+    private static Uri? ToReference(string url, Uri? absolute, Uri baseAddress, string? upstreamBasePath)
     {
         if (absolute is null)
         {
@@ -162,7 +181,7 @@ public static class GitHubLinkHeader
 
         string pathUnderBase = RelativeToBasePath(
             pathAndQuery: absolute.PathAndQuery,
-            basePath: baseAddress.AbsolutePath
+            basePath: upstreamBasePath ?? baseAddress.AbsolutePath
         );
 
         return Uri.TryCreate(baseUri: baseAddress, relativeUri: pathUnderBase, out Uri? mapped) ? mapped : null;
@@ -201,9 +220,10 @@ public static class GitHubLinkHeader
         return url is ['/'] or ['/', not '/', ..];
     }
 
-    // An upstream behind a proxy can carry the same base path as the configured one (GHE /api/v3/ behind a
-    // proxy at /api/v3/); keeping it would double it once resolved. The options validator guarantees the base
-    // path ends in '/', so the prefix match is segment-aligned, and a root base path strips only the leading '/'.
+    // An upstream behind a proxy advertises links under its own base path (GHE /api/v3/), which is the configured
+    // one when the proxy mirrors it and GitHub:UpstreamBasePath otherwise; keeping it would double it once
+    // resolved. The options validator guarantees both paths end in '/', so the prefix match is segment-aligned,
+    // and a root base path, or a link not under the base path, strips only the leading '/'.
     private static string RelativeToBasePath(string pathAndQuery, string basePath)
     {
         return pathAndQuery.StartsWith(value: basePath, comparisonType: StringComparison.Ordinal)

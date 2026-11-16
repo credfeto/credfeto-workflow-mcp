@@ -58,6 +58,7 @@ public sealed class RequiredChecksReaderTests : GitHubClientTestBase
     {
         GitHubRestClient client = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 

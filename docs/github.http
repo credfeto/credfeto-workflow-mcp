@@ -12,7 +12,11 @@ User-Agent: credfeto-workflow-mcp
 
 ### GraphQL: the authenticated user's login (always POST; never retried)
 # On GitHub Enterprise Server (apiBaseUrl = https://<host>/api/v3/) GraphQL is the sibling
-# https://<host>/api/graphql, not {{apiBaseUrl}}graphql.
+# https://<host>/api/graphql, not {{apiBaseUrl}}graphql. With GitHub:UpstreamBasePath set (a proxy
+# mounting the upstream at another path), GraphQL is the upstream GraphQL path mounted under the
+# proxy path instead: apiBaseUrl https://proxy/ghe/ with UpstreamBasePath /api/v3/ posts to
+# https://proxy/ghe/api/graphql, and a next page link on the upstream host has /api/v3/ removed
+# before it is requested under https://proxy/ghe/.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
 Accept: application/vnd.github+json

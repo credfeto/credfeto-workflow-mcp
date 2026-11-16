@@ -97,10 +97,12 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(restUpstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
         GitHubGraphQlClient graph = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(graphUpstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 

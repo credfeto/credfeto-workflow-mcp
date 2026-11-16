@@ -121,6 +121,7 @@ public sealed class PrStatusParityTests : GitHubClientTestBase
         return new(
             restClient: new GitHubRestClient(
                 httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+                options: GitHubOptionsWith(),
                 logger: this.GetTypedLogger<GitHubRestClient>()
             ),
             requiredChecksReader: reader

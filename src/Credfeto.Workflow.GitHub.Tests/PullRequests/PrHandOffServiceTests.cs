@@ -217,11 +217,13 @@ public sealed class PrHandOffServiceTests : GitHubClientTestBase
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
 
         GitHubGraphQlClient graphQl = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubGraphQlClient>()
         );
 
@@ -438,9 +440,8 @@ public sealed class PrHandOffServiceTests : GitHubClientTestBase
         Assert.Equal(expected: PrHandOffOutcome.HandedOff, actual: result.Outcome);
         Assert.Equal(expected: PrHandOffAutoMerge.On, actual: result.AutoMerge);
         Assert.Single(upstream.Requests, request => request.RequestUri == GraphQlUri);
-        Assert.DoesNotContain(
-            upstream.Requests,
-            request => Has(body: request.Body, text: "markPullRequestReadyForReview")
+        Assert.DoesNotContain(upstream.Requests, request =>
+            Has(body: request.Body, text: "markPullRequestReadyForReview")
         );
     }
 

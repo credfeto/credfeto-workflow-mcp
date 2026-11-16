@@ -52,6 +52,7 @@ public sealed class PrReadyAtServiceTests : GitHubClientTestBase
         PrReadyAtService service = new(
             new GitHubRestClient(
                 httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+                options: GitHubOptionsWith(),
                 logger: this.GetTypedLogger<GitHubRestClient>()
             )
         );

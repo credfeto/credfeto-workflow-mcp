@@ -7,10 +7,12 @@ using System.Net.Http.Json;
 using System.Text.Json.Serialization.Metadata;
 using System.Threading;
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Configuration;
 using Credfeto.Workflow.GitHub.Http.LoggingExtensions;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Credfeto.Workflow.GitHub.Http;
 
@@ -21,10 +23,16 @@ public sealed class GitHubRestClient : IGitHubRestClient
 
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<GitHubRestClient> _logger;
+    private readonly string? _upstreamBasePath;
 
-    public GitHubRestClient(IHttpClientFactory httpClientFactory, ILogger<GitHubRestClient> logger)
+    public GitHubRestClient(
+        IHttpClientFactory httpClientFactory,
+        IOptions<GitHubOptions> options,
+        ILogger<GitHubRestClient> logger
+    )
     {
         this._httpClientFactory = httpClientFactory;
+        this._upstreamBasePath = options.Value.UpstreamBasePath;
         this._logger = logger;
     }
 
@@ -287,7 +295,8 @@ public sealed class GitHubRestClient : IGitHubRestClient
             requestUri = GitHubLinkHeader.FindNextPage(
                 headers: response.Headers,
                 requestUri: exchange.RequestUri,
-                baseAddress: baseAddress
+                baseAddress: baseAddress,
+                upstreamBasePath: this._upstreamBasePath
             );
         }
 
