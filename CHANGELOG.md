@@ -67,6 +67,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added repo_file MCP tool that reads a file or lists a directory at a given ref through the GitHub contents API, refusing binary and oversized files, so workflows can inspect repository files through the server (#78)
 - REST and GraphQL GitHub API calls now follow redirects (301/302/303/307/308 for GET; 307/308 only for other methods, max 5 hops) only to targets within the configured base path (#36)
 - Added optional GitHub:UpstreamBasePath setting so proxied upstream next-page links and the GraphQL endpoint are resolved correctly (#35)
+- Add tag_view MCP tool returning the commit a tag points to and whether it is lightweight or annotated (#34)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
