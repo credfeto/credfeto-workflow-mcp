@@ -665,6 +665,34 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "release_view", Title = "Release view", ReadOnly = true)]
+    [Description(
+        "Returns a repository's latest release: its tag, when it was published (ISO-8601), its web page URL and its name, which is empty when the release has none. The release notes are not returned. Not found when the repository has no latest release, distinct from a repository that does not exist or cannot be seen"
+    )]
+    public static async Task<ReleaseViewResult> ReleaseViewAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IReleaseService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ViewLatestAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is ReleaseNotFoundException
+                        or RepositoryNotFoundException
+                        or ReleaseViewFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_list", Title = "Issue list", ReadOnly = true)]
     [Description(
         "Lists a repository's open issues, excluding pull requests, most urgent priority first and then by number, with each issue's priority, blocked and on-hold flags, assignees, title and labels"

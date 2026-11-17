@@ -13,6 +13,7 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.ReleaseView;
 using Credfeto.Workflow.GitHub.RepoFiles;
 using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
@@ -401,6 +402,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void TagViewServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<ITagViewService, TagViewService>();
+    }
+
+    [Fact]
+    public void ReleaseServiceShouldBeRegistered()
+    {
+        this.RequireService<IReleaseService>();
+    }
+
+    [Fact]
+    public void ReleaseServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IReleaseService, ReleaseService>();
     }
 
     [Fact]

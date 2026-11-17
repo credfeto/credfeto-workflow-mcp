@@ -13,6 +13,60 @@ namespace Credfeto.Workflow.Mcp.Tests;
 
 public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 {
+    private static readonly string[] ExpectedToolNames =
+    [
+        "body_check",
+        "branch_required_checks",
+        "closing_issue_labels",
+        "code_search",
+        "comment_add",
+        "issue_add_sub_issue",
+        "issue_close",
+        "issue_comments",
+        "issue_create",
+        "issue_edit",
+        "issue_list",
+        "issue_plan_status",
+        "issue_reopen",
+        "issue_search",
+        "issue_view",
+        "label_add",
+        "label_create",
+        "label_list",
+        "label_remove",
+        "ping",
+        "pr_auto_merge_at",
+        "pr_checks",
+        "pr_close",
+        "pr_comments",
+        "pr_create",
+        "pr_diff",
+        "pr_edit",
+        "pr_hand_off",
+        "pr_list",
+        "pr_ready_at",
+        "pr_reopen",
+        "pr_reply",
+        "pr_review_comment",
+        "pr_search",
+        "pr_status",
+        "pr_view",
+        "release_view",
+        "repo_dependabot_alerts",
+        "repo_file",
+        "repo_list",
+        "repo_search",
+        "run_list",
+        "run_log",
+        "run_rerun",
+        "run_view",
+        "tag_view",
+        "workflow_list",
+        "workflow_run",
+        "workflow_status_check",
+        "workflow_status_set",
+    ];
+
     public DependencyInjectionTests(ITestOutputHelper output)
         : base(output: output, dependencyInjectionRegistration: Configure) { }
 
@@ -23,61 +77,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name).Order(StringComparer.Ordinal)];
 
-        Assert.Equal(
-            expected:
-            [
-                "body_check",
-                "branch_required_checks",
-                "closing_issue_labels",
-                "code_search",
-                "comment_add",
-                "issue_add_sub_issue",
-                "issue_close",
-                "issue_comments",
-                "issue_create",
-                "issue_edit",
-                "issue_list",
-                "issue_plan_status",
-                "issue_reopen",
-                "issue_search",
-                "issue_view",
-                "label_add",
-                "label_create",
-                "label_list",
-                "label_remove",
-                "ping",
-                "pr_auto_merge_at",
-                "pr_checks",
-                "pr_close",
-                "pr_comments",
-                "pr_create",
-                "pr_diff",
-                "pr_edit",
-                "pr_hand_off",
-                "pr_list",
-                "pr_ready_at",
-                "pr_reopen",
-                "pr_reply",
-                "pr_review_comment",
-                "pr_search",
-                "pr_status",
-                "pr_view",
-                "repo_dependabot_alerts",
-                "repo_file",
-                "repo_list",
-                "repo_search",
-                "run_list",
-                "run_log",
-                "run_rerun",
-                "run_view",
-                "tag_view",
-                "workflow_list",
-                "workflow_run",
-                "workflow_status_check",
-                "workflow_status_set",
-            ],
-            actual: names
-        );
+        Assert.Equal(expected: ExpectedToolNames, actual: names);
     }
 
     [Theory]
@@ -110,6 +110,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("run_view")]
     [InlineData("run_log")]
     [InlineData("tag_view")]
+    [InlineData("release_view")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -298,6 +299,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["repo", "tag"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo", "tag"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void ReleaseViewTakesRepo()
+    {
+        JsonElement schema = this.GetTool("release_view").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -782,6 +792,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IRepoSearchService>()
             .AddMockedService<IRepoFileService>()
             .AddMockedService<ITagViewService>()
+            .AddMockedService<IReleaseService>()
             .AddMockedService<IIssueListService>()
             .AddMockedService<IRepositoryListService>()
             .AddMockedService<IWorkflowListService>()

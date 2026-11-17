@@ -546,6 +546,24 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: a repository's latest release (release_view)
+# Only tag_name, published_at, html_url and name are read; the release notes (body) are ignored. A release without
+# a tag_name or an absolute http(s) html_url is refused. Control characters in the read fields are replaced with spaces.
+# A 404 means there is no latest release or the repository is missing, which the repository read below tells apart.
+GET {{apiBaseUrl}}repos/actions/checkout/releases/latest
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: whether the repository exists after the latest release answered 404 (release_view)
+# A 404 here means the repository is missing or hidden; any success means the repository has no latest release.
+GET {{apiBaseUrl}}repos/octocat/Hello-World
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: search an owner's repository names and descriptions for text (repo_search)
 # q is "in:name,description <words> user:<owner>", plus "archived:false" unless archived repositories are wanted,
 # URL-encoded as one value; "user:" matches organisations too. per_page is the limit plus one, at most 100, so a

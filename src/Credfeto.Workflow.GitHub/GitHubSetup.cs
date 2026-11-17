@@ -20,6 +20,7 @@ using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.ReleaseView;
 using Credfeto.Workflow.GitHub.RepoFiles;
 using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
@@ -118,9 +119,7 @@ public static class GitHubSetup
             .AddSingleton<IIssueSearchService, IssueSearchService>()
             .AddSingleton<IPrSearchService, PrSearchService>()
             .AddSingleton<ICodeSearchService, CodeSearchService>()
-            .AddSingleton<IRepoSearchService, RepoSearchService>()
-            .AddSingleton<IRepoFileService, RepoFileService>()
-            .AddSingleton<ITagViewService, TagViewService>()
+            .AddRepositoryContentServices()
             .AddSingleton<IIssueListService, IssueListService>()
             .AddSingleton<IRepositoryListService, RepositoryListService>()
             .AddSingleton<IWorkflowListService, WorkflowListService>()
@@ -142,6 +141,15 @@ public static class GitHubSetup
             .AddHttpMessageHandler<CallerTokenForwardingHandler>()
             .AddResilienceHandler(pipelineName: RESILIENCE_PIPELINE_NAME, configure: ConfigureResilience)
             .Services;
+    }
+
+    private static IServiceCollection AddRepositoryContentServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IRepoSearchService, RepoSearchService>()
+            .AddSingleton<IRepoFileService, RepoFileService>()
+            .AddSingleton<ITagViewService, TagViewService>()
+            .AddSingleton<IReleaseService, ReleaseService>();
     }
 
     private static IServiceCollection AddRunServices(this IServiceCollection services)

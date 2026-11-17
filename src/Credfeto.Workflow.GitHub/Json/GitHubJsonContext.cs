@@ -10,6 +10,7 @@ using Credfeto.Workflow.GitHub.Labels;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Models;
 using Credfeto.Workflow.GitHub.PullRequests;
+using Credfeto.Workflow.GitHub.ReleaseView;
 using Credfeto.Workflow.GitHub.RepoFiles;
 using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
@@ -112,4 +113,5 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(DependabotAlertResponse[]))]
 [JsonSerializable(typeof(GitRefResponse))]
 [JsonSerializable(typeof(GitTagResponse))]
+[JsonSerializable(typeof(GitHubRelease))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;
