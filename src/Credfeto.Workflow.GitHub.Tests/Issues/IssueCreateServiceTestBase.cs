@@ -41,6 +41,9 @@ public abstract class IssueCreateServiceTestBase : GitHubClientTestBase
         this.StatusResolver = GetSubstitute<IWorkflowStatusResolver>();
         this.BoardWriter = GetSubstitute<IBoardWriter>();
 
+        // A substitute reports no board token unless a test configures one
+        this.BoardFallbackWriter = GetSubstitute<IBoardFallbackWriter>();
+
         this.LeakChecker.CheckRepositoryReferencesAsync(
                 repository: Arg.Any<string>(),
                 subject: Arg.Any<LeakSubject>(),
@@ -66,6 +69,8 @@ public abstract class IssueCreateServiceTestBase : GitHubClientTestBase
     protected IWorkflowStatusResolver StatusResolver { get; }
 
     protected IBoardWriter BoardWriter { get; }
+
+    protected IBoardFallbackWriter BoardFallbackWriter { get; }
 
     protected static HttpResponseMessage Unexpected(int index)
     {
@@ -108,7 +113,8 @@ public abstract class IssueCreateServiceTestBase : GitHubClientTestBase
             leakChecker: this.LeakChecker,
             boardResolver: this.BoardResolver,
             statusResolver: this.StatusResolver,
-            boardWriter: this.BoardWriter
+            boardWriter: this.BoardWriter,
+            boardFallbackWriter: this.BoardFallbackWriter
         );
 
         return service

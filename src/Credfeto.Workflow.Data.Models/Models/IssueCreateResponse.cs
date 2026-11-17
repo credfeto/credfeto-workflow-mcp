@@ -3,5 +3,5 @@ using System.Diagnostics;
 
 namespace Credfeto.Workflow.Data.Models.Models;
 
-[DebuggerDisplay("{Url}")]
-public sealed record IssueCreateResponse(Uri Url);
+[DebuggerDisplay("{Url}: Note={Note}")]
+public sealed record IssueCreateResponse(Uri Url, string? Note);

@@ -13,5 +13,6 @@ internal sealed record IssueResponse(
     [property: JsonPropertyName("body")] string? Body,
     [property: JsonPropertyName("pull_request")] IssuePullRequestLinkResponse? PullRequest,
     [property: JsonPropertyName("html_url")] string? HtmlUrl,
-    [property: JsonPropertyName("comments")] int? Comments
+    [property: JsonPropertyName("comments")] int? Comments,
+    [property: JsonPropertyName("node_id")] string? NodeId
 );
