@@ -1116,7 +1116,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     [Fact]
     public async Task IssueCreateReturnsWhatTheServiceCreatedAsync()
     {
-        IssueCreateResponse expected = new(new Uri("https://github.com/" + REPOSITORY + "/issues/90"));
+        IssueCreateResponse expected = new(Url: new Uri("https://github.com/" + REPOSITORY + "/issues/90"), Note: null);
         IReadOnlyList<string> labels = ["Bug"];
         this._issueCreateService.CreateAsync(
                 repository: REPOSITORY,
@@ -1144,7 +1144,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     [Fact]
     public async Task IssueCreatePassesNoLabelsWhenNoneAreGivenAsync()
     {
-        IssueCreateResponse expected = new(new Uri("https://github.com/" + REPOSITORY + "/issues/91"));
+        IssueCreateResponse expected = new(Url: new Uri("https://github.com/" + REPOSITORY + "/issues/91"), Note: null);
         this._issueCreateService.CreateAsync(
                 repository: REPOSITORY,
                 priority: "Medium",

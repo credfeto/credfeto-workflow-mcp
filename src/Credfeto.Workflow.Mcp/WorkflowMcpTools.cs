@@ -1120,7 +1120,7 @@ public sealed class WorkflowMcpTools
         Idempotent = false
     )]
     [Description(
-        "Creates an issue with a priority label and optional labels, creating any missing label, and puts it on the repository's Workflow board as Not Started; everything is checked before anything is created"
+        "Creates an issue with a priority label and optional labels, creating any missing label, and puts it on the repository's Workflow board as Not Started; everything is checked before anything is created. When the caller's token cannot reach the board and the server has a board token, the server adds the issue as Not Started with that token and the result carries a note saying so"
     )]
     public static async Task<IssueCreateResponse> IssueCreateAsync(
         [Description("The repository, as owner/name")] string repo,

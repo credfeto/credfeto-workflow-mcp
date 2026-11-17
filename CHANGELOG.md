@@ -69,6 +69,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added optional GitHub:UpstreamBasePath setting so proxied upstream next-page links and the GraphQL endpoint are resolved correctly (#35)
 - Added tag_view MCP tool that returns the commit SHA a repository tag points to and whether the tag is lightweight or annotated, with a distinct not-found result for missing tags (#34)
 - Added release_view MCP tool that returns the latest release of a repository (its tag, published date, URL and name), with a distinct not-found result when the repository has no releases (#32)
+- Added optional server-side GitHub:Board:Token setting, used only as a fallback to add newly created issues to the Workflow board as Not Started when the caller lacks board permissions (#71)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)

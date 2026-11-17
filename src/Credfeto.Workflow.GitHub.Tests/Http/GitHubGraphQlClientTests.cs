@@ -107,6 +107,23 @@ public sealed class GitHubGraphQlClientTests : GitHubClientTestBase
             expected: ["Could not resolve to a Repository", "unknown error", "unknown error"],
             actual: exception.Errors
         );
+        Assert.Equal(expected: ["FORBIDDEN"], actual: exception.ErrorTypes);
+    }
+
+    [Fact]
+    public async Task ErrorTypesAreSurfacedInOrderAndOnlyWhenTheyAreStringsAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Json(
+                """{"errors":[{"type":"INSUFFICIENT_SCOPES","message":"a"},{"type":1,"message":"b"},{"type":"NOT_FOUND"}],"data":null}"""
+            )
+        );
+
+        GitHubGraphQlException exception = await Assert.ThrowsAsync<GitHubGraphQlException>(() =>
+            this.ExecuteAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: ["INSUFFICIENT_SCOPES", "NOT_FOUND"], actual: exception.ErrorTypes);
     }
 
     [Fact]

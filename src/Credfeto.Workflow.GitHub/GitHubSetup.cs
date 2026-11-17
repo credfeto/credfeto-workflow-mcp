@@ -31,6 +31,7 @@ using Credfeto.Workflow.GitHub.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Polly;
 using Polly.Retry;
@@ -43,6 +44,9 @@ public static class GitHubSetup
 
     // Reads a run's logs from the signed URL GitHub redirects to, without the caller's token
     public const string LogStorageHttpClientName = "GitHubLogStorage";
+
+    // Carries the server's board token rather than the caller's, and is only used to add a new item as Not Started
+    public const string BoardHttpClientName = "GitHubBoard";
 
     private const string USER_AGENT = "credfeto-workflow-mcp";
     private const string MEDIA_TYPE = "application/vnd.github+json";
@@ -95,6 +99,7 @@ public static class GitHubSetup
 
         return services
             .AddLogStorageHttpClient()
+            .AddBoardHttpClient()
             .AddHttpContextAccessor()
             .AddSingleton<IValidateOptions<GitHubOptions>, GitHubOptionsValidator>()
             .AddSingleton<IValidateOptions<WorkflowOptions>, WorkflowOptionsValidator>()
@@ -188,6 +193,30 @@ public static class GitHubSetup
             .AddHttpClient(name: LogStorageHttpClientName, configureClient: ConfigureLogStorageHttpClient)
             .ConfigurePrimaryHttpMessageHandler(CreateLogStoragePrimaryHandler)
             .RedactLoggedHeaders(static _ => true)
+            .Services;
+    }
+
+    // The board client shares the caller client's settings and resilience, differing only in the token it sends.
+    // Its GraphQL client is built here rather than registered, so no other service can be handed the board token.
+    private static IServiceCollection AddBoardHttpClient(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IBoardFallbackWriter>(static serviceProvider => new BoardFallbackWriter(
+                graphQlClient: new GitHubGraphQlClient(
+                    httpClientFactory: serviceProvider.GetRequiredService<IHttpClientFactory>(),
+                    options: serviceProvider.GetRequiredService<IOptions<GitHubOptions>>(),
+                    httpClientName: BoardHttpClientName,
+                    logger: serviceProvider.GetRequiredService<ILogger<GitHubGraphQlClient>>()
+                ),
+                options: serviceProvider.GetRequiredService<IOptions<GitHubOptions>>(),
+                logger: serviceProvider.GetRequiredService<ILogger<BoardFallbackWriter>>()
+            ))
+            .AddTransient<BoardTokenHandler>()
+            .AddHttpClient(name: BoardHttpClientName, configureClient: ConfigureHttpClient)
+            .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
+            .RedactLoggedHeaders(static _ => true)
+            .AddHttpMessageHandler<BoardTokenHandler>()
+            .AddResilienceHandler(pipelineName: RESILIENCE_PIPELINE_NAME, configure: ConfigureResilience)
             .Services;
     }
 
