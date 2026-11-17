@@ -165,7 +165,7 @@ public sealed partial class WorkflowBoardResolver : IWorkflowBoardResolver
 
     private static WorkflowProject ToProject(ProjectNode node, string repository)
     {
-        if (node.Id is null || node.Number is not >= 0 || !ProjectId().IsMatch(node.Id))
+        if (node.Id is null || node.Number is not >= 0 || !BoardMutations.IsNodeId(node.Id))
         {
             throw new WorkflowBoardInvalidException($"unexpected project id/number for {repository}");
         }
@@ -195,14 +195,6 @@ public sealed partial class WorkflowBoardResolver : IWorkflowBoardResolver
     {
         return $"could not read the projects of {repository}";
     }
-
-    // \z rather than $ because in .NET $ also matches before a trailing newline, which would let one through
-    [GeneratedRegex(
-        pattern: @"^[A-Za-z0-9_=-]+\z",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex ProjectId();
 
     [GeneratedRegex(
         pattern: @"^/(users|orgs)/(?<owner>[A-Za-z0-9_.-]+)/projects/[0-9]+\z",
