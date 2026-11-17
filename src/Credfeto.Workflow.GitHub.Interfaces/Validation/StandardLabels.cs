@@ -75,7 +75,8 @@ public static class StandardLabels
         comparer: StringComparer.OrdinalIgnoreCase
     );
 
-    // Priority is set by a human, so an agent may neither add nor remove one. Listed most urgent first
+    // Priority is changed only through an edit's priority, which keeps exactly one, never by adding or removing a
+    // label. Listed most urgent first
     private static readonly string[] PriorityNames = ["Security", "Urgent", "High", "Medium", "Low"];
 
     private static readonly FrozenSet<string> Priority = PriorityNames.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
@@ -110,9 +111,8 @@ public static class StandardLabels
     // The priority's rank, 0 being the most urgent; a value that is not a priority ranks after every priority
     public static int PriorityRank(string? value)
     {
-        int rank = Array.FindIndex(
-            array: PriorityNames,
-            match: name => StringComparer.OrdinalIgnoreCase.Equals(x: name, y: value)
+        int rank = Array.FindIndex(array: PriorityNames, match: name =>
+            StringComparer.OrdinalIgnoreCase.Equals(x: name, y: value)
         );
 
         return rank < 0 ? PriorityNames.Length : rank;

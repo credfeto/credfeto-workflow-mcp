@@ -11,5 +11,6 @@ internal sealed record IssueEditResponse(
     [property: JsonPropertyName("title")] string? Title,
     [property: JsonPropertyName("body")] string? Body,
     [property: JsonPropertyName("assignees")] IssueUserResponse?[]? Assignees,
+    [property: JsonPropertyName("labels")] IssueLabelResponse?[]? Labels,
     [property: JsonPropertyName("pull_request")] IssuePullRequestLinkResponse? PullRequest
 );

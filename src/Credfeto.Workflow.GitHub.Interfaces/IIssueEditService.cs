@@ -11,6 +11,7 @@ public interface IIssueEditService
         int issue,
         string? title,
         string? body,
+        string? priority,
         bool assignSelf,
         CancellationToken cancellationToken
     );

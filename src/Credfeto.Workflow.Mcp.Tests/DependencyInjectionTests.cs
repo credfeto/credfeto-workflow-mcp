@@ -485,11 +485,14 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
-    public void PrEditTakesRepoPrAndOptionalTitleBodyAndAssignSelf()
+    public void PrEditTakesRepoPrAndOptionalTitleBodyPriorityAndAssignSelf()
     {
         JsonElement schema = this.GetTool("pr_edit").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["assignSelf", "body", "pr", "repo", "title"], actual: PropertyNames(schema));
+        Assert.Equal(
+            expected: ["assignSelf", "body", "pr", "priority", "repo", "title"],
+            actual: PropertyNames(schema)
+        );
         Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
     }
 
@@ -507,11 +510,14 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
-    public void IssueEditTakesRepoIssueAndOptionalTitleBodyAndAssignSelf()
+    public void IssueEditTakesRepoIssueAndOptionalTitleBodyPriorityAndAssignSelf()
     {
         JsonElement schema = this.GetTool("issue_edit").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["assignSelf", "body", "issue", "repo", "title"], actual: PropertyNames(schema));
+        Assert.Equal(
+            expected: ["assignSelf", "body", "issue", "priority", "repo", "title"],
+            actual: PropertyNames(schema)
+        );
         Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
     }
 

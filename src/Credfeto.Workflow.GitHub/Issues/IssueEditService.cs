@@ -36,6 +36,7 @@ public sealed class IssueEditService : IIssueEditService
         int issue,
         string? title,
         string? body,
+        string? priority,
         bool assignSelf,
         CancellationToken cancellationToken
     )
@@ -49,7 +50,7 @@ public sealed class IssueEditService : IIssueEditService
             throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0");
         }
 
-        if (title is null && body is null && !assignSelf)
+        if (title is null && body is null && priority is null && !assignSelf)
         {
             throw ItemEdit.Usage(parameterName: nameof(title), message: NOTHING_TO_EDIT_MESSAGE);
         }
@@ -62,6 +63,7 @@ public sealed class IssueEditService : IIssueEditService
             Number: issue,
             Title: title is null ? null : ValidTitle(owner: owner, title: title),
             Body: body is null ? null : ItemEdit.ValidBody(body),
+            Priority: PriorityEdit.ValidPriority(priority),
             AssignSelf: assignSelf
         );
 
@@ -112,14 +114,34 @@ public sealed class IssueEditService : IIssueEditService
             return read.Result;
         }
 
-        EditState state = read.State;
+        return await this.EditItemAsync(
+            request: request,
+            state: read.State,
+            login: login,
+            cancellationToken: cancellationToken
+        );
+    }
 
+    private async ValueTask<IssueEditResult> EditItemAsync(
+        EditRequest request,
+        EditState state,
+        string? login,
+        CancellationToken cancellationToken
+    )
+    {
         if (ItemEdit.CheckAssignee(state: state, login: login) is { } assigneeRefusal)
         {
             return Refused(assigneeRefusal);
         }
 
-        if (ItemEdit.IsUnchanged(request: request, state: state, login: login))
+        if (PriorityEdit.CheckPriority(request: request, state: state) is { } priorityRefusal)
+        {
+            return Refused(priorityRefusal);
+        }
+
+        PriorityChange priority = PriorityEdit.Plan(request: request, state: state);
+
+        if (ItemEdit.IsUnchanged(request: request, state: state, login: login, priority: priority))
         {
             return Result(
                 outcome: IssueEditOutcome.Unchanged,
@@ -130,10 +152,23 @@ public sealed class IssueEditService : IIssueEditService
             };
         }
 
+        string? labelFailure = await PriorityEdit.EnsureLabelExistsAsync(
+            restClient: this._restClient,
+            request: request,
+            change: priority,
+            cancellationToken: cancellationToken
+        );
+
+        if (labelFailure is not null)
+        {
+            return NotEdited(request: request, reason: labelFailure);
+        }
+
         return await this.WriteAsync(
             request: request,
             state: state,
             login: login,
+            priority: priority,
             cancellationToken: cancellationToken
         );
     }
@@ -142,6 +177,7 @@ public sealed class IssueEditService : IIssueEditService
         EditRequest request,
         EditState state,
         string? login,
+        PriorityChange priority,
         CancellationToken cancellationToken
     )
     {
@@ -149,6 +185,7 @@ public sealed class IssueEditService : IIssueEditService
             restClient: this._restClient,
             request: request,
             assignees: login is null ? null : ItemEdit.WithAssignee(assignees: state.Assignees, login: login),
+            labels: priority.Labels,
             responseTypeInfo: GitHubJsonContext.Default.IssueEditResponse,
             responseNumber: static response => response.Number,
             cancellationToken: cancellationToken
@@ -162,6 +199,8 @@ public sealed class IssueEditService : IIssueEditService
             ) with
             {
                 Url = state.Url,
+                OldPriority = priority.OldPriority,
+                NewPriority = priority.NewPriority,
             },
             EditWriteOutcome.Rejected => NotEdited(request: request, reason: written.Reason),
             _ => MayHaveBeenEdited(request: request, reason: written.Reason),
@@ -204,7 +243,8 @@ public sealed class IssueEditService : IIssueEditService
                 htmlUrl: response.HtmlUrl,
                 title: response.Title,
                 body: response.Body,
-                assigneeLogins: response.Assignees?.Select(static assignee => assignee?.Login)
+                assigneeLogins: response.Assignees?.Select(static assignee => assignee?.Login),
+                labelNames: response.Labels?.Select(static label => label?.Name)
             )
                 is { } state
             ? new(Result: null, State: state)
@@ -259,7 +299,15 @@ public sealed class IssueEditService : IIssueEditService
 
     private static IssueEditResult Result(IssueEditOutcome outcome, string message)
     {
-        return new(Outcome: outcome, Message: message, Url: null, Rule: null, LineNumber: null);
+        return new(
+            Outcome: outcome,
+            Message: message,
+            Url: null,
+            Rule: null,
+            LineNumber: null,
+            OldPriority: null,
+            NewPriority: null
+        );
     }
 
     [StructLayout(LayoutKind.Auto)]

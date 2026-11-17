@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json.Serialization;
+using Credfeto.Workflow.GitHub.Issues;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
 
@@ -10,5 +11,6 @@ internal sealed record PullRequestEditResponse(
     [property: JsonPropertyName("html_url")] string? HtmlUrl,
     [property: JsonPropertyName("title")] string? Title,
     [property: JsonPropertyName("body")] string? Body,
-    [property: JsonPropertyName("assignees")] PullRequestListUserResponse?[]? Assignees
+    [property: JsonPropertyName("assignees")] PullRequestListUserResponse?[]? Assignees,
+    [property: JsonPropertyName("labels")] IssueLabelResponse?[]? Labels
 );

@@ -38,6 +38,7 @@ public sealed partial class PrEditService : IPrEditService
         int pullRequest,
         string? title,
         string? body,
+        string? priority,
         bool assignSelf,
         CancellationToken cancellationToken
     )
@@ -51,7 +52,7 @@ public sealed partial class PrEditService : IPrEditService
             throw ParameterValidationException.For(parameterName: "pr", rule: "must be above 0");
         }
 
-        if (title is null && body is null && !assignSelf)
+        if (title is null && body is null && priority is null && !assignSelf)
         {
             throw ItemEdit.Usage(parameterName: nameof(title), message: NOTHING_TO_EDIT_MESSAGE);
         }
@@ -61,6 +62,7 @@ public sealed partial class PrEditService : IPrEditService
             Number: pullRequest,
             Title: title is null ? null : ValidTitle(title),
             Body: body is null ? null : ItemEdit.ValidBody(body),
+            Priority: PriorityEdit.ValidPriority(priority),
             AssignSelf: assignSelf
         );
 
@@ -114,14 +116,34 @@ public sealed partial class PrEditService : IPrEditService
             return read.Result;
         }
 
-        EditState state = read.State;
+        return await this.EditItemAsync(
+            request: request,
+            state: read.State,
+            login: login,
+            cancellationToken: cancellationToken
+        );
+    }
 
+    private async ValueTask<PrEditResult> EditItemAsync(
+        EditRequest request,
+        EditState state,
+        string? login,
+        CancellationToken cancellationToken
+    )
+    {
         if (ItemEdit.CheckAssignee(state: state, login: login) is { } assigneeRefusal)
         {
             return Refused(assigneeRefusal);
         }
 
-        if (ItemEdit.IsUnchanged(request: request, state: state, login: login))
+        if (PriorityEdit.CheckPriority(request: request, state: state) is { } priorityRefusal)
+        {
+            return Refused(priorityRefusal);
+        }
+
+        PriorityChange priority = PriorityEdit.Plan(request: request, state: state);
+
+        if (ItemEdit.IsUnchanged(request: request, state: state, login: login, priority: priority))
         {
             return Result(
                 outcome: PrEditOutcome.Unchanged,
@@ -132,10 +154,23 @@ public sealed partial class PrEditService : IPrEditService
             };
         }
 
+        string? labelFailure = await PriorityEdit.EnsureLabelExistsAsync(
+            restClient: this._restClient,
+            request: request,
+            change: priority,
+            cancellationToken: cancellationToken
+        );
+
+        if (labelFailure is not null)
+        {
+            return NotEdited(request: request, reason: labelFailure);
+        }
+
         return await this.WriteAsync(
             request: request,
             state: state,
             login: login,
+            priority: priority,
             cancellationToken: cancellationToken
         );
     }
@@ -144,6 +179,7 @@ public sealed partial class PrEditService : IPrEditService
         EditRequest request,
         EditState state,
         string? login,
+        PriorityChange priority,
         CancellationToken cancellationToken
     )
     {
@@ -151,6 +187,7 @@ public sealed partial class PrEditService : IPrEditService
             restClient: this._restClient,
             request: request,
             assignees: login is null ? null : ItemEdit.WithAssignee(assignees: state.Assignees, login: login),
+            labels: priority.Labels,
             responseTypeInfo: GitHubJsonContext.Default.PullRequestEditResponse,
             responseNumber: static response => response.Number,
             cancellationToken: cancellationToken
@@ -164,6 +201,8 @@ public sealed partial class PrEditService : IPrEditService
             ) with
             {
                 Url = state.Url,
+                OldPriority = priority.OldPriority,
+                NewPriority = priority.NewPriority,
             },
             EditWriteOutcome.Rejected => NotEdited(request: request, reason: written.Reason),
             _ => MayHaveBeenEdited(request: request, reason: written.Reason),
@@ -209,7 +248,8 @@ public sealed partial class PrEditService : IPrEditService
                 htmlUrl: response.HtmlUrl,
                 title: response.Title,
                 body: response.Body,
-                assigneeLogins: response.Assignees?.Select(static assignee => assignee?.Login)
+                assigneeLogins: response.Assignees?.Select(static assignee => assignee?.Login),
+                labelNames: response.Labels?.Select(static label => label?.Name)
             )
                 is { } state
             ? new(Result: null, State: state)
@@ -250,7 +290,15 @@ public sealed partial class PrEditService : IPrEditService
 
     private static PrEditResult Result(PrEditOutcome outcome, string message)
     {
-        return new(Outcome: outcome, Message: message, Url: null, Rule: null, LineNumber: null);
+        return new(
+            Outcome: outcome,
+            Message: message,
+            Url: null,
+            Rule: null,
+            LineNumber: null,
+            OldPriority: null,
+            NewPriority: null
+        );
     }
 
     [GeneratedRegex(

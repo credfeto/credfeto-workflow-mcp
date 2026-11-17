@@ -18,9 +18,45 @@ public sealed class IssueEditResultJsonTests : TestBase
                 Message: "credfeto/credfeto-workflow-mcp#47 was edited",
                 Url: new Uri("https://github.com/credfeto/credfeto-workflow-mcp/issues/47"),
                 Rule: null,
-                LineNumber: null
+                LineNumber: null,
+                OldPriority: null,
+                NewPriority: null
             ),
             json: "{\"outcome\":\"Edited\",\"message\":\"credfeto/credfeto-workflow-mcp#47 was edited\",\"url\":\"https://github.com/credfeto/credfeto-workflow-mcp/issues/47\"}"
+        );
+    }
+
+    [Fact]
+    public static void AChangedPriorityHoldsTheOldAndNewPriority()
+    {
+        AssertRoundTrips(
+            result: new(
+                Outcome: IssueEditOutcome.Edited,
+                Message: "credfeto/credfeto-workflow-mcp#47 was edited",
+                Url: new Uri("https://github.com/credfeto/credfeto-workflow-mcp/issues/47"),
+                Rule: null,
+                LineNumber: null,
+                OldPriority: "Medium",
+                NewPriority: "Low"
+            ),
+            json: "{\"outcome\":\"Edited\",\"message\":\"credfeto/credfeto-workflow-mcp#47 was edited\",\"url\":\"https://github.com/credfeto/credfeto-workflow-mcp/issues/47\",\"oldPriority\":\"Medium\",\"newPriority\":\"Low\"}"
+        );
+    }
+
+    [Fact]
+    public static void APriorityGivenToAnItemWithNoneHoldsOnlyTheNewPriority()
+    {
+        AssertRoundTrips(
+            result: new(
+                Outcome: IssueEditOutcome.Edited,
+                Message: "credfeto/credfeto-workflow-mcp#47 was edited",
+                Url: new Uri("https://github.com/credfeto/credfeto-workflow-mcp/issues/47"),
+                Rule: null,
+                LineNumber: null,
+                OldPriority: null,
+                NewPriority: "High"
+            ),
+            json: "{\"outcome\":\"Edited\",\"message\":\"credfeto/credfeto-workflow-mcp#47 was edited\",\"url\":\"https://github.com/credfeto/credfeto-workflow-mcp/issues/47\",\"newPriority\":\"High\"}"
         );
     }
 
@@ -33,7 +69,9 @@ public sealed class IssueEditResultJsonTests : TestBase
                 Message: "body refused: token (line 3)",
                 Url: null,
                 Rule: "token",
-                LineNumber: 3
+                LineNumber: 3,
+                OldPriority: null,
+                NewPriority: null
             ),
             json: "{\"outcome\":\"Refused\",\"message\":\"body refused: token (line 3)\",\"rule\":\"token\",\"lineNumber\":3}"
         );
@@ -48,7 +86,9 @@ public sealed class IssueEditResultJsonTests : TestBase
                 Message: "was not edited",
                 Url: null,
                 Rule: null,
-                LineNumber: null
+                LineNumber: null,
+                OldPriority: null,
+                NewPriority: null
             ),
             json: "{\"outcome\":\"Failed\",\"message\":\"was not edited\"}"
         );

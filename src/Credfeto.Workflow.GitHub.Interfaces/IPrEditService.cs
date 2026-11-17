@@ -11,6 +11,7 @@ public interface IPrEditService
         int pullRequest,
         string? title,
         string? body,
+        string? priority,
         bool assignSelf,
         CancellationToken cancellationToken
     );

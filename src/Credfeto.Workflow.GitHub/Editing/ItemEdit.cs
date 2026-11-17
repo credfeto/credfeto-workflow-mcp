@@ -23,7 +23,7 @@ namespace Credfeto.Workflow.GitHub.Editing;
 // the item and wording its result is the same for both
 internal static class ItemEdit
 {
-    public const string NOTHING_TO_EDIT_MESSAGE = "give at least one of title, body or assignSelf";
+    public const string NOTHING_TO_EDIT_MESSAGE = "give at least one of title, body, priority or assignSelf";
 
     private const string TITLE_SUBJECT = "title";
 
@@ -122,13 +122,15 @@ internal static class ItemEdit
         string? htmlUrl,
         string? title,
         string? body,
-        IEnumerable<string?>? assigneeLogins
+        IEnumerable<string?>? assigneeLogins,
+        IEnumerable<string?>? labelNames
     )
     {
         if (
             number != request.Number
             || title is null
             || assigneeLogins is null
+            || !TryReadLabels(request: request, labelNames: labelNames, out IReadOnlyList<string> labels)
             || !CreatedItemUrl.TryParse(
                 pattern: urlPattern,
                 url: htmlUrl ?? string.Empty,
@@ -145,15 +147,30 @@ internal static class ItemEdit
         string?[] logins = [.. assigneeLogins];
 
         return logins.All(static login => login is { Length: > 0 })
-            ? new(Url: url, Title: title, Body: body, Assignees: [.. logins.OfType<string>()])
+            ? new(Url: url, Title: title, Body: body, Assignees: [.. logins.OfType<string>()], Labels: labels)
             : null;
     }
 
-    public static bool IsUnchanged(EditRequest request, EditState state, string? login)
+    // The labels are only written when a priority is asked for, and GitHub replaces them with the list sent, so only
+    // then must every one be named; a label that could not be would be dropped by the write
+    private static bool TryReadLabels(
+        EditRequest request,
+        IEnumerable<string?>? labelNames,
+        out IReadOnlyList<string> labels
+    )
+    {
+        string?[] names = [.. labelNames ?? []];
+        labels = [.. names.OfType<string>().Where(static name => name.Length > 0)];
+
+        return request.Priority is null || labelNames is not null && labels.Count == names.Length;
+    }
+
+    public static bool IsUnchanged(EditRequest request, EditState state, string? login, PriorityChange priority)
     {
         return (request.Title is null || StringComparer.Ordinal.Equals(x: request.Title, y: state.Title))
             && (request.Body is null || StringComparer.Ordinal.Equals(x: request.Body, y: state.Body))
-            && (login is null || IsAssigned(assignees: state.Assignees, login: login));
+            && (login is null || IsAssigned(assignees: state.Assignees, login: login))
+            && priority.Labels is null;
     }
 
     // An assignee is how a worker claims an item, and the orchestrator stands off one assigned to someone else, so
@@ -183,6 +200,7 @@ internal static class ItemEdit
         IGitHubRestClient restClient,
         EditRequest request,
         IReadOnlyList<string>? assignees,
+        IReadOnlyList<string>? labels,
         JsonTypeInfo<TResponse> responseTypeInfo,
         Func<TResponse, int?> responseNumber,
         CancellationToken cancellationToken
@@ -194,7 +212,12 @@ internal static class ItemEdit
         {
             response = await restClient.PatchAsync(
                 relativeUri: $"repos/{request.Repository}/issues/{request.NumberText}",
-                body: new PullRequestEditRequest(Title: request.Title, Body: request.Body, Assignees: assignees),
+                body: new PullRequestEditRequest(
+                    Title: request.Title,
+                    Body: request.Body,
+                    Assignees: assignees,
+                    Labels: labels
+                ),
                 requestTypeInfo: GitHubJsonContext.Default.PullRequestEditRequest,
                 responseTypeInfo: responseTypeInfo,
                 cancellationToken: cancellationToken
