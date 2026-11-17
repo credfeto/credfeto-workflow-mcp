@@ -35,6 +35,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private const string ISSUE_BODY = "Create an issue.";
 
+    private const string EDIT_PRIORITY = "low";
+
     private const string PR_HEAD = "feat/28-pr-create";
 
     private const string PR_TITLE = "feat(mcp): add pr create";
@@ -1246,7 +1248,9 @@ public sealed class WorkflowMcpToolsTests : TestBase
             Message: REPOSITORY + "#16 was edited",
             Url: new("https://github.com/" + REPOSITORY + "/issues/16"),
             Rule: null,
-            LineNumber: null
+            LineNumber: null,
+            OldPriority: "Medium",
+            NewPriority: "Low"
         );
         this.IssueEditServiceCallAsync().Returns(expected);
 
@@ -1302,6 +1306,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             issue: ISSUE,
             title: ISSUE_TITLE,
             body: ISSUE_BODY,
+            priority: EDIT_PRIORITY,
             assignSelf: true,
             cancellationToken: Arg.Any<CancellationToken>()
         );
@@ -1316,6 +1321,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             title: ISSUE_TITLE,
             body: ISSUE_BODY,
             assignSelf: true,
+            priority: EDIT_PRIORITY,
             cancellationToken: this.CancellationToken()
         );
     }
@@ -2266,7 +2272,9 @@ public sealed class WorkflowMcpToolsTests : TestBase
             Message: REPOSITORY + "#41 was edited",
             Url: new("https://github.com/" + REPOSITORY + "/pull/41"),
             Rule: null,
-            LineNumber: null
+            LineNumber: null,
+            OldPriority: null,
+            NewPriority: "Low"
         );
         this.PrEditServiceCallAsync().Returns(expected);
 
@@ -2322,6 +2330,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             pullRequest: PULL_REQUEST,
             title: "feat(tools): edit",
             body: "Closes #44",
+            priority: EDIT_PRIORITY,
             assignSelf: true,
             cancellationToken: Arg.Any<CancellationToken>()
         );
@@ -2336,6 +2345,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             title: "feat(tools): edit",
             body: "Closes #44",
             assignSelf: true,
+            priority: EDIT_PRIORITY,
             cancellationToken: this.CancellationToken()
         );
     }

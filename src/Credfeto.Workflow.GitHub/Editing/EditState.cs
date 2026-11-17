@@ -7,4 +7,10 @@ namespace Credfeto.Workflow.GitHub.Editing;
 
 [StructLayout(LayoutKind.Auto)]
 [DebuggerDisplay("{Url}: {Title}")]
-internal readonly record struct EditState(Uri Url, string Title, string? Body, IReadOnlyList<string> Assignees);
+internal readonly record struct EditState(
+    Uri Url,
+    string Title,
+    string? Body,
+    IReadOnlyList<string> Assignees,
+    IReadOnlyList<string> Labels
+);

@@ -990,6 +990,66 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the issue_edit tool with a priority; expects outcome "Edited" with oldPriority and newPriority when another priority was replaced (the label is created first when the repository lacks it), or "Unchanged" when it already is the only priority
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 134,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 47,
+      "priority": "high"
+    }
+  }
+}
+
+### Call the issue_edit tool with a priority other than Security; expects outcome "Refused" with the rule "Security is never replaced" and nothing written when the issue is labelled Security
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 135,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 47,
+      "priority": "Low"
+    }
+  }
+}
+
+### Call the issue_edit tool with a priority that is not a standard priority label; expects a tool error naming the "priority" parameter and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 136,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 47,
+      "priority": "Critical"
+    }
+  }
+}
+
 ### Call the issue_list tool; expects the open issues, without pull requests, most urgent priority first and then by number, each with number, priority, blocked, onHold, assignees, title and labels
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
@@ -2114,6 +2174,66 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 87
+    }
+  }
+}
+
+### Call the pr_edit tool with a priority; expects outcome "Edited" with oldPriority and newPriority when another priority was replaced (the label is created first when the repository lacks it), or "Unchanged" when it already is the only priority
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 137,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "priority": "medium"
+    }
+  }
+}
+
+### Call the pr_edit tool with a priority other than Security; expects outcome "Refused" with the rule "Security is never replaced" and nothing written when the pull request is labelled Security
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 138,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "priority": "Low"
+    }
+  }
+}
+
+### Call the pr_edit tool with a priority that is not a standard priority label; expects a tool error naming the "priority" parameter and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 139,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_edit",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "priority": "Critical"
     }
   }
 }

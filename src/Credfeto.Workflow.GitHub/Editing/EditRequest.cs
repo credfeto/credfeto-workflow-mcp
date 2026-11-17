@@ -6,7 +6,14 @@ namespace Credfeto.Workflow.GitHub.Editing;
 
 [StructLayout(LayoutKind.Auto)]
 [DebuggerDisplay("{Repository}#{Number}")]
-internal readonly record struct EditRequest(string Repository, int Number, string? Title, string? Body, bool AssignSelf)
+internal readonly record struct EditRequest(
+    string Repository,
+    int Number,
+    string? Title,
+    string? Body,
+    string? Priority,
+    bool AssignSelf
+)
 {
     public string NumberText => this.Number.ToString(CultureInfo.InvariantCulture);
 

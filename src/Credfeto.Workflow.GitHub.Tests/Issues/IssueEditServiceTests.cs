@@ -33,9 +33,17 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
     private const string EDITED =
         """{"number":47,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/47"}""";
 
+    private const string ALREADY_EXISTS = """
+        {"message":"Validation Failed","errors":[{"resource":"Label","code":"already_exists","field":"name"}]}
+        """;
+
+    private const string LOW_LABEL = """{"name":"Low","color":"cc8899","description":"Low Priority"}""";
+
     private static readonly Uri IssueUri = new(GitHubServices.ApiBaseUrl + "repos/" + REPOSITORY + "/issues/47");
 
     private static readonly Uri UserUri = new(GitHubServices.ApiBaseUrl + "user");
+
+    private static readonly Uri LabelsUri = new(GitHubServices.ApiBaseUrl + "repos/" + REPOSITORY + "/labels");
 
     private readonly ILeakChecker _leakChecker;
 
@@ -67,7 +75,7 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
     }
 
     // The issue was opened by another account, which never stops it being edited
-    private static HttpResponseMessage Issue(string assignees = "")
+    private static HttpResponseMessage Issue(string assignees = "", string labels = "")
     {
         return Responses.Json(
             "{\"number\":47,\"html_url\":\""
@@ -78,8 +86,20 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
                 + OLD_BODY
                 + "\",\"user\":{\"login\":\"someone-else\"},\"assignees\":["
                 + assignees
+                + "],\"labels\":["
+                + labels
                 + "]}"
         );
+    }
+
+    private static HttpResponseMessage Labelled(string labels)
+    {
+        return Issue(labels: labels);
+    }
+
+    private static HttpResponseMessage LabelCreated()
+    {
+        return Responses.StatusWithJson(statusCode: HttpStatusCode.Created, json: """{"name":"Low"}""");
     }
 
     private static HttpResponseMessage Edited()
@@ -104,6 +124,7 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
         int issue = ISSUE,
         string? title = null,
         string? body = null,
+        string? priority = null,
         bool assignSelf = false
     )
     {
@@ -113,6 +134,7 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
                 issue: issue,
                 title: title,
                 body: body,
+                priority: priority,
                 assignSelf: assignSelf,
                 cancellationToken: this.CancellationToken()
             );
@@ -738,5 +760,290 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
             actualString: result.Message,
             comparisonType: StringComparison.Ordinal
         );
+    }
+
+    [Fact]
+    public async Task PriorityReplacesTheOldOneInOneWriteAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled("""{"name":"bug"},{"name":"Medium"}"""),
+            static () => Responses.Json("""[{"name":"bug"},{"name":"Medium"},{"name":"Low"}]"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertEdited(result);
+        Assert.Equal(expected: "Medium", actual: result.OldPriority);
+        Assert.Equal(expected: "Low", actual: result.NewPriority);
+        AssertReadIssue(upstream: upstream, index: 0);
+        AssertWrite(upstream: upstream, index: 2, body: """{"labels":["bug","Low"]}""");
+    }
+
+    [Fact]
+    public async Task EveryOtherPriorityIsRemovedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled("""{"name":"High"},{"name":"bug"},{"name":"low"}"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertEdited(result);
+        Assert.Equal(expected: "High, low", actual: result.OldPriority);
+        Assert.Equal(expected: "Low", actual: result.NewPriority);
+        AssertWrite(upstream: upstream, index: 1, body: """{"labels":["bug","Low"]}""");
+    }
+
+    [Theory]
+    [InlineData("lOw")]
+    [InlineData("LOW")]
+    public async Task PriorityIsWrittenInItsCanonicalSpellingAsync(string priority)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled("""{"name":"Medium"},{"name":"low"}"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: priority);
+
+        Assert.Equal(expected: "Low", actual: result.NewPriority);
+        AssertWrite(upstream: upstream, index: 1, body: """{"labels":["Low"]}""");
+    }
+
+    [Fact]
+    public async Task PriorityMissingFromTheRepositoryIsCreatedWithItsStandardColourFirstAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled("""{"name":"bug"}"""),
+            static () => Responses.Json("""[{"name":"bug"},{"name":"Medium"}]"""),
+            LabelCreated,
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertEdited(result);
+        Assert.Null(result.OldPriority);
+        Assert.Equal(expected: "Low", actual: result.NewPriority);
+        Assert.Equal(expected: HttpMethod.Get, actual: upstream.Requests[1].Method);
+        Assert.Equal(expected: new Uri(LabelsUri + "?per_page=100"), actual: upstream.Requests[1].RequestUri);
+        Assert.Equal(expected: HttpMethod.Post, actual: upstream.Requests[2].Method);
+        Assert.Equal(expected: LabelsUri, actual: upstream.Requests[2].RequestUri);
+        Assert.Equal(expected: LOW_LABEL, actual: upstream.Requests[2].Body);
+        AssertWrite(upstream: upstream, index: 3, body: """{"labels":["bug","Low"]}""");
+    }
+
+    [Fact]
+    public async Task PriorityAlreadyInTheRepositoryIsNotCreatedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled(""),
+            static () => Responses.Json("""[{"name":"LOW"}]"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertEdited(result);
+        AssertWrite(upstream: upstream, index: 2, body: """{"labels":["Low"]}""");
+    }
+
+    [Fact]
+    public async Task PriorityLabelCreatedByAnotherCallerMeanwhileIsNotAnErrorAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled(""),
+            static () => Responses.Json("[]"),
+            static () => Responses.StatusWithJson(statusCode: HttpStatusCode.UnprocessableEntity, json: ALREADY_EXISTS),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertEdited(result);
+        AssertWrite(upstream: upstream, index: 3, body: """{"labels":["Low"]}""");
+    }
+
+    [Theory]
+    [InlineData(
+        HttpStatusCode.UnprocessableEntity,
+        """{"message":"Validation Failed","errors":[{"code":"invalid"}]}"""
+    )]
+    [InlineData(HttpStatusCode.InternalServerError, ALREADY_EXISTS)]
+    [InlineData(HttpStatusCode.Forbidden, "{}")]
+    public async Task PriorityLabelThatCannotBeCreatedWritesNothingAsync(HttpStatusCode status, string json)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled(""),
+            static () => Responses.Json("[]"),
+            () => Responses.StatusWithJson(statusCode: status, json: json)
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertFailed(
+            result: result,
+            outcome: IssueEditOutcome.Failed,
+            message: "credfeto/credfeto-workflow-mcp#47 was not edited: could not create the label 'Low' in "
+                + REPOSITORY
+        );
+        Assert.Equal(expected: 3, actual: upstream.Requests.Count);
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError, "[]")]
+    [InlineData(HttpStatusCode.OK, """[{"name":null}]""")]
+    [InlineData(HttpStatusCode.OK, "[null]")]
+    [InlineData(HttpStatusCode.OK, "not json")]
+    public async Task RepositoryLabelsThatCannotBeReadWriteNothingAsync(HttpStatusCode status, string json)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled(""),
+            () => Responses.StatusWithJson(statusCode: status, json: json)
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertFailed(
+            result: result,
+            outcome: IssueEditOutcome.Failed,
+            message: "credfeto/credfeto-workflow-mcp#47 was not edited: could not read the labels of " + REPOSITORY
+        );
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task PriorityAlreadyTheOnlyOneIsUnchangedAndWritesNothingAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(static () => Labelled("""{"name":"bug"},{"name":"low"}"""));
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: OLD_TITLE, priority: "Low");
+
+        Assert.Equal(expected: IssueEditOutcome.Unchanged, actual: result.Outcome);
+        Assert.Null(result.OldPriority);
+        Assert.Null(result.NewPriority);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task PriorityAlreadySetIsNotRewrittenWhenTheTitleChangesAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(static () => Labelled("""{"name":"Low"}"""), Edited);
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, priority: "Low");
+
+        AssertEdited(result);
+        Assert.Null(result.OldPriority);
+        Assert.Null(result.NewPriority);
+        AssertWrite(upstream: upstream, index: 1, body: """{"title":"tool(cfwf): new title"}""");
+    }
+
+    [Fact]
+    public async Task PriorityAndTitleAreSentInOneWriteAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled("""{"name":"Medium"}"""),
+            static () => Responses.Json("""[{"name":"High"}]"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, priority: "High");
+
+        AssertEdited(result);
+        AssertWrite(upstream: upstream, index: 2, body: """{"title":"tool(cfwf): new title","labels":["High"]}""");
+    }
+
+    [Fact]
+    public async Task PriorityAndAssignSelfAreSentInOneWriteAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Responses.Json(USER),
+            static () => Labelled("""{"name":"Medium"},{"name":"High"}"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "High", assignSelf: true);
+
+        AssertEdited(result);
+        AssertWrite(upstream: upstream, index: 2, body: """{"assignees":["steward-warden"],"labels":["High"]}""");
+    }
+
+    [Theory]
+    [InlineData("Low")]
+    [InlineData("Urgent")]
+    public async Task PriorityOtherThanSecurityOnASecurityItemIsRefusedAndWritesNothingAsync(string priority)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(static () => Labelled("""{"name":"security"}"""));
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, priority: priority);
+
+        Assert.Equal(expected: IssueEditOutcome.Refused, actual: result.Outcome);
+        Assert.Equal(expected: "Security is never replaced", actual: result.Rule);
+        Assert.Equal(expected: "priority refused: Security is never replaced", actual: result.Message);
+        Assert.Null(result.LineNumber);
+        Assert.Null(result.Url);
+        Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task SecurityOnAnItemWithAnotherPriorityKeepsOnlySecurityAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Labelled("""{"name":"Security"},{"name":"Low"}"""),
+            Edited
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "security");
+
+        AssertEdited(result);
+        Assert.Equal(expected: "Security, Low", actual: result.OldPriority);
+        Assert.Equal(expected: "Security", actual: result.NewPriority);
+        AssertWrite(upstream: upstream, index: 1, body: """{"labels":["Security"]}""");
+    }
+
+    [Theory]
+    [InlineData("Critical")]
+    [InlineData("")]
+    [InlineData("Low ")]
+    public async Task UnknownPriorityIsRefusedWithoutCallingGitHubAsync(string priority)
+    {
+        using RecordingHttpMessageHandler upstream = Flow();
+
+        ParameterValidationException exception = await Assert.ThrowsAsync<ParameterValidationException>(() =>
+            this.EditAsync(upstream: upstream, priority: priority)
+        );
+
+        Assert.Equal(expected: "priority", actual: exception.ParameterName);
+        Assert.Equal(
+            expected: "unknown priority (expected Security, Urgent, High, Medium or Low)",
+            actual: exception.Message
+        );
+        Assert.Empty(upstream.Requests);
+    }
+
+    [Theory]
+    [InlineData(
+        """{"number":47,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/47","title":"t","assignees":[]}"""
+    )]
+    [InlineData(
+        """{"number":47,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/47","title":"t","assignees":[],"labels":[null]}"""
+    )]
+    [InlineData(
+        """{"number":47,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/47","title":"t","assignees":[],"labels":[{"name":""}]}"""
+    )]
+    public async Task UnreadableLabelsWithAPriorityAreNotEditedAsync(string issue)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(() => Responses.Json(issue));
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, priority: "Low");
+
+        AssertFailed(
+            result: result,
+            outcome: IssueEditOutcome.Failed,
+            message: "credfeto/credfeto-workflow-mcp#47 was not edited: could not read the issue"
+        );
+        Assert.Single(upstream.Requests);
     }
 }
