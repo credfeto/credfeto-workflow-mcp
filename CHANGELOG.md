@@ -68,6 +68,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - REST and GraphQL GitHub API calls now follow redirects (301/302/303/307/308 for GET; 307/308 only for other methods, max 5 hops) only to targets within the configured base path (#36)
 - Added optional GitHub:UpstreamBasePath setting so proxied upstream next-page links and the GraphQL endpoint are resolved correctly (#35)
 - Added tag_view MCP tool that returns the commit SHA a repository tag points to and whether the tag is lightweight or annotated, with a distinct not-found result for missing tags (#34)
+- release_view MCP tool returning the latest release of a repository (#32)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
