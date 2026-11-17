@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -26,6 +27,10 @@ public sealed class IssueCreateService : IIssueCreateService
 
     private const string LABELS_PARAMETER = "labels";
 
+    private const string BOARD_TOKEN_NOTE =
+        "the caller's token could not put the issue on the Workflow board, so the server's board token added it as Not Started";
+
+    private readonly IBoardFallbackWriter _boardFallbackWriter;
     private readonly IBoardWriter _boardWriter;
     private readonly IWorkflowBoardResolver _boardResolver;
     private readonly ILeakChecker _leakChecker;
@@ -37,7 +42,8 @@ public sealed class IssueCreateService : IIssueCreateService
         ILeakChecker leakChecker,
         IWorkflowBoardResolver boardResolver,
         IWorkflowStatusResolver statusResolver,
-        IBoardWriter boardWriter
+        IBoardWriter boardWriter,
+        IBoardFallbackWriter boardFallbackWriter
     )
     {
         this._restClient = restClient;
@@ -45,6 +51,7 @@ public sealed class IssueCreateService : IIssueCreateService
         this._boardResolver = boardResolver;
         this._statusResolver = statusResolver;
         this._boardWriter = boardWriter;
+        this._boardFallbackWriter = boardFallbackWriter;
     }
 
     public ValueTask<IssueCreateResponse> CreateAsync(
@@ -167,31 +174,55 @@ public sealed class IssueCreateService : IIssueCreateService
 
         // The board is resolved before anything is written, so a repository with no Workflow board fails here and
         // leaves no issue behind
-        WorkflowProject project = await this._boardResolver.ResolveAsync(
-            repository: issue.Repository,
-            cancellationToken: cancellationToken
-        );
-
-        ResolvedStatusOption option = await this._statusResolver.ResolveAsync(
-            repository: issue.Repository,
-            project: project,
-            state: WorkflowStates.NOT_STARTED,
-            cancellationToken: cancellationToken
-        );
+        CallerBoard? board = await this.ResolveBoardAsync(issue: issue, cancellationToken: cancellationToken);
 
         await this.EnsureLabelsExistAsync(issue: issue, cancellationToken: cancellationToken);
 
         CreatedIssue created = await this.CreateIssueAsync(issue: issue, cancellationToken: cancellationToken);
 
-        await this.PutOnBoardAsync(
+        string? note = await this.PutOnBoardAsync(
             issue: issue,
             created: created,
-            project: project,
-            option: option,
+            board: board,
             cancellationToken: cancellationToken
         );
 
-        return new(Url: created.Url);
+        return new(Url: created.Url, Note: note);
+    }
+
+    // Null means the caller's token was refused the board but the board token can see it and its Not Started option
+    private async ValueTask<CallerBoard?> ResolveBoardAsync(NewIssue issue, CancellationToken cancellationToken)
+    {
+        try
+        {
+            WorkflowProject project = await this._boardResolver.ResolveAsync(
+                repository: issue.Repository,
+                cancellationToken: cancellationToken
+            );
+
+            ResolvedStatusOption option = await this._statusResolver.ResolveAsync(
+                repository: issue.Repository,
+                project: project,
+                state: WorkflowStates.NOT_STARTED,
+                cancellationToken: cancellationToken
+            );
+
+            return new CallerBoard(Project: project, Option: option);
+        }
+        catch (Exception exception) when (this.CanUseBoardToken(exception))
+        {
+            await this._boardFallbackWriter.CheckNotStartedAsync(
+                repository: issue.Repository,
+                cancellationToken: cancellationToken
+            );
+
+            return null;
+        }
+    }
+
+    private bool CanUseBoardToken(Exception exception)
+    {
+        return this._boardFallbackWriter.IsConfigured && BoardPermissionFailures.IsPermissionFailure(exception);
     }
 
     private async ValueTask CheckLeaksAsync(NewIssue issue, CancellationToken cancellationToken)
@@ -379,14 +410,14 @@ public sealed class IssueCreateService : IIssueCreateService
             );
         }
 
-        return Created(response.HtmlUrl ?? string.Empty);
+        return Created(url: response.HtmlUrl ?? string.Empty, nodeId: response.NodeId);
     }
 
-    private static CreatedIssue Created(string url)
+    private static CreatedIssue Created(string url, string? nodeId)
     {
         if (CreatedItemUrl.TryParse(pattern: CreatedItemUrl.IssueUrl(), url: url, out Uri? uri, out int number))
         {
-            return new(Url: uri, Number: number);
+            return new(Url: uri, Number: number, NodeId: nodeId);
         }
 
         // The issue may exist, so what GitHub returned is named, on one line, rather than lost
@@ -395,45 +426,86 @@ public sealed class IssueCreateService : IIssueCreateService
         );
     }
 
-    // The status is never read back: the writer already fails on any response that does not confirm the change
-    private async ValueTask PutOnBoardAsync(
+    // The status is never read back: the writer already fails on any response that does not confirm the change.
+    // Returns the note to give the caller when the board token was needed
+    private async ValueTask<string?> PutOnBoardAsync(
         NewIssue issue,
         CreatedIssue created,
-        WorkflowProject project,
-        ResolvedStatusOption option,
+        CallerBoard? board,
+        CancellationToken cancellationToken
+    )
+    {
+        if (board is { } callerBoard)
+        {
+            try
+            {
+                await this._boardWriter.SetItemStatusAsync(
+                    owner: issue.Owner,
+                    repo: issue.Name,
+                    kind: WorkItemKind.ISSUE,
+                    number: created.Number,
+                    project: callerBoard.Project,
+                    fieldId: callerBoard.Option.FieldId,
+                    fieldName: callerBoard.Option.FieldName,
+                    optionId: callerBoard.Option.OptionId,
+                    cancellationToken: cancellationToken
+                );
+
+                return null;
+            }
+            catch (Exception exception)
+                when (exception
+                        is BoardWriteException
+                            or GitHubGraphQlException
+                            or GitHubInvalidResponseException
+                            or HttpRequestException
+                )
+            {
+                if (!this.CanUseBoardToken(exception))
+                {
+                    throw NotOnBoard(created: created, exception: exception);
+                }
+            }
+        }
+
+        await this.AddWithBoardTokenAsync(issue: issue, created: created, cancellationToken: cancellationToken);
+
+        return BOARD_TOKEN_NOTE;
+    }
+
+    private static IssueCreateBoardWriteException NotOnBoard(CreatedIssue created, Exception exception)
+    {
+        // A board write failure is fixed text; anything else may carry upstream detail, so it gets a fixed message
+        string reason =
+            exception is BoardWriteException ? exception.Message : $"could not put {created.Url} on the Workflow board";
+
+        return new(message: $"{reason}; the issue was already created: {created.Url}", innerException: exception)
+        {
+            Url = created.Url,
+        };
+    }
+
+    private async ValueTask AddWithBoardTokenAsync(
+        NewIssue issue,
+        CreatedIssue created,
         CancellationToken cancellationToken
     )
     {
         try
         {
-            await this._boardWriter.SetItemStatusAsync(
-                owner: issue.Owner,
-                repo: issue.Name,
-                kind: WorkItemKind.ISSUE,
-                number: created.Number,
-                project: project,
-                fieldId: option.FieldId,
-                fieldName: option.FieldName,
-                optionId: option.OptionId,
+            // A missing node id is refused by the writer like any other invalid one
+            await this._boardFallbackWriter.AddAsNotStartedAsync(
+                repository: issue.Repository,
+                contentNodeId: created.NodeId ?? string.Empty,
+                url: created.Url,
                 cancellationToken: cancellationToken
             );
         }
-        catch (Exception exception)
-            when (exception
-                    is BoardWriteException
-                        or GitHubGraphQlException
-                        or GitHubInvalidResponseException
-                        or HttpRequestException
-            )
+        catch (BoardWriteException exception)
         {
-            // A board write failure is fixed text; anything else may carry upstream detail, so it gets a fixed message
-            string reason =
-                exception is BoardWriteException
-                    ? exception.Message
-                    : $"could not put {created.Url} on the Workflow board";
-
+            // The board writer's message is fixed text, so it is safe to pass on
             throw new IssueCreateBoardWriteException(
-                message: $"{reason}; the issue was already created: {created.Url}",
+                message: $"{exception.Message}; the issue was created but is not on the Workflow board: {created.Url}",
                 innerException: exception
             )
             {
@@ -460,5 +532,9 @@ public sealed class IssueCreateService : IIssueCreateService
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Url}")]
-    private readonly record struct CreatedIssue(Uri Url, int Number);
+    private readonly record struct CreatedIssue(Uri Url, int Number, string? NodeId);
+
+    [StructLayout(LayoutKind.Auto)]
+    [DebuggerDisplay("{Project.Number}: {Option.OptionId}")]
+    private readonly record struct CallerBoard(WorkflowProject Project, ResolvedStatusOption Option);
 }

@@ -167,6 +167,44 @@ public sealed class GitHubOptionsValidatorTests : TestBase
         );
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("github_pat_abc123")]
+    [InlineData("ghp_ABCdef0123456789")]
+    public void ValidBoardTokenSucceeds(string? token)
+    {
+        ValidateOptionsResult result = this.ValidateBoardToken(token);
+
+        Assert.True(condition: result.Succeeded, userMessage: result.FailureMessage);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("   ")]
+    [InlineData("secret token")]
+    [InlineData(" secret")]
+    [InlineData("secret\r\nX-Injected: 1")]
+    [InlineData("secret\n")]
+    [InlineData("secret\t")]
+    [InlineData("secret\0")]
+    [InlineData("secret\u007f")]
+    [InlineData("secret\xe9")]
+    public void InvalidBoardTokenFailsWithoutRevealingIt(string token)
+    {
+        ValidateOptionsResult result = this.ValidateBoardToken(token);
+
+        Assert.Equal(
+            expected: "GitHub:Board:Token must not be blank, and must only contain printable ASCII characters, with no spaces, control characters or line breaks.",
+            actual: result.FailureMessage
+        );
+        Assert.DoesNotContain(
+            expectedSubstring: "secret",
+            actualString: result.FailureMessage,
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
     [Fact]
     public void InvalidApiBaseUrlIsReportedBeforeUpstreamBasePath()
     {
@@ -186,6 +224,18 @@ public sealed class GitHubOptionsValidatorTests : TestBase
             {
                 ApiBaseUrl = new Uri("https://proxy.example/ghe/"),
                 UpstreamBasePath = upstreamBasePath,
+            }
+        );
+    }
+
+    private ValidateOptionsResult ValidateBoardToken(string? token)
+    {
+        return this._validator.Validate(
+            name: null,
+            options: new GitHubOptions
+            {
+                ApiBaseUrl = new Uri("https://api.github.com/"),
+                Board = new GitHubBoardOptions { Token = token },
             }
         );
     }

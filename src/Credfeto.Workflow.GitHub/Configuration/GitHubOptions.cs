@@ -18,4 +18,6 @@ public sealed class GitHubOptions
     // The base path the GitHub server behind a proxy serves REST from, when it differs from the ApiBaseUrl path;
     // unset means the upstream is taken to serve REST from the same path as ApiBaseUrl
     public string? UpstreamBasePath { get; set; }
+
+    public GitHubBoardOptions Board { get; set; } = new();
 }

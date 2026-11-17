@@ -1,7 +1,6 @@
 using System;
 using System.Linq;
 using System.Net.Http;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Board.LoggingExtensions;
@@ -15,10 +14,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Credfeto.Workflow.GitHub.Board;
 
-public sealed partial class BoardWriter : IBoardWriter
+public sealed class BoardWriter : IBoardWriter
 {
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
-
     // The GraphQL client surfaces only the error messages, so a stale cached item id is recognised by its message
     private const string STALE_NODE = "Could not resolve to a node";
 
@@ -27,12 +24,6 @@ public sealed partial class BoardWriter : IBoardWriter
 
     private const string PULL_REQUEST_NODE_ID_QUERY =
         "query($o:String!,$r:String!,$n:Int!){repository(owner:$o,name:$r){item:pullRequest(number:$n){id}}}";
-
-    private const string ADD_ITEM_MUTATION =
-        "mutation($p:ID!,$c:ID!){addProjectV2ItemById(input:{projectId:$p,contentId:$c}){item{id}}}";
-
-    private const string UPDATE_ITEM_MUTATION =
-        "mutation($p:ID!,$i:ID!,$f:ID!,$o:String!){updateProjectV2ItemFieldValue(input:{projectId:$p,itemId:$i,fieldId:$f,value:{singleSelectOptionId:$o}}){projectV2Item{id}}}";
 
     private readonly IRepositoryProjectCache _cache;
     private readonly IGitHubGraphQlClient _graphQlClient;
@@ -148,7 +139,7 @@ public sealed partial class BoardWriter : IBoardWriter
             string contentId = await this.ReadContentIdAsync(request: request, cancellationToken: cancellationToken);
 
             AddItemMutationData data = await this._graphQlClient.ExecuteAsync(
-                query: ADD_ITEM_MUTATION,
+                query: BoardMutations.ADD_ITEM,
                 variables: new AddItemMutationVariables(Project: request.Project.ProjectNodeId, Content: contentId),
                 variablesTypeInfo: GitHubJsonContext.Default.AddItemMutationVariables,
                 dataTypeInfo: GitHubJsonContext.Default.AddItemMutationData,
@@ -172,7 +163,7 @@ public sealed partial class BoardWriter : IBoardWriter
             );
         }
 
-        if (itemId is null || !ItemId().IsMatch(itemId))
+        if (!BoardMutations.IsNodeId(itemId))
         {
             throw new BoardWriteException($"unexpected item id returned for {request.Url}");
         }
@@ -200,7 +191,7 @@ public sealed partial class BoardWriter : IBoardWriter
     )
     {
         UpdateItemMutationData data = await this._graphQlClient.ExecuteAsync(
-            query: UPDATE_ITEM_MUTATION,
+            query: BoardMutations.UPDATE_ITEM,
             variables: new UpdateItemMutationVariables(
                 Project: request.Project.ProjectNodeId,
                 Item: itemId,
@@ -223,12 +214,4 @@ public sealed partial class BoardWriter : IBoardWriter
         // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
         return new(message: $"could not set the {request.FieldName} of {request.Url}", innerException: exception);
     }
-
-    // \z rather than $ because in .NET $ also matches before a trailing newline, which would let one through
-    [GeneratedRegex(
-        pattern: @"^[A-Za-z0-9_=-]+\z",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex ItemId();
 }

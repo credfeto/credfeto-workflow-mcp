@@ -117,6 +117,12 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void BoardFallbackWriterShouldBeRegistered()
+    {
+        this.RequireService<IBoardFallbackWriter>();
+    }
+
+    [Fact]
     public void WorkflowStatusResolverShouldBeRegistered()
     {
         this.RequireService<IWorkflowStatusResolver>();

@@ -39,6 +39,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
     private static readonly Uri CurrentDirectory = new(uriString: CURRENT_DIRECTORY, uriKind: UriKind.Relative);
 
     private readonly IHttpClientFactory _httpClientFactory;
+    private readonly string _httpClientName;
     private readonly ILogger<GitHubGraphQlClient> _logger;
     private readonly string? _upstreamBasePath;
 
@@ -47,10 +48,25 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         IOptions<GitHubOptions> options,
         ILogger<GitHubGraphQlClient> logger
     )
+        : this(
+            httpClientFactory: httpClientFactory,
+            options: options,
+            httpClientName: GitHubSetup.HttpClientName,
+            logger: logger
+        ) { }
+
+    // The named client decides which token the requests carry: the caller's, or the server's board token
+    public GitHubGraphQlClient(
+        IHttpClientFactory httpClientFactory,
+        IOptions<GitHubOptions> options,
+        string httpClientName,
+        ILogger<GitHubGraphQlClient> logger
+    )
     {
         this._httpClientFactory = httpClientFactory;
         this._upstreamBasePath = options.Value.UpstreamBasePath;
         this._logger = logger;
+        this._httpClientName = httpClientName;
     }
 
     public async ValueTask<TData> ExecuteAsync<TVariables, TData>(
@@ -61,7 +77,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
         CancellationToken cancellationToken
     )
     {
-        HttpClient httpClient = this._httpClientFactory.CreateClient(GitHubSetup.HttpClientName);
+        HttpClient httpClient = this._httpClientFactory.CreateClient(this._httpClientName);
         Uri graphQlUri = ResolveGraphQlUri(
             baseAddress: GitHubBaseAddress.From(httpClient),
             upstreamBasePath: this._upstreamBasePath
@@ -191,6 +207,7 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
             throw new GitHubGraphQlException("GitHub GraphQL request returned errors")
             {
                 Errors = DescribeErrors(graphQlResponse.Errors),
+                ErrorTypes = ErrorTypes(graphQlResponse.Errors),
             };
         }
 
@@ -233,12 +250,27 @@ public sealed class GitHubGraphQlClient : IGitHubGraphQlClient
 
     private static string DescribeError(JsonElement error)
     {
+        return StringProperty(error: error, propertyName: "message") ?? UNKNOWN_ERROR;
+    }
+
+    private static IReadOnlyList<string> ErrorTypes(JsonElement errors)
+    {
+        return
+        [
+            .. errors
+                .EnumerateArray()
+                .Select(static error => StringProperty(error: error, propertyName: "type"))
+                .OfType<string>(),
+        ];
+    }
+
+    private static string? StringProperty(JsonElement error, string propertyName)
+    {
         return
             error.ValueKind == JsonValueKind.Object
-            && error.TryGetProperty(propertyName: "message", out JsonElement message)
-            && message.ValueKind == JsonValueKind.String
-            && message.GetString() is { } text
-            ? text
-            : UNKNOWN_ERROR;
+            && error.TryGetProperty(propertyName: propertyName, out JsonElement value)
+            && value.ValueKind == JsonValueKind.String
+            ? value.GetString()
+            : null;
     }
 }

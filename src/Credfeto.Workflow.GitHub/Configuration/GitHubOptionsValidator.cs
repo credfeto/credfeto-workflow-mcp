@@ -17,9 +17,22 @@ public sealed class GitHubOptionsValidator : IValidateOptions<GitHubOptions>
             );
         }
 
+        // The token is sent as a header too; the message never names the value, which is a secret
+        if (!IsValidBoardToken(options.Board.Token))
+        {
+            return ValidateOptionsResult.Fail(
+                "GitHub:Board:Token must not be blank, and must only contain printable ASCII characters, with no spaces, control characters or line breaks."
+            );
+        }
+
         ValidateOptionsResult apiBaseUrlResult = ValidateApiBaseUrl(options.ApiBaseUrl);
 
         return apiBaseUrlResult.Failed ? apiBaseUrlResult : ValidateUpstreamBasePath(options.UpstreamBasePath);
+    }
+
+    private static bool IsValidBoardToken(string? token)
+    {
+        return token is null || token.Length != 0 && token.All(static c => c is > ' ' and <= '~');
     }
 
     private static ValidateOptionsResult ValidateUpstreamBasePath(string? upstreamBasePath)

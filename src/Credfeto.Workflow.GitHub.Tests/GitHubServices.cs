@@ -18,7 +18,8 @@ internal static class GitHubServices
         long? maxResponseContentBufferSize = null,
         TimeSpan? attemptTimeout = null,
         string? apiVersion = null,
-        string? upstreamBasePath = null
+        string? upstreamBasePath = null,
+        string? boardToken = null
     )
     {
         List<KeyValuePair<string, string?>> settings = [new(key: "GitHub:ApiBaseUrl", value: apiBaseUrl)];
@@ -31,6 +32,11 @@ internal static class GitHubServices
         if (upstreamBasePath is not null)
         {
             settings.Add(new(key: "GitHub:UpstreamBasePath", value: upstreamBasePath));
+        }
+
+        if (boardToken is not null)
+        {
+            settings.Add(new(key: "GitHub:Board:Token", value: boardToken));
         }
 
         IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(settings).Build();
@@ -48,6 +54,8 @@ internal static class GitHubServices
                     client.MaxResponseContentBufferSize = maxResponseContentBufferSize
                         ?? client.MaxResponseContentBufferSize;
                 })
+                .Services.AddHttpClient(GitHubSetup.BoardHttpClientName)
+                .ConfigurePrimaryHttpMessageHandler(() => primaryHandler)
                 .Services.Configure<HttpRetryStrategyOptions>(
                     name: GitHubSetup.HttpClientName,
                     configureOptions: static options => options.Delay = TimeSpan.Zero

@@ -26,7 +26,7 @@ public sealed class IssueCreateServiceTests : IssueCreateServiceTestBase
 
         IssueCreateResponse response = await this.CreateAsync(upstream: upstream, labels: ["bug", "custom"]);
 
-        Assert.Equal(expected: new IssueCreateResponse(new Uri(ISSUE_URL)), actual: response);
+        Assert.Equal(expected: new IssueCreateResponse(Url: new Uri(ISSUE_URL), Note: null), actual: response);
         Assert.Equal(expected: 2, actual: upstream.Requests.Count);
         Assert.Equal(expected: HttpMethod.Get, actual: upstream.Requests[0].Method);
         Assert.Equal(expected: new Uri(LabelsUri + "?per_page=100"), actual: upstream.Requests[0].RequestUri);
@@ -144,10 +144,7 @@ public sealed class IssueCreateServiceTests : IssueCreateServiceTestBase
             this.CreateAsync(upstream: upstream, labels: ["new-label"])
         );
 
-        Assert.Equal(
-            expected: "could not create the label 'new-label' in " + REPOSITORY,
-            actual: exception.Message
-        );
+        Assert.Equal(expected: "could not create the label 'new-label' in " + REPOSITORY, actual: exception.Message);
         Assert.Equal(expected: 2, actual: upstream.Requests.Count);
         await this.DidNotWriteTheBoardAsync();
     }
@@ -321,10 +318,7 @@ public sealed class IssueCreateServiceTests : IssueCreateServiceTestBase
         );
 
         Assert.Equal(
-            expected: "could not add "
-                + ISSUE_URL
-                + " to project 7; the issue was already created: "
-                + ISSUE_URL,
+            expected: "could not add " + ISSUE_URL + " to project 7; the issue was already created: " + ISSUE_URL,
             actual: exception.Message
         );
         Assert.Equal(expected: new Uri(ISSUE_URL), actual: exception.Url);
