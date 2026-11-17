@@ -2,6 +2,7 @@
 # caller's bearer token forwarded on every request.
 @apiBaseUrl = https://api.github.com/
 @token = replace-with-a-github-token
+@tagObjectSha = replace-with-the-object-sha-from-a-tag-ref
 
 ### REST: the authenticated user
 GET {{apiBaseUrl}}user
@@ -515,6 +516,33 @@ User-Agent: credfeto-workflow-mcp
 GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/contents/README.md?ref=main
 Authorization: Bearer {{token}}
 Accept: application/vnd.github.object+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the ref of a tag (tag_view)
+# The tag is URL-encoded with '/' kept. The returned ref must be exactly refs/tags/<tag>. An object of type commit
+# is a lightweight tag; type tag is an annotated tag, whose tag object is read next. Any other type is refused.
+# A 404 means the tag or the repository is missing, which the repository read below tells apart.
+GET {{apiBaseUrl}}repos/actions/checkout/git/ref/tags/v4.2.2
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the tag object of an annotated tag (tag_view)
+# The sha is the ref's object sha. The tag object's own object must be a commit: a tag of a tag is not followed.
+# A 404 here is a failed read, as GitHub has just named this object.
+GET {{apiBaseUrl}}repos/actions/checkout/git/tags/{{tagObjectSha}}
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: whether the repository exists after a tag ref answered 404 (tag_view)
+# A 404 here means the repository is missing or hidden; any success means only the tag is missing.
+GET {{apiBaseUrl}}repos/actions/checkout
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 

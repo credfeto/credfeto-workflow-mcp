@@ -25,6 +25,7 @@ using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
+using Credfeto.Workflow.GitHub.Tags;
 using Credfeto.Workflow.GitHub.Workflows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -119,6 +120,7 @@ public static class GitHubSetup
             .AddSingleton<ICodeSearchService, CodeSearchService>()
             .AddSingleton<IRepoSearchService, RepoSearchService>()
             .AddSingleton<IRepoFileService, RepoFileService>()
+            .AddSingleton<ITagViewService, TagViewService>()
             .AddSingleton<IIssueListService, IssueListService>()
             .AddSingleton<IRepositoryListService, RepositoryListService>()
             .AddSingleton<IWorkflowListService, WorkflowListService>()

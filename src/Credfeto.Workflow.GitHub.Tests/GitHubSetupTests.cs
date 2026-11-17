@@ -18,6 +18,7 @@ using Credfeto.Workflow.GitHub.Repositories;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
 using Credfeto.Workflow.GitHub.Status;
+using Credfeto.Workflow.GitHub.Tags;
 using Credfeto.Workflow.GitHub.Workflows;
 using FunFair.Test.Common;
 using FunFair.Test.Infrastructure;
@@ -388,6 +389,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void RepoFileServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IRepoFileService, RepoFileService>();
+    }
+
+    [Fact]
+    public void TagViewServiceShouldBeRegistered()
+    {
+        this.RequireService<ITagViewService>();
+    }
+
+    [Fact]
+    public void TagViewServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ITagViewService, TagViewService>();
     }
 
     [Fact]
