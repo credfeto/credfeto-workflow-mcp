@@ -71,6 +71,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added release_view MCP tool that returns the latest release of a repository (its tag, published date, URL and name), with a distinct not-found result when the repository has no releases (#32)
 - Added optional server-side GitHub:Board:Token setting, used only as a fallback to add newly created issues to the Workflow board as Not Started when the caller lacks board permissions (#71)
 - Added priority parameter to the issue_edit and pr_edit MCP tools
+- Added release_list MCP tool listing a repository's releases (#33)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
