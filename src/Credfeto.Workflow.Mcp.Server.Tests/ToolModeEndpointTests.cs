@@ -28,6 +28,14 @@ public sealed class ToolModeEndpointTests : TestBase
         {"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"comment_add","arguments":{"repo":"credfeto/credfeto-workflow-mcp","body":"text","pr":1}}}
         """;
 
+    private const string CALL_LABEL_ADD_ON_PR = """
+        {"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"label_add","arguments":{"repo":"credfeto/credfeto-workflow-mcp","labels":["Bug"],"pr":1}}}
+        """;
+
+    private const string CALL_LABEL_REMOVE_ON_PR = """
+        {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"label_remove","arguments":{"repo":"credfeto/credfeto-workflow-mcp","labels":["Bug"],"pr":1}}}
+        """;
+
     private const int ALL_TOOL_COUNT = 53;
 
     private static readonly string[] IssuesTools =
@@ -127,6 +135,21 @@ public sealed class ToolModeEndpointTests : TestBase
         string text = response.RootElement.GetRawText();
         Assert.Contains(
             expectedSubstring: "comment_add cannot comment on a pull request in X-Mode Issues",
+            actualString: text,
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData(CALL_LABEL_ADD_ON_PR, "label_add")]
+    [InlineData(CALL_LABEL_REMOVE_ON_PR, "label_remove")]
+    public async Task LabelChangeOnAPullRequestIsRefusedInIssuesModeAsync(string request, string tool)
+    {
+        using JsonDocument response = await this.CallAsync(mode: "Issues", request: request);
+
+        string text = response.RootElement.GetRawText();
+        Assert.Contains(
+            expectedSubstring: tool + " cannot change the labels of a pull request in X-Mode Issues",
             actualString: text,
             comparisonType: StringComparison.Ordinal
         );
