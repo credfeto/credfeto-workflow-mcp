@@ -5,6 +5,8 @@
 # The MCP endpoint is stateless: each request stands alone, with no session header.
 # Streamable HTTP requires both JSON and event-stream in Accept, otherwise the server replies 406.
 # Every request must carry "Authorization: Bearer <token>", otherwise the server replies 401.
+# An optional "X-Mode" header limits the tools: none or "All" gives every tool, "Issues" only the issue tools.
+# Any other X-Mode value is rejected with 400.
 
 ### Missing Authorization header; expects 401 with "WWW-Authenticate: Bearer"
 POST {{baseUrl}}/mcp
@@ -65,6 +67,75 @@ Accept: application/json, text/event-stream
     "name": "ping",
     "arguments": {}
   }
+}
+
+### List tools in Issues mode; expects only the "body_check", "comment_add", "issue_add_sub_issue", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_search", "issue_view", "label_add", "label_list", "label_remove" and "ping" tools
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+X-Mode: Issues
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 147,
+  "method": "tools/list",
+  "params": {}
+}
+
+### Call the pr_view tool in Issues mode; expects a JSON-RPC error saying the tool is not available in X-Mode Issues, and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+X-Mode: Issues
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 148,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 1
+    }
+  }
+}
+
+### Call the comment_add tool on a pull request in Issues mode; expects a tool error naming X-Mode Issues, and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+X-Mode: Issues
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 149,
+  "method": "tools/call",
+  "params": {
+    "name": "comment_add",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "body": "A comment.",
+      "pr": 1
+    }
+  }
+}
+
+### List tools with an unknown X-Mode; expects 400 with a JSON-RPC error naming the valid modes
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+X-Mode: Isues
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 150,
+  "method": "tools/list",
+  "params": {}
 }
 
 ### Call the pr_comments tool; expects the pull request's comments, reviews, review threads and summary

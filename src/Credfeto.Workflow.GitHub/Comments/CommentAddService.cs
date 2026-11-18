@@ -53,11 +53,7 @@ public sealed partial class CommentAddService : ICommentAddService
         string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
         int number = TargetNumber(pullRequest: pullRequest, issue: issue);
 
-        // Whitespace and invisible characters alone would show as an empty comment on GitHub
-        if (!TitleValidator.HasVisibleText(body))
-        {
-            throw new ParameterValidationException(EMPTY_BODY) { ParameterName = nameof(body), Rule = EMPTY_BODY };
-        }
+        CheckBodyIsVisible(body);
 
         return this.CheckAndPostAsync(
             validRepository: validRepository,
@@ -65,6 +61,84 @@ public sealed partial class CommentAddService : ICommentAddService
             body: body,
             cancellationToken: cancellationToken
         );
+    }
+
+    public ValueTask<CommentAddResult> AddToIssueAsync(
+        string repository,
+        int? issue,
+        string body,
+        CancellationToken cancellationToken
+    )
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+        int number = IssueNumber(issue);
+        CheckBodyIsVisible(body);
+
+        return this.CheckIssueAndPostAsync(
+            validRepository: validRepository,
+            number: number,
+            body: body,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    // Whitespace and invisible characters alone would show as an empty comment on GitHub
+    private static void CheckBodyIsVisible(string body)
+    {
+        if (!TitleValidator.HasVisibleText(body))
+        {
+            throw new ParameterValidationException(EMPTY_BODY) { ParameterName = nameof(body), Rule = EMPTY_BODY };
+        }
+    }
+
+    private static int IssueNumber(int? issue)
+    {
+        return issue switch
+        {
+            null => throw ParameterValidationException.For(parameterName: ISSUE_PARAMETER, rule: "must be given"),
+            > 0 => issue.Value,
+            _ => throw ParameterValidationException.For(parameterName: ISSUE_PARAMETER, rule: "must be above 0"),
+        };
+    }
+
+    private async ValueTask<CommentAddResult> CheckIssueAndPostAsync(
+        string validRepository,
+        int number,
+        string body,
+        CancellationToken cancellationToken
+    )
+    {
+        string issueNumber = number.ToString(CultureInfo.InvariantCulture);
+        IssueResponse response;
+
+        try
+        {
+            response = await this._restClient.GetAsync(
+                relativeUri: $"repos/{validRepository}/issues/{issueNumber}",
+                responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        {
+            // Nothing has been sent that could create a comment, so whatever went wrong it was not posted
+            return Failed(
+                outcome: CommentAddOutcome.NotPosted,
+                message: $"could not check that {validRepository}#{issueNumber} is an issue, so the comment was not posted: {GitHubHttpFailure.Describe(exception)}"
+            );
+        }
+
+        return IssueKind.IsPullRequest(issue: number, response: response)
+            ? throw ParameterValidationException.For(
+                parameterName: ISSUE_PARAMETER,
+                rule: "must be an issue, not a pull request"
+            )
+            : await this.CheckAndPostAsync(
+                validRepository: validRepository,
+                number: number,
+                body: body,
+                cancellationToken: cancellationToken
+            );
     }
 
     // A pull request's conversation comments are issue comments, so either names the same number space
@@ -94,8 +168,7 @@ public sealed partial class CommentAddService : ICommentAddService
         CancellationToken cancellationToken
     )
     {
-        LeakRefusal? leak =
-            this._leakChecker.CheckBody(body)
+        LeakRefusal? leak = this._leakChecker.CheckBody(body)
             ?? await this._leakChecker.CheckRepositoryReferencesAsync(
                 repository: validRepository,
                 subject: LeakSubject.BODY,

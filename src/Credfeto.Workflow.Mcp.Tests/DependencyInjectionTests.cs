@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using Credfeto.Workflow.GitHub.Interfaces;
+using Credfeto.Workflow.Mcp.Modes;
 using FunFair.Test.Common;
 using FunFair.Test.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -69,6 +70,24 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "workflow_status_set",
     ];
 
+    private static readonly string[] ExpectedIssuesToolNames =
+    [
+        "body_check",
+        "comment_add",
+        "issue_add_sub_issue",
+        "issue_comments",
+        "issue_create",
+        "issue_edit",
+        "issue_list",
+        "issue_plan_status",
+        "issue_search",
+        "issue_view",
+        "label_add",
+        "label_list",
+        "label_remove",
+        "ping",
+    ];
+
     public DependencyInjectionTests(ITestOutputHelper output)
         : base(output: output, dependencyInjectionRegistration: Configure) { }
 
@@ -80,6 +99,80 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name).Order(StringComparer.Ordinal)];
 
         Assert.Equal(expected: ExpectedToolNames, actual: names);
+    }
+
+    [Fact]
+    public void EveryToolDeclaresItsModesAndIsAvailableWithoutAMode()
+    {
+        foreach (McpServerTool tool in this.ServiceProvider.GetServices<McpServerTool>())
+        {
+            string name = tool.ProtocolTool.Name;
+
+            Assert.Single(tool.Metadata.OfType<InModesAttribute>());
+            Assert.True(
+                (ToolModeCatalog.ModesOf(tool) & ToolModes.All) == ToolModes.All,
+                userMessage: name + " must be available when no X-Mode is given"
+            );
+        }
+    }
+
+    [Fact]
+    public void EveryToolIsInTheAllMode()
+    {
+        ToolModeCatalog catalog = this.ServiceProvider.GetRequiredService<ToolModeCatalog>();
+
+        Assert.Equal(
+            expected: ExpectedToolNames,
+            actual: catalog.ToolsIn(ToolModes.All),
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    [Fact]
+    public void IssuesModeHasExactlyTheIssueTools()
+    {
+        ToolModeCatalog catalog = this.ServiceProvider.GetRequiredService<ToolModeCatalog>();
+
+        Assert.Equal(
+            expected: ExpectedIssuesToolNames,
+            actual: catalog.ToolsIn(ToolModes.Issues),
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    [Theory]
+    [InlineData("issue_close")]
+    [InlineData("issue_reopen")]
+    [InlineData("label_create")]
+    [InlineData("pr_view")]
+    [InlineData("run_list")]
+    [InlineData("release_list")]
+    [InlineData("repo_list")]
+    [InlineData("code_search")]
+    [InlineData("no_such_tool")]
+    public void IssuesModeRefusesEverythingElse(string name)
+    {
+        ToolModeCatalog catalog = this.ServiceProvider.GetRequiredService<ToolModeCatalog>();
+
+        Assert.False(
+            catalog.IsAvailable(name: name, mode: ToolModes.Issues),
+            userMessage: name + " is not an Issues tool"
+        );
+    }
+
+    [Fact]
+    public void AToolWithoutModesIsInNoMode()
+    {
+        McpServerTool tool = McpServerTool.Create(
+            (Func<string>)(static () => "ok"),
+            new McpServerToolCreateOptions { Name = "undeclared" }
+        );
+
+        Assert.Equal(expected: ToolModes.None, actual: ToolModeCatalog.ModesOf(tool));
+        Assert.False(
+            new ToolModeCatalog([tool]).IsAvailable(name: "undeclared", mode: ToolModes.All),
+            userMessage: "a tool without modes is never available"
+        );
     }
 
     [Theory]

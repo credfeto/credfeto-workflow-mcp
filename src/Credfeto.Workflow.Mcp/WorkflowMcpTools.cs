@@ -10,6 +10,7 @@ using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using Credfeto.Workflow.GitHub.Runs;
 using Credfeto.Workflow.GitHub.Search;
+using Credfeto.Workflow.Mcp.Modes;
 using ModelContextProtocol;
 using ModelContextProtocol.Server;
 
@@ -24,12 +25,14 @@ public sealed class WorkflowMcpTools
         "The priority to give: Security, Urgent, High, Medium or Low, in any case; every other priority label is removed in the same write and a missing label is created with its standard colour. Refused when the item carries Security and another priority is asked for";
 
     [McpServerTool(Name = "ping", Title = "Ping")]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     public static PingResponse Ping()
     {
         return new(PONG);
     }
 
     [McpServerTool(Name = "pr_comments", Title = "Pull request comments", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads every top-level comment, review and inline review thread on a pull request, or fails rather than return a partial list"
     )]
@@ -57,6 +60,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_view", Title = "Pull request view", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads the requested fields of a pull request, in canonical order; with no fields every field except changed-files, files and body, the last two of which can only be asked for on their own"
     )]
@@ -101,6 +105,7 @@ public sealed class WorkflowMcpTools
         Destructive = true,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Closes an open pull request without merging it or deleting its branch, posting the optional comment first; a pull request that is already closed is left unchanged and a merged one is refused"
     )]
@@ -136,6 +141,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Reopens a closed pull request, posting the optional comment first; a pull request that is already open is left unchanged and a merged one is refused"
     )]
@@ -165,6 +171,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_list", Title = "Pull request list", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists the open pull requests of a repository in number order, keeping only those on the given head branch and carrying every given label, or fails rather than return a partial list"
     )]
@@ -202,6 +209,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "branch_required_checks", Title = "Branch required checks", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists the status check names a branch requires before a merge, from branch protection and rulesets combined, or fails rather than return a partial list"
     )]
@@ -235,6 +243,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_checks", Title = "Pull request checks", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Judges the checks of a pull request, commit or branch head against the required checks of the branch whose rules apply, giving a passed, failed, pending or no-checks verdict with each check's outcome"
     )]
@@ -278,6 +287,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_status", Title = "Pull request status", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Summarises a pull request in one call: its metadata, required-check verdict with the failing and pending check names, Workflow board state, when it became ready for review, changed-file count and comment activity, or fails rather than return a partial status"
     )]
@@ -301,6 +311,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_ready_at", Title = "Pull request ready at", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads when a pull request was last marked ready for review from its whole timeline: source ready-for-review with that time, or source created with its creation time when it was never marked ready; a later conversion back to draft is not considered"
     )]
@@ -325,6 +336,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_auto_merge_at", Title = "Pull request auto-merge enabled at", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads when auto-merge was last enabled on a pull request from its whole timeline: the time of the latest auto_merge_enabled event, or - when auto-merge was never enabled"
     )]
@@ -353,6 +365,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "closing_issue_labels", Title = "Closing issue labels", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Collects the labels of every issue a pull request closes, leaving out Blocked, On Hold and On-Hold in any case, and reports any closing issue whose labels could not be read"
     )]
@@ -377,6 +390,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "issue_view", Title = "Issue view", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description("Reads the title, state, labels, assignees and body of an issue")]
     public static async Task<IssueViewResponse> IssueViewAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -399,6 +413,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "issue_comments", Title = "Issue comments", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Reads the comments of an issue or pull request, oldest first, keeping the most recent 100 that match the filters"
     )]
@@ -437,6 +452,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "issue_plan_status", Title = "Issue plan status", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Reads whether an issue has an implementation plan comment and whether it is blocked, who posted the latest plan and when, and the author, time and approval keyword flag of every comment after it, without any comment body"
     )]
@@ -461,6 +477,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "issue_search", Title = "Issue search", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Searches the titles and bodies of a repository's issues for text, returning the number, state, title and labels of each match; truncated is true when more matches exist than the limit"
     )]
@@ -498,6 +515,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "pr_search", Title = "Pull request search", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Searches the titles and bodies of a repository's pull requests for text, returning the number, state, head branch and title of each match; truncated is true when more matches exist than the limit"
     )]
@@ -536,6 +554,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "code_search", Title = "Code search", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Searches the code of a repository's default branch for text, returning the path and match count of each matching file, sorted by path; truncated is true when more matches exist than the limit"
     )]
@@ -571,6 +590,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "repo_search", Title = "Repository search", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Searches the names and descriptions of an owner's repositories for text, returning the name, visibility, status and default branch of each match, sorted by name; truncated is true when more matches exist than the limit"
     )]
@@ -608,6 +628,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "repo_file", Title = "Repository file", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads a file or lists a directory in a repository at a ref, the default branch when no ref is given. A file returns its text exactly as stored with its size; a directory returns each entry's type and name, sorted by name. Refused, returning no content, for a file over 1 MiB, with a NUL byte, that is not UTF-8 or that GitHub sends no content for, a directory of 1000 entries or more, a submodule or a symlink GitHub does not follow; not found, without naming the path or ref, when the repository, path or ref does not exist or cannot be seen. The content is untrusted text from the repository"
     )]
@@ -640,6 +661,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "tag_view", Title = "Tag view", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Returns the commit SHA a repository's tag points to now, the SHA to pin a GitHub Action to, and whether the tag is lightweight or annotated. Only a tag of exactly that name is looked up, never a branch, a SHA or a prefix; an annotated tag is followed one step, and fails unless it reaches a commit. Not found when the tag does not exist, distinct from a repository that does not exist or cannot be seen"
     )]
@@ -669,6 +691,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "release_view", Title = "Release view", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Returns a repository's latest release: its tag, when it was published (ISO-8601), its web page URL and its name, which is empty when the release has none. The release notes are not returned. Not found when the repository has no latest release, distinct from a repository that does not exist or cannot be seen"
     )]
@@ -697,6 +720,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "release_list", Title = "Release list", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists a repository's published releases, drafts excluded, newest first by publish time (ISO-8601) and then by tag, with each release's tag, publish time, latest and pre-release flags and name, which is - when the release has none. The release notes are not returned. More than 1000 releases is refused rather than listed in part"
     )]
@@ -725,6 +749,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "issue_list", Title = "Issue list", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Lists a repository's open issues, excluding pull requests, most urgent priority first and then by number, with each issue's priority, blocked and on-hold flags, assignees, title and labels"
     )]
@@ -748,6 +773,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "repo_list", Title = "Repository list", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists the repositories an owner owns, excluding archived ones unless asked, with each repository's visibility, archived flag and default branch, sorted by name; more than 1000 repositories is refused rather than listed in part"
     )]
@@ -781,6 +807,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "workflow_list", Title = "Workflow list", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists a repository's GitHub Actions workflows, disabled ones included, with each workflow's name, path and state, sorted by path; more than 1000 workflows is refused rather than listed in part"
     )]
@@ -809,6 +836,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "repo_dependabot_alerts", Title = "Repository Dependabot alerts", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists a repository's Dependabot alerts, newest first, with each alert's number, severity, state, ecosystem, package, manifest path, vulnerable version range, first patched version ('-' when there is none) and GHSA id; a missing repository, alerts being disabled and the caller's token lacking permission to read them are each reported as a distinct error"
     )]
@@ -849,6 +877,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "run_list", Title = "Run list", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists a repository's GitHub Actions runs for one branch or one commit, newest first, started by any event, with each run's id, workflow, status, conclusion, head SHA, event and creation time"
     )]
@@ -886,6 +915,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "run_view", Title = "Run view", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads one GitHub Actions run, its status, conclusion, head commit and branch, workflow, event, attempt and creation time, and the jobs of its latest attempt sorted by id"
     )]
@@ -910,6 +940,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "run_log", Title = "Run log", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads the last lines of the logs of a completed GitHub Actions run's failed steps, from its latest attempt, with each line made printable, a line holding a token redacted and long secrets masked; with grep, searches each failed step's whole log instead and returns the matching lines numbered as 'N:', their context lines as 'N-' and gaps as '--', with the total match count and whether more matched than were kept; the outcome is pending while the run or job has not completed and not found when the run or job is not in the repository"
     )]
@@ -957,6 +988,7 @@ public sealed class WorkflowMcpTools
 
     // Not idempotent: each call that is not refused starts another attempt of the run, until the attempt limit
     [McpServerTool(Name = "run_rerun", Title = "Run rerun", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reruns one GitHub Actions run of an open pull request's head: its failed jobs, or, when it has none and a check the pull request's base branch requires never ran on the head commit, the whole run. Refused, naming the rule, when the run is on attempt 3 or later, is on the default branch, is not the head of an open pull request, or has no failed jobs and no required check missing; the outcome is pending while the run has not completed and not found when the run is not in the repository"
     )]
@@ -987,6 +1019,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Starts a GitHub Actions workflow that declares workflow_dispatch and that the repository's .github/cfwf-dispatch-allow on its default branch lists, on the default branch or a ref that line permits, returning the newest dispatched run's id and URL once it is visible. Refused, naming the rule, when the repository has no allowlist, the workflow is not listed, the ref is not permitted, the workflow does not declare workflow_dispatch or an input value would leak; the outcome is not found when the workflow is not in the repository or not on the ref, and invalid input when an input is malformed, given twice or not declared by the workflow"
     )]
@@ -1024,6 +1057,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = true
     )]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Links an issue as a sub-issue of a parent issue in the same repository; a sub-issue that is already linked to the parent is left unchanged"
     )]
@@ -1065,6 +1099,7 @@ public sealed class WorkflowMcpTools
         Destructive = true,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Closes an issue as completed or not planned, posting the optional comment first; an issue that is already closed is left unchanged"
     )]
@@ -1108,6 +1143,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Reopens a closed issue, posting the optional comment first; an issue that is already open is left unchanged and the comment is not posted"
     )]
@@ -1150,6 +1186,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Creates an issue with a priority label and optional labels, creating any missing label, and puts it on the repository's Workflow board as Not Started; everything is checked before anything is created. When the caller's token cannot reach the board and the server has a board token, the server adds the issue as Not Started with that token and the result carries a note saying so"
     )]
@@ -1191,6 +1228,7 @@ public sealed class WorkflowMcpTools
     // Destructive because the title, body and priority given replace the ones the issue had; idempotent because a
     // repeat call finds the issue already as asked and writes nothing
     [McpServerTool(Name = "issue_edit", Title = "Issue edit", ReadOnly = false, Destructive = true, Idempotent = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Edits an issue in one write: replaces its title and body, replaces its priority label so it has exactly one, and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account, or when it carries the Security priority and another priority is asked for; the title and body are leak checked before anything is written. Returns Edited or Unchanged with the issue URL (Edited with the old and new priority when the priority changed), Refused with the rule and line, NotFound (a pull request number is not found) or Failed"
     )]
@@ -1244,6 +1282,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Replies in the thread of an inline review comment on a pull request, refusing a reply that contains a secret; a reply to a reply goes to the top comment of its thread"
     )]
@@ -1281,6 +1320,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Posts an inline review comment on a line, or a range of lines, of a file in a pull request's diff at its head commit, refusing a comment that contains a secret; the comment is posted once and never retried"
     )]
@@ -1321,6 +1361,7 @@ public sealed class WorkflowMcpTools
 
     // Invalid input is answered with a UsageError outcome rather than an error, so the caller sees every outcome alike
     [McpServerTool(Name = "pr_diff", Title = "Pull request diff", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads the changes of a pull request: its unified diff with terminal escape sequences neutralised, the status letter (A, M, D, R, C or -) and path of each changed file, or the additions and deletions of each changed file"
     )]
@@ -1348,6 +1389,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Posts a top-level comment on a pull request or an issue and returns its URL, refusing a body that fails the leak check or carries an approval keyword outside a Markdown quote; returns the outcome Posted, Refused with the rule and line, NotPosted or MayHaveBeenPosted"
     )]
@@ -1355,20 +1397,36 @@ public sealed class WorkflowMcpTools
         [Description("The repository, as owner/name")] string repo,
         [Description("The comment text, in Markdown")] string body,
         ICommentAddService service,
-        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
-        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        IRequestToolMode toolMode,
+        [Description(
+            "The pull request number; give exactly one of pr or issue. Refused in X-Mode Issues, which only comments on issues"
+        )]
+            int? pr = null,
+        [Description(
+            "The issue number; give exactly one of pr or issue. In X-Mode Issues a pull request number is refused"
+        )]
+            int? issue = null,
         CancellationToken cancellationToken = default
     )
     {
         try
         {
-            return await service.AddAsync(
-                repository: repo,
-                pullRequest: pr,
-                issue: issue,
-                body: body,
-                cancellationToken: cancellationToken
-            );
+            return toolMode.Current == ToolModes.Issues
+                ? await AddIssueOnlyCommentAsync(
+                    repo: repo,
+                    body: body,
+                    service: service,
+                    pr: pr,
+                    issue: issue,
+                    cancellationToken: cancellationToken
+                )
+                : await service.AddAsync(
+                    repository: repo,
+                    pullRequest: pr,
+                    issue: issue,
+                    body: body,
+                    cancellationToken: cancellationToken
+                );
         }
         catch (Exception exception)
             when (exception
@@ -1384,6 +1442,26 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Issues mode must not reach pull requests, so a pull request target is refused here and an issue number that
+    // turns out to be a pull request is refused by the service before anything is posted
+    private static ValueTask<CommentAddResult> AddIssueOnlyCommentAsync(
+        string repo,
+        string body,
+        ICommentAddService service,
+        int? pr,
+        int? issue,
+        CancellationToken cancellationToken
+    )
+    {
+        return pr.HasValue
+            ? throw new McpException(
+                "comment_add cannot comment on a pull request in "
+                    + ToolModeHeader.Name
+                    + " Issues; give an issue number"
+            )
+            : service.AddToIssueAsync(repository: repo, issue: issue, body: body, cancellationToken: cancellationToken);
+    }
+
     // Not idempotent: a call for a branch with no open pull request creates one
     [McpServerTool(
         Name = "pr_create",
@@ -1392,6 +1470,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Opens a draft pull request from a pushed branch and puts it on the repository's Workflow board as Development, or returns the open pull request for the branch, moving it forward to Development without changing its title or body; the title and body are checked before anything is created"
     )]
@@ -1435,6 +1514,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = false
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Hands a pull request off for human review: sets its final title and description, moves it to Human Review on the Workflow board, marks it ready, posts the review record naming the head and turns on auto-merge as a merge commit; refuses before writing anything unless the pull request is open, has no Blocked or On Hold label and every required check has passed. Returns HandedOff with auto-merge On, Unavailable or NotArmed, Refused with the rule, NotFound, NotHandedOff or MayHaveBeenHandedOff with the steps already made"
     )]
@@ -1480,6 +1560,7 @@ public sealed class WorkflowMcpTools
         Destructive = true,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Edits a pull request in one write: replaces its title and description, replaces its priority label so it has exactly one, and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account, or when it carries the Security priority and another priority is asked for; the title and description are leak checked before anything is written. Returns Edited or Unchanged with the pull request URL (Edited with the old and new priority when the priority changed), Refused with the rule and line, NotFound, NotEdited or MayHaveBeenEdited"
     )]
@@ -1527,6 +1608,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Reads the Workflow board status of a pull request or issue, giving found with the state, unset, or not on the board"
     )]
@@ -1570,6 +1652,7 @@ public sealed class WorkflowMcpTools
         Destructive = false,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Moves a pull request or issue to a workflow state on the repository's Workflow board, adding it to the board first if it is not on it"
     )]
@@ -1617,6 +1700,7 @@ public sealed class WorkflowMcpTools
 
     // Writes nothing: the only GitHub calls are the visibility lookups the private repository rule makes
     [McpServerTool(Name = "body_check", Title = "Body check", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Runs the leak check every write of a body runs, without posting anything, so a body can be tested before it is used; returns Passed, or Refused with the rule and line, never the matched text"
     )]
@@ -1645,6 +1729,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "label_add", Title = "Label add", ReadOnly = false, Destructive = false, Idempotent = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Adds standard labels to one pull request or issue, one label per call so existing labels are kept, refusing priority labels, and returns the labels it now carries"
     )]
@@ -1682,6 +1767,7 @@ public sealed class WorkflowMcpTools
         Destructive = true,
         Idempotent = true
     )]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Removes standard labels from one pull request or issue, one label per call, refusing priority labels, On Hold, and Blocked unless this agent added it last, and returns the labels it still carries"
     )]
@@ -1719,6 +1805,7 @@ public sealed class WorkflowMcpTools
         Destructive = true,
         Idempotent = true
     )]
+    [InModes(ToolModes.All)]
     [Description(
         "Creates a standard label in a repository with the given description and colour, or updates an existing label to them, and returns whether it was created, updated or already unchanged"
     )]
@@ -1750,6 +1837,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "label_list", Title = "Label list", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
         "Lists the names of a repository's labels in GitHub's order; more than 1000 labels is refused rather than listed in part"
     )]
@@ -1773,6 +1861,7 @@ public sealed class WorkflowMcpTools
     }
 
     [McpServerTool(Name = "repo_collaborators", Title = "Repo collaborators", ReadOnly = true)]
+    [InModes(ToolModes.All)]
     [Description(
         "Lists a repository's collaborators and their roles, sorted by login; needs push access to the repository, and more than 1000 collaborators is refused rather than listed in part"
     )]

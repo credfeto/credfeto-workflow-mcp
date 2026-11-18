@@ -8,6 +8,7 @@ using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using Credfeto.Workflow.GitHub.Runs;
+using Credfeto.Workflow.Mcp.Modes;
 using FunFair.Test.Common;
 using ModelContextProtocol;
 using NSubstitute;
@@ -2451,10 +2452,14 @@ public sealed class WorkflowMcpToolsTests : TestBase
 
     private Task<CommentAddResult> CommentAddAsync()
     {
+        IRequestToolMode toolMode = GetSubstitute<IRequestToolMode>();
+        toolMode.Current.Returns(ToolModes.All);
+
         return WorkflowMcpTools.CommentAddAsync(
             repo: REPOSITORY,
             body: COMMENT_BODY,
             service: this._commentAddService,
+            toolMode: toolMode,
             pr: PULL_REQUEST,
             issue: null,
             cancellationToken: this.CancellationToken()
