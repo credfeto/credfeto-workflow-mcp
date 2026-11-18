@@ -331,6 +331,25 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: a repository's default branch, visibility, allowed merge methods and description (repo_view)
+# GraphQL rather than REST repos/{owner}/{repo}, which answers the merge methods as null to a caller without push
+# access. A null defaultBranchRef means an empty repository. A null repository or a "Could not resolve to a
+# Repository" error means the repository is missing or the caller cannot see it.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!){repository(owner:$o,name:$r){defaultBranchRef{name} description visibility mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp"
+  }
+}
+
 ### REST: a repository's GitHub Actions workflows, disabled ones included (workflow_list)
 # Follow the Link header's rel="next" URL until there is none; the call is refused when more than 1000 workflows are
 # read. A 404 means the repository is missing or the caller cannot see it.

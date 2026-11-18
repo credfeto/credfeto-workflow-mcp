@@ -59,6 +59,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "repo_file",
         "repo_list",
         "repo_search",
+        "repo_view",
         "run_list",
         "run_log",
         "run_rerun",
@@ -148,6 +149,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("run_list")]
     [InlineData("release_list")]
     [InlineData("repo_list")]
+    [InlineData("repo_view")]
     [InlineData("code_search")]
     [InlineData("no_such_tool")]
     public void IssuesModeRefusesEverythingElse(string name)
@@ -208,6 +210,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("tag_view")]
     [InlineData("release_view")]
     [InlineData("release_list")]
+    [InlineData("repo_view")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -465,6 +468,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     public void RepoCollaboratorsTakesRepo()
     {
         JsonElement schema = this.GetTool("repo_collaborators").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RepoViewTakesRepo()
+    {
+        JsonElement schema = this.GetTool("repo_view").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
@@ -917,6 +929,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueListService>()
             .AddMockedService<IRepositoryListService>()
             .AddMockedService<IRepoCollaboratorsService>()
+            .AddMockedService<IRepoViewService>()
             .AddMockedService<IWorkflowListService>()
             .AddMockedService<IDependabotAlertsService>()
             .AddMockedService<IRunListService>()
