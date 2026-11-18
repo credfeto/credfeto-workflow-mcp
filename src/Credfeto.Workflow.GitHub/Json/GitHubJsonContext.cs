@@ -86,6 +86,8 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(VisibilityQueryData))]
 [JsonSerializable(typeof(RepositoryListQueryVariables))]
 [JsonSerializable(typeof(RepositoryListQueryData))]
+[JsonSerializable(typeof(RepoViewQueryVariables))]
+[JsonSerializable(typeof(RepoViewQueryData))]
 [JsonSerializable(typeof(RepoCollaboratorResponse[]))]
 [JsonSerializable(typeof(IssueLabelResponse[]))]
 [JsonSerializable(typeof(IssueLabelResponse))]

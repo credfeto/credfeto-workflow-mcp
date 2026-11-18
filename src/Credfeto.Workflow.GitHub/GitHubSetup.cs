@@ -153,6 +153,7 @@ public static class GitHubSetup
     {
         return services
             .AddSingleton<IRepoSearchService, RepoSearchService>()
+            .AddSingleton<IRepoViewService, RepoViewService>()
             .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<ITagViewService, TagViewService>()
             .AddSingleton<IReleaseService, ReleaseService>();

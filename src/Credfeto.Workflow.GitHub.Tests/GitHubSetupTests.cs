@@ -459,6 +459,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void RepoViewServiceShouldBeRegistered()
+    {
+        this.RequireService<IRepoViewService>();
+    }
+
+    [Fact]
+    public void RepoViewServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepoViewService, RepoViewService>();
+    }
+
+    [Fact]
     public void WorkflowListServiceShouldBeRegistered()
     {
         this.RequireService<IWorkflowListService>();

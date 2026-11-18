@@ -806,6 +806,30 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "repo_view", Title = "Repository view", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Reads a repository's default branch (empty for an empty repository), visibility (PUBLIC, PRIVATE or INTERNAL), whether merge commits, squash merges and rebase merges are allowed (null when GitHub did not say, never false) and description (empty when none)"
+    )]
+    public static async Task<RepoViewResult> RepoViewAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IRepoViewService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ViewAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is RepositoryNotFoundException or RepoViewFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_list", Title = "Workflow list", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
