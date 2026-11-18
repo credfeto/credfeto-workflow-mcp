@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "release_list", "release_view", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "release_list", "release_view", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1557,6 +1557,78 @@ Accept: application/json, text/event-stream
   "method": "tools/call",
   "params": {
     "name": "release_list",
+    "arguments": {
+      "repo": "credfeto"
+    }
+  }
+}
+
+### Call the repo_collaborators tool; expects the repository and its collaborators sorted by login (ordinal), each with login and role ("-" when GitHub gives none); needs push access to the repository
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 143,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_collaborators",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp"
+    }
+  }
+}
+
+### Call the repo_collaborators tool for a repository the caller cannot push to; expects a tool error saying the caller lacks push access, never an empty list
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 144,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_collaborators",
+    "arguments": {
+      "repo": "actions/checkout"
+    }
+  }
+}
+
+### Call the repo_collaborators tool for a repository that does not exist; expects a tool error saying the repository was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 145,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_collaborators",
+    "arguments": {
+      "repo": "credfeto/does-not-exist"
+    }
+  }
+}
+
+### Call the repo_collaborators tool with an invalid repository name; expects a tool error naming the "repository" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 146,
+  "method": "tools/call",
+  "params": {
+    "name": "repo_collaborators",
     "arguments": {
       "repo": "credfeto"
     }

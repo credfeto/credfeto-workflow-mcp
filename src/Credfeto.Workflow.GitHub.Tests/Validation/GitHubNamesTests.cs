@@ -414,6 +414,27 @@ public sealed class GitHubNamesTests : TestBase
         AssertRejected(() => GitHubNames.Login(value: value, parameterName: PARAMETER));
     }
 
+    [Theory]
+    [InlineData("credfeto")]
+    [InlineData("dependabot[bot]")]
+    [InlineData("user_name-1")]
+    public static void IsLoginAcceptsValidValues(string value)
+    {
+        Assert.True(condition: GitHubNames.IsLogin(value), userMessage: "Should be a login");
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("[bot]")]
+    [InlineData("user name")]
+    [InlineData("user[bot]x")]
+    [InlineData("user.name")]
+    [InlineData("user\n")]
+    public static void IsLoginRejectsInvalidValues(string value)
+    {
+        Assert.False(condition: GitHubNames.IsLogin(value), userMessage: "Should not be a login");
+    }
+
     [Fact]
     public void RejectionMessageDoesNotEchoTheValue()
     {
