@@ -7,4 +7,6 @@ namespace Credfeto.Workflow.GitHub.Interfaces;
 public interface IReleaseService
 {
     ValueTask<ReleaseViewResult> ViewLatestAsync(string repository, CancellationToken cancellationToken);
+
+    ValueTask<ReleaseListResponse> ListAsync(string repository, CancellationToken cancellationToken);
 }

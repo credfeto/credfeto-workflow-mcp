@@ -74,13 +74,19 @@ public sealed class ReleaseServiceTests : GitHubClientTestBase
 
     private ReleaseService CreateService(RecordingHttpMessageHandler upstream)
     {
+        IHttpClientFactory httpClientFactory = MockHttpClientFactoryCreateClient(upstream);
         GitHubRestClient rest = new(
-            httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
+            httpClientFactory: httpClientFactory,
             options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
+        GitHubGraphQlClient graphQl = new(
+            httpClientFactory: httpClientFactory,
+            options: GitHubOptionsWith(),
+            logger: this.GetTypedLogger<GitHubGraphQlClient>()
+        );
 
-        return new(rest);
+        return new(restClient: rest, graphQlClient: graphQl);
     }
 
     private async Task<ReleaseViewResult> ViewLatestAsync(
