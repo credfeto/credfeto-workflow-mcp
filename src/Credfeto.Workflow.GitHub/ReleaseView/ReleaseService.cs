@@ -99,10 +99,7 @@ public sealed class ReleaseService : IReleaseService
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
-            return new RepositoryNotFoundException(
-                message: $"the repository {repository} was not found, or the caller cannot see it",
-                innerException: exception
-            );
+            return RepositoryNotFound(repository: repository, innerException: exception);
         }
 
         return new ReleaseNotFoundException(
