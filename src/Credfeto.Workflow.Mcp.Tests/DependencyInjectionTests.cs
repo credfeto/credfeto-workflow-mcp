@@ -53,6 +53,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "pr_view",
         "release_list",
         "release_view",
+        "repo_collaborators",
         "repo_dependabot_alerts",
         "repo_file",
         "repo_list",
@@ -99,6 +100,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("repo_dependabot_alerts")]
     [InlineData("repo_file")]
     [InlineData("label_list")]
+    [InlineData("repo_collaborators")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
     [InlineData("pr_status")]
@@ -361,6 +363,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     public void LabelListTakesRepo()
     {
         JsonElement schema = this.GetTool("label_list").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void RepoCollaboratorsTakesRepo()
+    {
+        JsonElement schema = this.GetTool("repo_collaborators").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
@@ -812,6 +823,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IReleaseService>()
             .AddMockedService<IIssueListService>()
             .AddMockedService<IRepositoryListService>()
+            .AddMockedService<IRepoCollaboratorsService>()
             .AddMockedService<IWorkflowListService>()
             .AddMockedService<IDependabotAlertsService>()
             .AddMockedService<IRunListService>()

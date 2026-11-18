@@ -257,17 +257,22 @@ public static class GitHubNames
 
     public static string Login(string value, string parameterName)
     {
-        ReadOnlySpan<char> name = value.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal)
-            ? value.AsSpan(0, value.Length - BOT_SUFFIX.Length)
-            : value.AsSpan();
-
         ThrowIf(
-            invalid: name.IsEmpty || name.ContainsAnyExcept(LoginCharacters),
+            invalid: !IsLogin(value),
             parameterName: parameterName,
             rule: "it may only contain letters, digits, '_' and '-', optionally followed by '[bot]'"
         );
 
         return value;
+    }
+
+    public static bool IsLogin(string value)
+    {
+        ReadOnlySpan<char> name = value.EndsWith(value: BOT_SUFFIX, comparisonType: StringComparison.Ordinal)
+            ? value.AsSpan(0, value.Length - BOT_SUFFIX.Length)
+            : value.AsSpan();
+
+        return !name.IsEmpty && !name.ContainsAnyExcept(LoginCharacters);
     }
 
     public static string Owner(string value, string parameterName)

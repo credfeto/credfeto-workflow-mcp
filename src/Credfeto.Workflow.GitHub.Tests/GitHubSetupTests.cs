@@ -447,6 +447,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void RepoCollaboratorsServiceShouldBeRegistered()
+    {
+        this.RequireService<IRepoCollaboratorsService>();
+    }
+
+    [Fact]
+    public void RepoCollaboratorsServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IRepoCollaboratorsService, RepoCollaboratorsService>();
+    }
+
+    [Fact]
     public void WorkflowListServiceShouldBeRegistered()
     {
         this.RequireService<IWorkflowListService>();
