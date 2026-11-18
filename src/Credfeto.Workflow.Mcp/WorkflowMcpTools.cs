@@ -696,6 +696,34 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "release_list", Title = "Release list", ReadOnly = true)]
+    [Description(
+        "Lists a repository's published releases, drafts excluded, newest first by publish time (ISO-8601) and then by tag, with each release's tag, publish time, latest and pre-release flags and name, which is - when the release has none. The release notes are not returned. More than 1000 releases is refused rather than listed in part"
+    )]
+    public static async Task<ReleaseListResponse> ReleaseListAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IReleaseService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is RepositoryNotFoundException
+                        or ReleaseListFailedException
+                        or ReleaseListRefusedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "issue_list", Title = "Issue list", ReadOnly = true)]
     [Description(
         "Lists a repository's open issues, excluding pull requests, most urgent priority first and then by number, with each issue's priority, blocked and on-hold flags, assignees, title and labels"

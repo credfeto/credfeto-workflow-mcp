@@ -51,6 +51,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "pr_search",
         "pr_status",
         "pr_view",
+        "release_list",
         "release_view",
         "repo_dependabot_alerts",
         "repo_file",
@@ -111,6 +112,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("run_log")]
     [InlineData("tag_view")]
     [InlineData("release_view")]
+    [InlineData("release_list")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -305,6 +307,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     public void ReleaseViewTakesRepo()
     {
         JsonElement schema = this.GetTool("release_view").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void ReleaseListTakesRepo()
+    {
+        JsonElement schema = this.GetTool("release_list").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));

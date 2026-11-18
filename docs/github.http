@@ -564,6 +564,28 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### GraphQL: a repository's releases, 100 a page (release_list)
+# The release notes (description) are never asked for. Drafts are left out of the result, and the releases are
+# sorted by publishedAt, then tag, both descending as ordinal text. Follow pageInfo.endCursor as "c" while
+# hasNextPage is true, reading no more pages than totalCount allows; more than 1000 non-draft releases is refused.
+# An error saying "Could not resolve to a Repository", or a null repository, means the repository is missing or the
+# caller cannot see it. Control characters in the read fields are replaced with spaces.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$c:String){repository(owner:$o,name:$r){releases(first:100,after:$c,orderBy:{field:CREATED_AT,direction:DESC}){totalCount pageInfo{hasNextPage endCursor} nodes{tagName name isDraft isPrerelease isLatest publishedAt}}}}",
+  "variables": {
+    "o": "actions",
+    "r": "checkout",
+    "c": null
+  }
+}
+
 ### REST: search an owner's repository names and descriptions for text (repo_search)
 # q is "in:name,description <words> user:<owner>", plus "archived:false" unless archived repositories are wanted,
 # URL-encoded as one value; "user:" matches organisations too. per_page is the limit plus one, at most 100, so a

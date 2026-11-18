@@ -38,7 +38,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "release_view", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "release_list", "release_view", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1503,6 +1503,60 @@ Accept: application/json, text/event-stream
   "method": "tools/call",
   "params": {
     "name": "release_view",
+    "arguments": {
+      "repo": "credfeto"
+    }
+  }
+}
+
+### Call the release_list tool; expects the repository and its non-draft releases, newest publishedAt first, each with tag, publishedAt (ISO-8601), isLatest, isPrerelease and name ("-" when the release has none), without their notes
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 140,
+  "method": "tools/call",
+  "params": {
+    "name": "release_list",
+    "arguments": {
+      "repo": "actions/checkout"
+    }
+  }
+}
+
+### Call the release_list tool for a repository that does not exist; expects a tool error saying the repository was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 141,
+  "method": "tools/call",
+  "params": {
+    "name": "release_list",
+    "arguments": {
+      "repo": "credfeto/does-not-exist"
+    }
+  }
+}
+
+### Call the release_list tool with an invalid repository name; expects a tool error naming the "repository" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 142,
+  "method": "tools/call",
+  "params": {
+    "name": "release_list",
     "arguments": {
       "repo": "credfeto"
     }

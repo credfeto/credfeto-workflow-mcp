@@ -114,4 +114,6 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(GitRefResponse))]
 [JsonSerializable(typeof(GitTagResponse))]
 [JsonSerializable(typeof(GitHubRelease))]
+[JsonSerializable(typeof(ReleaseListQueryVariables))]
+[JsonSerializable(typeof(ReleaseListQueryData))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;
