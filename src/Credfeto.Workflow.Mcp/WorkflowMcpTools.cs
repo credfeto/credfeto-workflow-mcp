@@ -1772,6 +1772,33 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "repo_collaborators", Title = "Repo collaborators", ReadOnly = true)]
+    [Description(
+        "Lists a repository's collaborators and their roles, sorted by login; needs push access to the repository, and more than 1000 collaborators is refused rather than listed in part"
+    )]
+    public static async Task<RepoCollaboratorsResponse> RepoCollaboratorsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IRepoCollaboratorsService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is RepositoryNotFoundException
+                        or RepoCollaboratorsFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     private static bool IsIssueCreateError(Exception exception)
     {
         return IsBoardOrRepositoryError(exception)

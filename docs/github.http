@@ -340,6 +340,16 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: every collaborator of a repository, with their role (repo_collaborators)
+# Follow the Link header's rel="next" URL until there is none; the call is refused when more than 1000
+# collaborators are read. GitHub only lists collaborators to callers with push access, so a 403 is reported as an
+# error rather than an empty list. A 404 means the repository is missing or the caller cannot see it.
+GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/collaborators?per_page=100
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a repository's Dependabot alerts, newest first, one page of up to limit alerts (repo_dependabot_alerts)
 # state is left out for "all", and severity only when given. A 404 means the repository is missing or the caller
 # cannot see it; a 403 saying alerts are disabled, or that the resource is not accessible, is reported as such.
