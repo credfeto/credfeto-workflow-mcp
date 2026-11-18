@@ -47,7 +47,7 @@ public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
             );
 
             // GitHub serves pull requests from the issues endpoint too, so one is reported as no such issue
-            if (IsPullRequest(issue: issue, response: response))
+            if (IssueKind.IsPullRequest(issue: issue, response: response))
             {
                 throw new IssueNotFoundException(NotFoundMessage(reference));
             }
@@ -108,8 +108,8 @@ public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
 
     private static ParsedComment Comment(IssueCommentResponse? response)
     {
-        IssueCommentResponse comment =
-            response ?? throw new GitHubInvalidResponseException("GitHub returned an empty comment");
+        IssueCommentResponse comment = response
+            ?? throw new GitHubInvalidResponseException("GitHub returned an empty comment");
 
         string createdAt =
             comment.CreatedAt is { } created && IssueCommentsProjector.TryParseTimestamp(value: created, out _)
@@ -118,12 +118,11 @@ public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
 
         Uri url = CommentUrl(comment.HtmlUrl);
 
-        string association =
-            comment.AuthorAssociation
+        string association = comment.AuthorAssociation
             ?? throw new GitHubInvalidResponseException("GitHub returned a comment without an author association");
 
-        string body =
-            comment.Body ?? throw new GitHubInvalidResponseException("GitHub returned a comment without a body");
+        string body = comment.Body
+            ?? throw new GitHubInvalidResponseException("GitHub returned a comment without a body");
 
         return new(
             IsPlan: IsPlan(body),
@@ -176,13 +175,6 @@ public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
                 y: StandardLabels.BLOCKED
             )
         );
-    }
-
-    private static bool IsPullRequest(int issue, IssueResponse response)
-    {
-        return response.PullRequest is not null
-            || response.HtmlUrl is { } htmlUrl
-                && htmlUrl.EndsWith(value: $"/pull/{issue}", comparisonType: StringComparison.Ordinal);
     }
 
     private static string NotFoundMessage(string reference)

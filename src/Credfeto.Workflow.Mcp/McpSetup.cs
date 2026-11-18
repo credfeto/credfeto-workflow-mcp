@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Credfeto.Workflow.Data.Models.Json;
+using Credfeto.Workflow.Mcp.Modes;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,9 +15,15 @@ public static class McpSetup
         JsonSerializerOptions serializerOptions = new(options: AppJsonContext.Default.Options);
 
         _ = services
+            .AddHttpContextAccessor()
+            .AddSingleton<IRequestToolMode, HttpRequestToolMode>()
+            .AddSingleton<ToolModeCatalog>()
             .AddMcpServer()
             .WithHttpTransport(static options => options.Stateless = true)
-            .WithTools<WorkflowMcpTools>(serializerOptions: serializerOptions);
+            .WithTools<WorkflowMcpTools>(serializerOptions: serializerOptions)
+            .WithRequestFilters(static filters =>
+                filters.AddListToolsFilter(ToolModeFilters.ListTools).AddCallToolFilter(ToolModeFilters.CallTool)
+            );
 
         return services;
     }
@@ -27,6 +34,12 @@ public static class McpSetup
         // before the MCP handler runs; the token itself is only validated by GitHub.
         // Wrapping each mapped endpoint's delegate (rather than an endpoint filter) keeps the SDK's
         // RequestDelegate endpoints off the reflection-based RequestDelegateFactory path, which AOT cannot use
-        app.MapMcp(MCP_PATH).Finally(CallerTokenRequirement.Apply);
+        // The token is checked first (outermost), then the X-Mode header picks the tools the request may list and call
+        app.MapMcp(MCP_PATH)
+            .Finally(static endpoint =>
+            {
+                ToolModeRequirement.Apply(endpoint);
+                CallerTokenRequirement.Apply(endpoint);
+            });
     }
 }

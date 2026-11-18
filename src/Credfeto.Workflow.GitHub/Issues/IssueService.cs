@@ -380,7 +380,7 @@ public sealed partial class IssueService : IIssueService
     private static IssueViewResponse Project(string reference, int issue, IssueResponse response)
     {
         // GitHub serves pull requests from the issues endpoint too, so one is reported as no such issue
-        if (IsPullRequest(issue: issue, response: response))
+        if (IssueKind.IsPullRequest(issue: issue, response: response))
         {
             throw new IssueNotFoundException(NotFoundMessage(reference));
         }
@@ -396,13 +396,6 @@ public sealed partial class IssueService : IIssueService
             Assignees: Assignees(response.Assignees),
             Body: response.Body ?? string.Empty
         );
-    }
-
-    private static bool IsPullRequest(int issue, IssueResponse response)
-    {
-        return response.PullRequest is not null
-            || response.HtmlUrl is { } htmlUrl
-                && htmlUrl.EndsWith(value: $"/pull/{issue}", comparisonType: StringComparison.Ordinal);
     }
 
     private static string State(string? state)
@@ -526,7 +519,7 @@ public sealed partial class IssueService : IIssueService
         }
 
         // GitHub serves pull requests from the issues endpoint too, so one is reported as no such issue
-        return IsPullRequest(issue: issue, response: response)
+        return IssueKind.IsPullRequest(issue: issue, response: response)
             ? throw new IssueNotFoundException(NotFoundMessage(reference))
             : response;
     }

@@ -13,4 +13,12 @@ public interface ICommentAddService
         string body,
         CancellationToken cancellationToken
     );
+
+    // For callers limited to issues: the number is checked first and refused when it names a pull request
+    ValueTask<CommentAddResult> AddToIssueAsync(
+        string repository,
+        int? issue,
+        string body,
+        CancellationToken cancellationToken
+    );
 }

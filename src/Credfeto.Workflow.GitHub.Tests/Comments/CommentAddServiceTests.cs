@@ -33,12 +33,17 @@ public sealed class CommentAddServiceTests : GitHubClientTestBase
     private const string ISSUE_URL = "https://github.com/credfeto/credfeto-workflow-mcp/issues/31#issuecomment-99";
     private const string PULL_URL = "https://github.com/credfeto/credfeto-workflow-mcp/pull/31#issuecomment-99";
 
+    private const string ISSUE_JSON =
+        "{\"id\":1,\"title\":\"t\",\"html_url\":\"https://github.com/credfeto/credfeto-workflow-mcp/issues/31\"}";
+
     private const string UNEXPECTED_RESULT =
         "unexpected result for the comment, which may have been posted on " + REFERENCE;
 
     private static readonly Uri CommentsUri = new(
         GitHubServices.ApiBaseUrl + "repos/" + REPOSITORY + "/issues/31/comments"
     );
+
+    private static readonly Uri IssueUri = new(GitHubServices.ApiBaseUrl + "repos/" + REPOSITORY + "/issues/31");
 
     private readonly IRepositoryVisibilityLookup _visibilityLookup;
 
@@ -484,5 +489,148 @@ public sealed class CommentAddServiceTests : GitHubClientTestBase
         return this
             ._visibilityLookup.DidNotReceive()
             .GetVisibilityAsync(repository: Arg.Any<string>(), cancellationToken: Arg.Any<CancellationToken>());
+    }
+
+    private static RecordingHttpMessageHandler IssueLookupThen(Func<HttpResponseMessage> lookup)
+    {
+        return new(index =>
+            index switch
+            {
+                0 => lookup(),
+                1 => Responses.StatusWithJson(
+                    statusCode: HttpStatusCode.Created,
+                    json: "{\"id\":99,\"html_url\":\"" + ISSUE_URL + "\"}"
+                ),
+                _ => Unexpected(index),
+            }
+        );
+    }
+
+    private async Task<CommentAddResult> AddToIssueAsync(
+        RecordingHttpMessageHandler upstream,
+        string repository = REPOSITORY,
+        int? issue = NUMBER,
+        string body = BODY
+    )
+    {
+        return await this.CreateService(upstream)
+            .AddToIssueAsync(
+                repository: repository,
+                issue: issue,
+                body: body,
+                cancellationToken: this.CancellationToken()
+            );
+    }
+
+    [Fact]
+    public async Task IssueOnlyCommentIsPostedAfterTheIssueIsCheckedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = IssueLookupThen(() => Responses.Json(ISSUE_JSON));
+
+        CommentAddResult result = await this.AddToIssueAsync(upstream);
+
+        AssertPosted(result: result, url: ISSUE_URL);
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+        Assert.Equal(expected: HttpMethod.Get, actual: upstream.Requests[0].Method);
+        Assert.Equal(expected: IssueUri, actual: upstream.Requests[0].RequestUri);
+        Assert.Equal(expected: HttpMethod.Post, actual: upstream.Requests[1].Method);
+        Assert.Equal(expected: CommentsUri, actual: upstream.Requests[1].RequestUri);
+    }
+
+    [Theory]
+    [InlineData(
+        "{\"id\":1,\"title\":\"t\",\"pull_request\":{\"url\":\"https://api.github.com/repos/credfeto/credfeto-workflow-mcp/pulls/31\"}}"
+    )]
+    [InlineData(
+        "{\"id\":1,\"title\":\"t\",\"html_url\":\"https://github.com/credfeto/credfeto-workflow-mcp/pull/31\"}"
+    )]
+    public async Task IssueOnlyCommentOnAPullRequestIsRefusedBeforePostingAsync(string json)
+    {
+        using RecordingHttpMessageHandler upstream = IssueLookupThen(() => Responses.Json(json));
+
+        ParameterValidationException exception = await Assert.ThrowsAsync<ParameterValidationException>(() =>
+            this.AddToIssueAsync(upstream)
+        );
+
+        Assert.Equal(expected: "issue", actual: exception.ParameterName);
+        Assert.Equal(expected: "must be an issue, not a pull request", actual: exception.Rule);
+        RecordedRequest request = Assert.Single(upstream.Requests);
+        Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
+    }
+
+    [Theory]
+    [InlineData(null, "must be given")]
+    [InlineData(0, "must be above 0")]
+    [InlineData(-3, "must be above 0")]
+    public async Task IssueOnlyCommentNeedsAnIssueNumberAsync(int? issue, string rule)
+    {
+        using RecordingHttpMessageHandler upstream = new(Unexpected);
+
+        ParameterValidationException exception = await Assert.ThrowsAsync<ParameterValidationException>(() =>
+            this.AddToIssueAsync(upstream: upstream, issue: issue)
+        );
+
+        Assert.Equal(expected: "issue", actual: exception.ParameterName);
+        Assert.Equal(expected: rule, actual: exception.Rule);
+        Assert.Empty(upstream.Requests);
+    }
+
+    [Theory]
+    [InlineData("credfeto", "", "repository")]
+    [InlineData(REPOSITORY, " \n", "body")]
+    public async Task IssueOnlyCommentIsValidatedWithoutCallingGitHubAsync(
+        string repository,
+        string body,
+        string parameterName
+    )
+    {
+        using RecordingHttpMessageHandler upstream = new(Unexpected);
+
+        ParameterValidationException exception = await Assert.ThrowsAsync<ParameterValidationException>(() =>
+            this.AddToIssueAsync(upstream: upstream, repository: repository, body: body)
+        );
+
+        Assert.Equal(expected: parameterName, actual: exception.ParameterName);
+        Assert.Empty(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task IssueOnlyCommentIsNotPostedWhenTheIssueIsNotFoundAsync()
+    {
+        using RecordingHttpMessageHandler upstream = IssueLookupThen(() => Responses.Status(HttpStatusCode.NotFound));
+
+        CommentAddResult result = await this.AddToIssueAsync(upstream);
+
+        AssertNotCheckedAsAnIssue(result: result, reason: "GitHub answered with status 404");
+        _ = Assert.Single(upstream.Requests);
+    }
+
+    [Fact]
+    public async Task IssueOnlyCommentIsNotPostedWhenTheLookupFailsAsync()
+    {
+        using RecordingHttpMessageHandler upstream = IssueLookupThen(() => Throw("connection reset"));
+
+        CommentAddResult result = await this.AddToIssueAsync(upstream);
+
+        AssertNotCheckedAsAnIssue(result: result, reason: "the request to GitHub failed");
+    }
+
+    [Fact]
+    public async Task IssueOnlyCommentIsNotPostedWhenTheLookupCannotBeReadAsync()
+    {
+        using RecordingHttpMessageHandler upstream = IssueLookupThen(() => Responses.Json("null"));
+
+        CommentAddResult result = await this.AddToIssueAsync(upstream);
+
+        AssertNotCheckedAsAnIssue(result: result, reason: "the answer from GitHub could not be read");
+    }
+
+    private static void AssertNotCheckedAsAnIssue(CommentAddResult result, string reason)
+    {
+        AssertFailed(
+            result: result,
+            outcome: CommentAddOutcome.NotPosted,
+            message: "could not check that " + REFERENCE + " is an issue, so the comment was not posted: " + reason
+        );
     }
 }

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
@@ -8,8 +7,6 @@ using System.Text;
 using System.Threading.Tasks;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
 using Xunit;
 
 namespace Credfeto.Workflow.Mcp.Server.Tests;
@@ -46,7 +43,7 @@ public sealed class EndpointAuthorizationTests : TestBase
 
     private async Task<HttpStatusCode> SendAsync(HttpMethod method, string path, string? authorization)
     {
-        await using WebApplication app = BuildApp();
+        await using WebApplication app = TestAppFactory.BuildLoopbackApp();
         await app.StartAsync(this.CancellationToken());
 
         try
@@ -84,20 +81,5 @@ public sealed class EndpointAuthorizationTests : TestBase
         {
             await app.StopAsync(this.CancellationToken());
         }
-    }
-
-    private static WebApplication BuildApp()
-    {
-        return TestAppFactory.BuildApp(ConfigureForLoopback).MapWorkflowEndpoints();
-    }
-
-    private static void ConfigureForLoopback(WebApplicationBuilder builder)
-    {
-        _ = builder.Configuration.AddInMemoryCollection([
-            new KeyValuePair<string, string?>(key: "GitHub:ApiBaseUrl", value: "https://api.github.com/"),
-        ]);
-
-        // Port 0 binds an ephemeral loopback port so the test never collides with a fixed port
-        _ = builder.WebHost.UseKestrel(static options => options.Listen(address: IPAddress.Loopback, port: 0));
     }
 }
