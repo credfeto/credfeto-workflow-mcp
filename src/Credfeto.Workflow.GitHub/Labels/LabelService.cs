@@ -58,6 +58,117 @@ public sealed class LabelService : ILabelService
         return this.RemoveLabelsAsync(target: target, validLabels: validLabels, cancellationToken: cancellationToken);
     }
 
+    public ValueTask<LabelChangeResponse> AddToIssueAsync(
+        string repository,
+        int? issue,
+        IReadOnlyList<string> labels,
+        CancellationToken cancellationToken
+    )
+    {
+        // Every argument is validated before the issue is read, so invalid input never costs a GitHub call
+        LabelTarget target = IssueTarget(repository: repository, issue: issue);
+        IReadOnlyList<string> validLabels = ValidLabels(labels: labels, removing: false);
+
+        return this.AddToCheckedIssueAsync(
+            target: target,
+            validLabels: validLabels,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    public ValueTask<LabelChangeResponse> RemoveFromIssueAsync(
+        string repository,
+        int? issue,
+        IReadOnlyList<string> labels,
+        CancellationToken cancellationToken
+    )
+    {
+        LabelTarget target = IssueTarget(repository: repository, issue: issue);
+        IReadOnlyList<string> validLabels = ValidLabels(labels: labels, removing: true);
+
+        return this.RemoveFromCheckedIssueAsync(
+            target: target,
+            validLabels: validLabels,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    private async ValueTask<LabelChangeResponse> AddToCheckedIssueAsync(
+        LabelTarget target,
+        IReadOnlyList<string> validLabels,
+        CancellationToken cancellationToken
+    )
+    {
+        await this.EnsureIsIssueAsync(target: target, cancellationToken: cancellationToken);
+
+        return await this.AddLabelsAsync(
+            target: target,
+            validLabels: validLabels,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    private async ValueTask<LabelChangeResponse> RemoveFromCheckedIssueAsync(
+        LabelTarget target,
+        IReadOnlyList<string> validLabels,
+        CancellationToken cancellationToken
+    )
+    {
+        await this.EnsureIsIssueAsync(target: target, cancellationToken: cancellationToken);
+
+        return await this.RemoveLabelsAsync(
+            target: target,
+            validLabels: validLabels,
+            cancellationToken: cancellationToken
+        );
+    }
+
+    // GitHub serves pull requests from the issues endpoint too, so the number is read first and a pull request is
+    // refused before any label is changed
+    private async ValueTask EnsureIsIssueAsync(LabelTarget target, CancellationToken cancellationToken)
+    {
+        string reference = $"{target.Repository}#{target.Number.ToString(CultureInfo.InvariantCulture)}";
+        IssueResponse response;
+
+        try
+        {
+            response = await this._restClient.GetAsync(
+                relativeUri: $"repos/{target.Repository}/issues/{target.Number.ToString(CultureInfo.InvariantCulture)}",
+                responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+        {
+            throw Failure(target: target, exception: exception);
+        }
+        catch (Exception exception) when (IsUpstreamFailure(exception))
+        {
+            // Nothing has been changed yet; the upstream detail stays in the inner exception for diagnostics
+            throw new LabelChangeFailedException(
+                message: $"could not check that {reference} is an issue, so no label was changed",
+                innerException: exception
+            );
+        }
+
+        if (IssueKind.IsPullRequest(issue: target.Number, response: response))
+        {
+            throw new PullRequestTargetRefusedException($"{reference} is a pull request, not an issue");
+        }
+    }
+
+    private static LabelTarget IssueTarget(string repository, int? issue)
+    {
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
+
+        return issue switch
+        {
+            null => throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be given"),
+            > 0 => new(Repository: validRepository, Number: issue.Value, IsPullRequest: false),
+            _ => throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0"),
+        };
+    }
+
     public ValueTask<LabelCreateResponse> CreateAsync(
         string repository,
         string name,

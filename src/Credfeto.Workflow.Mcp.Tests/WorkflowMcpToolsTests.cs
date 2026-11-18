@@ -3256,6 +3256,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             labels: labels,
             service: this._labelService,
+            toolMode: AllModes(),
             pr: PULL_REQUEST,
             cancellationToken: this.CancellationToken()
         );
@@ -3281,6 +3282,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             labels: labels,
             service: this._labelService,
+            toolMode: AllModes(),
             issue: ISSUE,
             cancellationToken: this.CancellationToken()
         );
@@ -3380,12 +3382,21 @@ public sealed class WorkflowMcpToolsTests : TestBase
             .ThrowsAsync(failure);
     }
 
+    private static IRequestToolMode AllModes()
+    {
+        IRequestToolMode toolMode = GetSubstitute<IRequestToolMode>();
+        toolMode.Current.Returns(ToolModes.All);
+
+        return toolMode;
+    }
+
     private Task<LabelChangeResponse> LabelAddAsync()
     {
         return WorkflowMcpTools.LabelAddAsync(
             repo: REPOSITORY,
             labels: ["Bug"],
             service: this._labelService,
+            toolMode: AllModes(),
             pr: PULL_REQUEST,
             cancellationToken: this.CancellationToken()
         );
@@ -3397,6 +3408,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             labels: ["Bug"],
             service: this._labelService,
+            toolMode: AllModes(),
             pr: PULL_REQUEST,
             cancellationToken: this.CancellationToken()
         );

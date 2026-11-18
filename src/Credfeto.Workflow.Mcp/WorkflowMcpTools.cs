@@ -21,6 +21,10 @@ public sealed class WorkflowMcpTools
 {
     private const string PONG = "pong";
 
+    private const string LABEL_ADD_TOOL = "label_add";
+
+    private const string LABEL_REMOVE_TOOL = "label_remove";
+
     private const string PRIORITY_EDIT_DESCRIPTION =
         "The priority to give: Security, Urgent, High, Medium or Low, in any case; every other priority label is removed in the same write and a missing label is created with its standard colour. Refused when the item carries Security and another priority is asked for";
 
@@ -1757,31 +1761,42 @@ public sealed class WorkflowMcpTools
     [Description(
         "Adds standard labels to one pull request or issue, one label per call so existing labels are kept, refusing priority labels, and returns the labels it now carries"
     )]
-    public static async Task<LabelChangeResponse> LabelAddAsync(
+    public static Task<LabelChangeResponse> LabelAddAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The standard labels to add")] IReadOnlyList<string> labels,
         ILabelService service,
-        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
-        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        IRequestToolMode toolMode,
+        [Description(
+            "The pull request number; give exactly one of pr or issue. Refused in X-Mode Issues, which only labels issues"
+        )]
+            int? pr = null,
+        [Description(
+            "The issue number; give exactly one of pr or issue. In X-Mode Issues a pull request number is refused"
+        )]
+            int? issue = null,
         CancellationToken cancellationToken = default
     )
     {
-        try
-        {
-            return await service.AddAsync(
-                repository: repo,
-                pullRequest: pr,
-                issue: issue,
-                labels: labels,
-                cancellationToken: cancellationToken
-            );
-        }
-        catch (Exception exception) when (IsLabelChangeError(exception))
-        {
-            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
-            // safe to return
-            throw new McpException(message: exception.Message, innerException: exception);
-        }
+        return ChangeLabelsAsync(
+            tool: LABEL_ADD_TOOL,
+            toolMode: toolMode,
+            pr: pr,
+            unrestricted: () =>
+                service.AddAsync(
+                    repository: repo,
+                    pullRequest: pr,
+                    issue: issue,
+                    labels: labels,
+                    cancellationToken: cancellationToken
+                ),
+            issueOnly: () =>
+                service.AddToIssueAsync(
+                    repository: repo,
+                    issue: issue,
+                    labels: labels,
+                    cancellationToken: cancellationToken
+                )
+        );
     }
 
     [McpServerTool(
@@ -1795,23 +1810,71 @@ public sealed class WorkflowMcpTools
     [Description(
         "Removes standard labels from one pull request or issue, one label per call, refusing priority labels, On Hold, and Blocked unless this agent added it last, and returns the labels it still carries"
     )]
-    public static async Task<LabelChangeResponse> LabelRemoveAsync(
+    public static Task<LabelChangeResponse> LabelRemoveAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The standard labels to remove")] IReadOnlyList<string> labels,
         ILabelService service,
-        [Description("The pull request number; give exactly one of pr or issue")] int? pr = null,
-        [Description("The issue number; give exactly one of pr or issue")] int? issue = null,
+        IRequestToolMode toolMode,
+        [Description(
+            "The pull request number; give exactly one of pr or issue. Refused in X-Mode Issues, which only labels issues"
+        )]
+            int? pr = null,
+        [Description(
+            "The issue number; give exactly one of pr or issue. In X-Mode Issues a pull request number is refused"
+        )]
+            int? issue = null,
         CancellationToken cancellationToken = default
+    )
+    {
+        return ChangeLabelsAsync(
+            tool: LABEL_REMOVE_TOOL,
+            toolMode: toolMode,
+            pr: pr,
+            unrestricted: () =>
+                service.RemoveAsync(
+                    repository: repo,
+                    pullRequest: pr,
+                    issue: issue,
+                    labels: labels,
+                    cancellationToken: cancellationToken
+                ),
+            issueOnly: () =>
+                service.RemoveFromIssueAsync(
+                    repository: repo,
+                    issue: issue,
+                    labels: labels,
+                    cancellationToken: cancellationToken
+                )
+        );
+    }
+
+    // Issues mode must not reach pull requests, so a pull request target is refused here and an issue number that
+    // turns out to be a pull request is refused by the service before any label changes
+    private static async Task<LabelChangeResponse> ChangeLabelsAsync(
+        string tool,
+        IRequestToolMode toolMode,
+        int? pr,
+        Func<ValueTask<LabelChangeResponse>> unrestricted,
+        Func<ValueTask<LabelChangeResponse>> issueOnly
     )
     {
         try
         {
-            return await service.RemoveAsync(
-                repository: repo,
-                pullRequest: pr,
-                issue: issue,
-                labels: labels,
-                cancellationToken: cancellationToken
+            if (toolMode.Current != ToolModes.Issues)
+            {
+                return await unrestricted();
+            }
+
+            return pr.HasValue
+                ? throw new McpException(PullRequestLabelsRefusedMessage(tool) + "; give an issue number")
+                : await issueOnly();
+        }
+        catch (PullRequestTargetRefusedException exception)
+        {
+            // Only an issue-only change throws this, and its message names validated caller input alone
+            throw new McpException(
+                message: PullRequestLabelsRefusedMessage(tool) + ": " + exception.Message,
+                innerException: exception
             );
         }
         catch (Exception exception) when (IsLabelChangeError(exception))
@@ -1820,6 +1883,11 @@ public sealed class WorkflowMcpTools
             // safe to return
             throw new McpException(message: exception.Message, innerException: exception);
         }
+    }
+
+    private static string PullRequestLabelsRefusedMessage(string tool)
+    {
+        return tool + " cannot change the labels of a pull request in " + ToolModeHeader.Name + " Issues";
     }
 
     [McpServerTool(

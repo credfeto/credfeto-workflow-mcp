@@ -23,6 +23,22 @@ public interface ILabelService
         CancellationToken cancellationToken
     );
 
+    // For callers limited to issues: the number is checked first and refused when it names a pull request
+    ValueTask<LabelChangeResponse> AddToIssueAsync(
+        string repository,
+        int? issue,
+        IReadOnlyList<string> labels,
+        CancellationToken cancellationToken
+    );
+
+    // For callers limited to issues: the number is checked first and refused when it names a pull request
+    ValueTask<LabelChangeResponse> RemoveFromIssueAsync(
+        string repository,
+        int? issue,
+        IReadOnlyList<string> labels,
+        CancellationToken cancellationToken
+    );
+
     ValueTask<LabelCreateResponse> CreateAsync(
         string repository,
         string name,

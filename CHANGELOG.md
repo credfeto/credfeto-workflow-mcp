@@ -81,6 +81,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
 - Enabled runtime-async (Features strict;flow-analysis;runtime-async=on) in all projects and moved the Dockerfile runtime image to .NET 11 rc.3 (#74)
 - SDK - Updated DotNet SDK to 11.0.100
+- label_add and label_remove refuse a pull request in X-Mode Issues, as comment_add does: a pr argument, or an issue number that turns out to be a pull request, fails with an error naming the mode before any label changes; with no header or All they still label pull requests and issues (#142)
 ### Deprecated
 ### Removed
 ### Deployment Changes

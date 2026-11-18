@@ -48,15 +48,16 @@ The one exception to forwarding the caller's token is the Workflow board step of
 
 An optional `X-Mode` request header limits the tools a request can list (`tools/list`) and call (`tools/call`):
 
-| `X-Mode`       | Tools                                                                                                                                                                                                                                    |
-|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| none, or `All` | Every tool.                                                                                                                                                                                                                              |
-| `Issues`       | `issue_view`, `issue_list`, `issue_search`, `issue_comments`, `issue_plan_status`, `label_list`, `issue_create`, `issue_edit`, `issue_add_sub_issue`, `comment_add` (issues only), `label_add`, `label_remove`, `body_check` and `ping`. |
+| `X-Mode`       | Tools                                                                                                                                                                                                                                                                |
+|----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| none, or `All` | Every tool.                                                                                                                                                                                                                                                          |
+| `Issues`       | `issue_view`, `issue_list`, `issue_search`, `issue_comments`, `issue_plan_status`, `label_list`, `issue_create`, `issue_edit`, `issue_add_sub_issue`, `comment_add` (issues only), `label_add` (issues only), `label_remove` (issues only), `body_check` and `ping`. |
 
 - Mode names match in any case, so `issues` and `ISSUES` are the same as `Issues`.
 - Any other value is rejected with `400 Bad Request` and a JSON-RPC error naming the valid modes, rather than falling back to every tool. That includes an empty value, a list such as `Issues, All`, and more than one `X-Mode` header. So a typo can't give a caller more tools.
 - A tool outside the mode is not listed, and calling it anyway fails before it runs with a JSON-RPC `-32602` error saying the tool is not available in that mode.
 - In `Issues` mode, `comment_add` refuses `pr`. It looks `issue` up first and refuses a number that turns out to be a pull request. Nothing is posted in either case.
+- In `Issues` mode, `label_add` and `label_remove` refuse `pr` in the same way, with an error naming the mode. They look `issue` up first and refuse a number that turns out to be a pull request. No label changes in either case. With no `X-Mode` header, or with `All`, both still label pull requests and issues.
 - Each tool declares its modes with an `[InModes(...)]` attribute next to its `[McpServerTool]` attribute. A test fails when a tool has none.
 
 ### MCP tools
