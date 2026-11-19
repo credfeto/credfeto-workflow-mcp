@@ -35,6 +35,29 @@ public sealed class WorkflowMcpTools
         return new(PONG);
     }
 
+    [McpServerTool(Name = "auth_status", Title = "Auth status", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Reads the GitHub login the caller's token authenticates as, the MCP host the caller reached and the GitHub API version the server uses (each empty when there is none) and, when asked for, the core and GraphQL rate limits with each one's remaining count, limit and UTC reset time; never returns a token or header"
+    )]
+    public static async Task<AuthStatusResponse> AuthStatusAsync(
+        IAuthStatusService service,
+        [Description("Whether to include the core and GraphQL rate limits; false when not given")]
+            bool rateLimit = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(rateLimit: rateLimit, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (exception is NotAuthenticatedException or AuthStatusFailedException)
+        {
+            // Every one of these messages is fixed text, never upstream detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "pr_comments", Title = "Pull request comments", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(

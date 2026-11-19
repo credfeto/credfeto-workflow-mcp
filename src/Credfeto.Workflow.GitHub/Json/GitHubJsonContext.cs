@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Checks;
@@ -119,4 +120,6 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(GitHubRelease))]
 [JsonSerializable(typeof(ReleaseListQueryVariables))]
 [JsonSerializable(typeof(ReleaseListQueryData))]
+[JsonSerializable(typeof(AuthenticatedUserResponse))]
+[JsonSerializable(typeof(RateLimitResponse))]
 internal sealed partial class GitHubJsonContext : JsonSerializerContext;

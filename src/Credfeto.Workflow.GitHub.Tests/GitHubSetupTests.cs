@@ -1,3 +1,4 @@
+using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
@@ -456,6 +457,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void RepoCollaboratorsServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IRepoCollaboratorsService, RepoCollaboratorsService>();
+    }
+
+    [Fact]
+    public void AuthStatusServiceShouldBeRegistered()
+    {
+        this.RequireService<IAuthStatusService>();
+    }
+
+    [Fact]
+    public void AuthStatusServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IAuthStatusService, AuthStatusService>();
     }
 
     [Fact]

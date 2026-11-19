@@ -4,8 +4,15 @@
 @token = replace-with-a-github-token
 @tagObjectSha = replace-with-the-object-sha-from-a-tag-ref
 
-### REST: the authenticated user
+### REST: the authenticated user (auth_status reads its login; 401 means not authenticated)
 GET {{apiBaseUrl}}user
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
+### REST: the rate limits, only when auth_status is asked for them (reads resources.core and resources.graphql; this request does not count against the limit)
+GET {{apiBaseUrl}}rate_limit
 Authorization: Bearer {{token}}
 Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10

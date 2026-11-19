@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
@@ -127,7 +128,6 @@ public static class GitHubSetup
             .AddRepositoryContentServices()
             .AddSingleton<IIssueListService, IssueListService>()
             .AddSingleton<IRepositoryListService, RepositoryListService>()
-            .AddSingleton<IRepoCollaboratorsService, RepoCollaboratorsService>()
             .AddSingleton<IWorkflowListService, WorkflowListService>()
             .AddSingleton<IWorkflowRunService, WorkflowRunService>()
             .AddSingleton<IDependabotAlertsService, DependabotAlertsService>()
@@ -140,6 +140,7 @@ public static class GitHubSetup
             .AddSingleton<IWorkflowStatusSetService, WorkflowStatusSetService>()
             .AddSingleton<IRepositoryVisibilityLookup, RepositoryVisibilityLookup>()
             .AddSingleton<ILeakChecker, LeakChecker>()
+            .AddSingleton<IAuthStatusService, AuthStatusService>()
             .AddTransient<CallerTokenForwardingHandler>()
             .AddHttpClient(name: HttpClientName, configureClient: ConfigureHttpClient)
             .ConfigurePrimaryHttpMessageHandler(CreatePrimaryHandler)
@@ -154,6 +155,7 @@ public static class GitHubSetup
         return services
             .AddSingleton<IRepoSearchService, RepoSearchService>()
             .AddSingleton<IRepoViewService, RepoViewService>()
+            .AddSingleton<IRepoCollaboratorsService, RepoCollaboratorsService>()
             .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<ITagViewService, TagViewService>()
             .AddSingleton<IReleaseService, ReleaseService>();

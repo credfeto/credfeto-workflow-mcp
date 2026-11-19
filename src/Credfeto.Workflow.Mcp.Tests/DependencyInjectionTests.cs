@@ -16,6 +16,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 {
     private static readonly string[] ExpectedToolNames =
     [
+        "auth_status",
         "body_check",
         "branch_required_checks",
         "closing_issue_labels",
@@ -150,6 +151,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("release_list")]
     [InlineData("repo_list")]
     [InlineData("repo_view")]
+    [InlineData("auth_status")]
     [InlineData("code_search")]
     [InlineData("no_such_tool")]
     public void IssuesModeRefusesEverythingElse(string name)
@@ -211,6 +213,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("release_view")]
     [InlineData("release_list")]
     [InlineData("repo_view")]
+    [InlineData("auth_status")]
     public void ReadingToolsMustBeReadOnly(string name)
     {
         McpServerTool tool = this.GetTool(name);
@@ -480,6 +483,19 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void AuthStatusTakesAnOptionalRateLimit()
+    {
+        JsonElement schema = this.GetTool("auth_status").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["rateLimit"], actual: PropertyNames(schema));
+        Assert.False(
+            schema.TryGetProperty(propertyName: "required", value: out JsonElement required)
+                && required.GetArrayLength() > 0,
+            userMessage: "rateLimit should be optional"
+        );
     }
 
     [Fact]
@@ -930,6 +946,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IRepositoryListService>()
             .AddMockedService<IRepoCollaboratorsService>()
             .AddMockedService<IRepoViewService>()
+            .AddMockedService<IAuthStatusService>()
             .AddMockedService<IWorkflowListService>()
             .AddMockedService<IDependabotAlertsService>()
             .AddMockedService<IRunListService>()
