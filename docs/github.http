@@ -357,6 +357,48 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: how many commits a head branch is ahead of and behind a base branch (branch_compare)
+# GraphQL rather than REST compare/{base}...{head}, which also returns every changed file and its patch. Both refs
+# are sent fully qualified (refs/heads/...), so neither needs path encoding and a tag of the same name is never
+# compared. A null ref means the base branch is missing. A NOT_FOUND error means the head branch or the repository
+# is missing, which the query below tells apart.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$b:String!,$h:String!){repository(owner:$o,name:$r){ref(qualifiedName:$b){compare(headRef:$h){status aheadBy behindBy}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "b": "refs/heads/main",
+    "h": "refs/heads/feat/149-branch-compare"
+  }
+}
+
+### GraphQL: which of two branches exists, only after the compare query answered NOT_FOUND (branch_compare)
+# A missing ref is answered as null rather than as an error. A NOT_FOUND error or a null repository means the
+# repository is missing or the caller cannot see it.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$b:String!,$h:String!){repository(owner:$o,name:$r){base:ref(qualifiedName:$b){name} head:ref(qualifiedName:$h){name}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "b": "refs/heads/main",
+    "h": "refs/heads/does-not-exist"
+  }
+}
+
 ### REST: a repository's GitHub Actions workflows, disabled ones included (workflow_list)
 # Follow the Link header's rel="next" URL until there is none; the call is refused when more than 1000 workflows are
 # read. A 404 means the repository is missing or the caller cannot see it.
