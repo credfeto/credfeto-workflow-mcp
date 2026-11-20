@@ -13,6 +13,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Moved to the .NET 11 rc.3 SDK (11.0.100-rc.3.26522.148) so the NativeAOT compiler package is no longer affected by GHSA-p3jp-9v83-76w9 (#90)
 ### Added
 - pr_comments returns updatedAt for every comment, review and inline comment, and its new exactBodies option returns every body byte for byte, so the orchestrator can notice edited comments and hash bodies without gh (#154)
+- pr_list returns each pull request's label names, and with the new closingIssues option the issues each closes as repository and number, read in one GraphQL query per 50 listed pull requests, so the orchestrator can find its own and issue-owning pull requests without gh (#151)
 - Credfeto.Workflow.Mcp.Server: a C# (.NET 11) MCP server skeleton replacing cfwf, exposing a /ping endpoint and an MCP ping tool
 - Dockerfile for building and running the MCP server
 - Bearer token requirement on /mcp, forwarded to the configured GitHub ApiBaseUrl through host-restricted REST and GraphQL clients with bounded paging, plus a per-caller-token, per-repo id cache so ids fetched with one caller's token are never served to another

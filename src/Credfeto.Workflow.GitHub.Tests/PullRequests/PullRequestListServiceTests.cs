@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Http;
@@ -88,15 +89,23 @@ public sealed class PullRequestListServiceTests : GitHubClientTestBase
         throw new InvalidOperationException("Unexpected request " + index.ToString(CultureInfo.InvariantCulture));
     }
 
-    private PullRequestListService CreateService(RecordingHttpMessageHandler upstream)
+    private PullRequestListService CreateService(
+        RecordingHttpMessageHandler upstream,
+        RecordingHttpMessageHandler graphUpstream
+    )
     {
         GitHubRestClient rest = new(
             httpClientFactory: MockHttpClientFactoryCreateClient(upstream),
             options: GitHubOptionsWith(),
             logger: this.GetTypedLogger<GitHubRestClient>()
         );
+        GitHubGraphQlClient graph = new(
+            httpClientFactory: MockHttpClientFactoryCreateClient(graphUpstream),
+            options: GitHubOptionsWith(),
+            logger: this.GetTypedLogger<GitHubGraphQlClient>()
+        );
 
-        return new(rest);
+        return new(restClient: rest, graphQlClient: graph);
     }
 
     private async Task<PullRequestListResponse> ListAsync(
@@ -104,15 +113,20 @@ public sealed class PullRequestListServiceTests : GitHubClientTestBase
         int? issue = null,
         string? head = null,
         IReadOnlyList<string>? labels = null,
-        string repository = REPOSITORY
+        string repository = REPOSITORY,
+        bool closingIssues = false,
+        RecordingHttpMessageHandler? graphUpstream = null
     )
     {
-        return await this.CreateService(upstream)
+        using RecordingHttpMessageHandler noGraph = new(Unexpected);
+
+        return await this.CreateService(upstream: upstream, graphUpstream: graphUpstream ?? noGraph)
             .ListAsync(
                 repository: repository,
                 issue: issue,
                 head: head,
                 labels: labels,
+                closingIssues: closingIssues,
                 cancellationToken: this.CancellationToken()
             );
     }
@@ -163,6 +177,8 @@ public sealed class PullRequestListServiceTests : GitHubClientTestBase
         Assert.Empty(entry.Flags);
         Assert.Equal(expected: new Uri("https://github.com/" + REPOSITORY + "/pull/7"), actual: entry.Url);
         Assert.Equal(expected: "Add list", actual: entry.Title);
+        Assert.Empty(entry.Labels);
+        Assert.Null(entry.ClosingIssues);
     }
 
     [Fact]
@@ -622,5 +638,232 @@ public sealed class PullRequestListServiceTests : GitHubClientTestBase
         );
 
         Assert.Empty(upstream.Requests);
+    }
+
+    private static string ClosingReferences(params string[] references)
+    {
+        return "{\"closingIssuesReferences\":{\"totalCount\":"
+            + references.Length.ToString(CultureInfo.InvariantCulture)
+            + ",\"nodes\":["
+            + string.Join(separator: ',', value: references)
+            + "]}}";
+    }
+
+    private static string Reference(int number, string repository = REPOSITORY)
+    {
+        return "{\"number\":"
+            + number.ToString(CultureInfo.InvariantCulture)
+            + ",\"repository\":{\"nameWithOwner\":\""
+            + repository
+            + "\"}}";
+    }
+
+    private static HttpResponseMessage ClosingPage(params (int Number, string Node)[] pullRequests)
+    {
+        string aliases = string.Join(
+            separator: ',',
+            values: pullRequests.Select(pr =>
+                "\"p" + pr.Number.ToString(CultureInfo.InvariantCulture) + "\":" + pr.Node
+            )
+        );
+
+        return Responses.Json("{\"data\":{\"repository\":{" + aliases + "}}}");
+    }
+
+    private async Task<PullRequestListResponse> ListWithClosingAsync(string json, Func<HttpResponseMessage> closing)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(json));
+        using RecordingHttpMessageHandler graph = new(_ => closing());
+
+        return await this.ListAsync(upstream: upstream, closingIssues: true, graphUpstream: graph);
+    }
+
+    private Task<PullRequestListFailedException> ListWithClosingFailsAsync(Func<HttpResponseMessage> closing)
+    {
+        return Assert.ThrowsAsync<PullRequestListFailedException>(() =>
+            this.ListWithClosingAsync(json: Page(Item(4)), closing: closing)
+        );
+    }
+
+    [Fact]
+    public async Task LabelsAreReturnedInGitHubOrderAsync()
+    {
+        PullRequestListResponse response = await this.ListJsonAsync(Page(Item(number: 1, labels: "mcp,Blocked,bug")));
+
+        Assert.Equal(
+            expected: ["mcp", "Blocked", "bug"],
+            actual: Assert.Single(response.PullRequests).Labels,
+            comparer: StringComparer.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task ClosingIssuesAreNotReadUnlessAskedForAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(Page(Item(1), Item(2))));
+
+        PullRequestListResponse response = await this.ListAsync(upstream);
+
+        Assert.All(collection: response.PullRequests, action: entry => Assert.Null(entry.ClosingIssues));
+    }
+
+    [Fact]
+    public async Task ClosingIssuesAreReadForEveryListedPullRequestAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Responses.Json(Page(Item(number: 5, labels: "bug"), Item(number: 3), Item(number: 8, labels: "bug")))
+        );
+        using RecordingHttpMessageHandler graph = new(_ =>
+            ClosingPage((5, ClosingReferences(Reference(12), Reference(7, "credfeto/other"))), (8, ClosingReferences()))
+        );
+
+        PullRequestListResponse response = await this.ListAsync(
+            upstream: upstream,
+            labels: ["bug"],
+            closingIssues: true,
+            graphUpstream: graph
+        );
+
+        Assert.Equal(expected: [5, 8], actual: Numbers(response));
+        Assert.Equal(
+            expected:
+            [
+                new ClosingIssueReference(Repository: REPOSITORY, Number: 12),
+                new ClosingIssueReference(Repository: "credfeto/other", Number: 7),
+            ],
+            actual: response.PullRequests[0].ClosingIssues ?? []
+        );
+        Assert.Empty(
+            response.PullRequests[1].ClosingIssues ?? throw new InvalidOperationException("no closing issues")
+        );
+        RecordedRequest request = Assert.Single(graph.Requests);
+        using JsonDocument document = JsonDocument.Parse(request.Body ?? "");
+        string query = document.RootElement.GetProperty("query").GetString() ?? "";
+        Assert.Contains(
+            expectedSubstring: "p5:pullRequest(number:5)",
+            actualString: query,
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.Contains(
+            expectedSubstring: "p8:pullRequest(number:8)",
+            actualString: query,
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.DoesNotContain(
+            expectedSubstring: "number:3)",
+            actualString: query,
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.Equal(
+            expected: "credfeto",
+            actual: document.RootElement.GetProperty("variables").GetProperty("o").GetString()
+        );
+        Assert.Equal(
+            expected: "credfeto-workflow-mcp",
+            actual: document.RootElement.GetProperty("variables").GetProperty("r").GetString()
+        );
+    }
+
+    [Fact]
+    public async Task ClosingIssuesAreReadInBatchesOfFiftyAsync()
+    {
+        string json = Page([.. Enumerable.Range(start: 1, count: 51).Select(number => Item(number))]);
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(json));
+        using RecordingHttpMessageHandler graph = new(index =>
+            index == 0
+                ? ClosingPage([
+                    .. Enumerable.Range(start: 1, count: 50).Select(number => (number, ClosingReferences())),
+                ])
+                : ClosingPage((51, ClosingReferences(Reference(99))))
+        );
+
+        PullRequestListResponse response = await this.ListAsync(
+            upstream: upstream,
+            closingIssues: true,
+            graphUpstream: graph
+        );
+
+        Assert.Equal(expected: 2, actual: graph.Requests.Count);
+        Assert.Equal(expected: 51, actual: response.PullRequests.Count);
+        Assert.Equal(expected: 99, actual: Assert.Single(response.PullRequests[50].ClosingIssues ?? []).Number);
+    }
+
+    [Fact]
+    public async Task NoPullRequestsNeedNoClosingIssuesReadAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(Page()));
+
+        PullRequestListResponse response = await this.ListAsync(upstream: upstream, closingIssues: true);
+
+        Assert.Empty(response.PullRequests);
+    }
+
+    [Theory]
+    [InlineData("null")]
+    [InlineData("{}")]
+    [InlineData("""{"closingIssuesReferences":null}""")]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":2,"nodes":[{"number":1,"repository":{"nameWithOwner":"o/r"}}]}}"""
+    )]
+    [InlineData("""{"closingIssuesReferences":{"nodes":[]}}""")]
+    [InlineData("""{"closingIssuesReferences":{"totalCount":0}}""")]
+    [InlineData("""{"closingIssuesReferences":{"totalCount":1,"nodes":[null]}}""")]
+    [InlineData("""{"closingIssuesReferences":{"totalCount":1,"nodes":[{"repository":{"nameWithOwner":"o/r"}}]}}""")]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":0,"repository":{"nameWithOwner":"o/r"}}]}}"""
+    )]
+    [InlineData("""{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1}]}}""")]
+    [InlineData("""{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1,"repository":{}}]}}""")]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1,"repository":{"nameWithOwner":"r"}}]}}"""
+    )]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1,"repository":{"nameWithOwner":"/r"}}]}}"""
+    )]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1,"repository":{"nameWithOwner":"o/"}}]}}"""
+    )]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1,"repository":{"nameWithOwner":"o/r/x"}}]}}"""
+    )]
+    [InlineData(
+        """{"closingIssuesReferences":{"totalCount":1,"nodes":[{"number":1,"repository":{"nameWithOwner":"o/r x"}}]}}"""
+    )]
+    public async Task IncompleteClosingIssuesFailTheListAsync(string node)
+    {
+        PullRequestListFailedException exception = await this.ListWithClosingFailsAsync(() => ClosingPage((4, node)));
+
+        Assert.Equal(expected: FAILED, actual: exception.Message);
+    }
+
+    [Fact]
+    public async Task MissingPullRequestAliasFailsTheListAsync()
+    {
+        PullRequestListFailedException exception = await this.ListWithClosingFailsAsync(() =>
+            ClosingPage((5, ClosingReferences()))
+        );
+
+        Assert.Equal(expected: FAILED, actual: exception.Message);
+    }
+
+    [Theory]
+    [InlineData("""{"data":{"repository":null}}""")]
+    [InlineData("""{"data":{}}""")]
+    [InlineData("""{"errors":[{"message":"Something went wrong"}]}""")]
+    public async Task UnusableClosingIssuesResponseFailsTheListAsync(string json)
+    {
+        PullRequestListFailedException exception = await this.ListWithClosingFailsAsync(() => Responses.Json(json));
+
+        Assert.Equal(expected: FAILED, actual: exception.Message);
+    }
+
+    [Fact]
+    public async Task ClosingIssuesHttpFailureFailsTheListAsync()
+    {
+        PullRequestListFailedException exception = await this.ListWithClosingFailsAsync(static () =>
+            Responses.Status(HttpStatusCode.BadGateway)
+        );
+
+        Assert.Equal(expected: FAILED, actual: exception.Message);
     }
 }

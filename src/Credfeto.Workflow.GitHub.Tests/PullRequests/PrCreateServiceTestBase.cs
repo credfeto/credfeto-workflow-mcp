@@ -121,7 +121,9 @@ public abstract class PrCreateServiceTestBase : GitHubClientTestBase
             State: "open",
             Flags: flags ?? [],
             Url: new(url),
-            Title: TITLE
+            Title: TITLE,
+            Labels: [],
+            ClosingIssues: null
         );
     }
 
@@ -132,6 +134,7 @@ public abstract class PrCreateServiceTestBase : GitHubClientTestBase
                 issue: Arg.Any<int?>(),
                 head: Arg.Any<string?>(),
                 labels: Arg.Any<IReadOnlyList<string>?>(),
+                closingIssues: Arg.Any<bool>(),
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(new PullRequestListResponse(Repository: REPOSITORY, PullRequests: entries));

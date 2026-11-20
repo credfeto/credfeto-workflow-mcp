@@ -176,8 +176,7 @@ public sealed partial class PrCreateService : IPrCreateService
             );
         }
 
-        string baseBranch =
-            pullRequest.Base
+        string baseBranch = pullRequest.Base
             ?? await this.DefaultBaseAsync(pullRequest: pullRequest, cancellationToken: cancellationToken);
 
         await this.EnsureHeadExistsAsync(pullRequest: pullRequest, cancellationToken: cancellationToken);
@@ -359,6 +358,7 @@ public sealed partial class PrCreateService : IPrCreateService
             issue: null,
             head: pullRequest.Head,
             labels: null,
+            closingIssues: false,
             cancellationToken: cancellationToken
         );
 

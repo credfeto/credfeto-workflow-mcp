@@ -209,7 +209,7 @@ public sealed class WorkflowMcpTools
     [McpServerTool(Name = "pr_list", Title = "Pull request list", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
-        "Lists the open pull requests of a repository in number order, keeping only those on the given head branch and carrying every given label, or fails rather than return a partial list"
+        "Lists the open pull requests of a repository in number order with their labels, and on request the issues each closes, keeping only those on the given head branch and carrying every given label, or fails rather than return a partial list"
     )]
     public static async Task<PullRequestListResponse> PrListAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -218,6 +218,8 @@ public sealed class WorkflowMcpTools
         [Description("Only pull requests whose head branch is exactly this name")] string? head = null,
         [Description("Only pull requests carrying every one of these labels; compared case-insensitively")]
             IReadOnlyList<string>? labels = null,
+        [Description("Whether to also return the issues each pull request closes; false when not given")]
+            bool closingIssues = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -228,6 +230,7 @@ public sealed class WorkflowMcpTools
                 issue: issue,
                 head: head,
                 labels: labels,
+                closingIssues: closingIssues,
                 cancellationToken: cancellationToken
             );
         }
