@@ -34,17 +34,17 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
         + USER_AUTHOR
         + ",\"authorAssociation\":\"OWNER\",\"createdAt\":\"2026-01-01T00:00:00Z\",\"isMinimized\":false,\"url\":\""
         + COMMENT_URL
-        + "\",\"body\":\"hello\"}";
+        + "\",\"body\":\"hello\",\"updatedAt\":\"2026-01-04T00:00:00Z\"}";
 
     private const string REVIEW =
         "{\"fullDatabaseId\":\"2\",\"author\":{\"__typename\":\"Bot\",\"login\":\"copilot\"},\"authorAssociation\":\"NONE\",\"state\":\"APPROVED\",\"submittedAt\":\"2026-01-02T00:00:00Z\",\"url\":\""
         + REVIEW_URL
-        + "\",\"body\":\"looks good\"}";
+        + "\",\"body\":\"looks good\",\"updatedAt\":\"2026-01-05T00:00:00Z\"}";
 
     private const string INLINE =
         "{\"fullDatabaseId\":\"3\",\"author\":{\"__typename\":\"Mannequin\",\"login\":\"ghost\"},\"authorAssociation\":\"MEMBER\",\"createdAt\":\"2026-01-03T00:00:00Z\",\"isMinimized\":true,\"url\":\""
         + INLINE_URL
-        + "\",\"body\":\"fix this\",\"replyTo\":{\"fullDatabaseId\":\"4\"},\"pullRequestReview\":{\"fullDatabaseId\":\"2\"}}";
+        + "\",\"body\":\"fix this\",\"updatedAt\":\"2026-01-06T00:00:00Z\",\"replyTo\":{\"fullDatabaseId\":\"4\"},\"pullRequestReview\":{\"fullDatabaseId\":\"2\"}}";
 
     private const string THREAD_COMMENTS =
         "\"comments\":{\"totalCount\":1,\"pageInfo\":{\"hasNextPage\":false,\"endCursor\":null},\"nodes\":["
@@ -69,7 +69,8 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
         CreatedAt: "2026-01-01T00:00:00Z",
         Minimized: false,
         Url: new(COMMENT_URL),
-        Body: "hello"
+        Body: "hello",
+        UpdatedAt: "2026-01-04T00:00:00Z"
     );
 
     private static readonly PullRequestReview ExpectedReview = new(
@@ -79,7 +80,8 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
         State: "APPROVED",
         SubmittedAt: "2026-01-02T00:00:00Z",
         Url: new(REVIEW_URL),
-        Body: "looks good"
+        Body: "looks good",
+        UpdatedAt: "2026-01-05T00:00:00Z"
     );
 
     private static readonly PullRequestInlineComment ExpectedInline = new(
@@ -91,7 +93,8 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
         CreatedAt: "2026-01-03T00:00:00Z",
         Minimized: true,
         Url: new(INLINE_URL),
-        Body: "fix this"
+        Body: "fix this",
+        UpdatedAt: "2026-01-06T00:00:00Z"
     );
 
     [Fact]
@@ -287,6 +290,59 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task ExactBodiesAreReturnedByteForByteAsync()
+    {
+        string comment = Mutate(
+            source: COMMENT,
+            oldValue: "\"body\":\"hello\"",
+            newValue: "\"body\":\"\\n hello \\r\\n\\n\""
+        );
+        string review = Mutate(source: REVIEW, oldValue: "\"body\":\"looks good\"", newValue: "\"body\":\"ok\\n\"");
+        string thread = Mutate(source: THREAD, oldValue: "\"body\":\"fix this\"", newValue: "\"body\":\"fix\\r\\n\"");
+
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Page(
+                comments: Connection(totalCount: 1, nodes: comment),
+                reviews: Connection(totalCount: 1, nodes: review),
+                threads: Connection(totalCount: 1, nodes: thread)
+            )
+        );
+
+        PullRequestComments result = await this.CreateReader(upstream)
+            .ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                exactBodies: true,
+                cancellationToken: this.CancellationToken()
+            );
+
+        Assert.Equal(expected: [ExpectedComment with { Body = "\n hello \r\n\n" }], actual: result.Comments);
+        Assert.Equal(expected: [ExpectedReview with { Body = "ok\n" }], actual: result.Reviews);
+        Assert.Equal(
+            expected: [ExpectedInline with { Body = "fix\r\n" }],
+            actual: Assert.Single(result.Threads).Comments
+        );
+    }
+
+    [Fact]
+    public async Task UpdatedAtIsFlattenedLikeOtherHeadersAsync()
+    {
+        string comment = Mutate(
+            source: COMMENT,
+            oldValue: "\"updatedAt\":\"2026-01-04T00:00:00Z\"",
+            newValue: "\"updatedAt\":\"2026-01-04\\n00:00:00Z\""
+        );
+
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Page(comments: Connection(totalCount: 1, nodes: comment))
+        );
+
+        PullRequestComments result = await this.ReadAsync(upstream);
+
+        Assert.Equal(expected: [ExpectedComment with { UpdatedAt = "2026-01-04 00:00:00Z" }], actual: result.Comments);
+    }
+
+    [Fact]
     public async Task OptionalValuesMayBeMissingAsync()
     {
         string review = Mutate(
@@ -348,6 +404,7 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
     [InlineData("\"url\":\"" + COMMENT_URL + "\"", "\"url\":\"pull/41#issuecomment-1\"")]
     [InlineData("\"url\":\"" + COMMENT_URL + "\"", "\"url\":\"ftp://github.com/pull/41\"")]
     [InlineData("\"body\":\"hello\"", "\"body\":null")]
+    [InlineData("\"updatedAt\":\"2026-01-04T00:00:00Z\"", "\"updatedAt\":null")]
     public async Task MalformedCommentIsIncompleteAsync(string oldValue, string newValue)
     {
         string comment = Mutate(source: COMMENT, oldValue: oldValue, newValue: newValue);
@@ -363,6 +420,7 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
     [InlineData("\"state\":\"APPROVED\"", "\"state\":null")]
     [InlineData("\"fullDatabaseId\":\"2\"", "\"fullDatabaseId\":null")]
     [InlineData("\"url\":\"" + REVIEW_URL + "\"", "\"url\":null")]
+    [InlineData("\"updatedAt\":\"2026-01-05T00:00:00Z\"", "\"updatedAt\":null")]
     public async Task MalformedReviewIsIncompleteAsync(string oldValue, string newValue)
     {
         string review = Mutate(source: REVIEW, oldValue: oldValue, newValue: newValue);
@@ -389,6 +447,7 @@ public sealed class PullRequestCommentsReaderTests : GitHubClientTestBase
     [InlineData("\"isMinimized\":true", "\"isMinimized\":null")]
     [InlineData("\"replyTo\":{\"fullDatabaseId\":\"4\"}", "\"replyTo\":{\"fullDatabaseId\":\"x\"}")]
     [InlineData("\"pullRequestReview\":{\"fullDatabaseId\":\"2\"}", "\"pullRequestReview\":{\"fullDatabaseId\":null}")]
+    [InlineData("\"updatedAt\":\"2026-01-06T00:00:00Z\"", "\"updatedAt\":null")]
     public async Task MalformedThreadIsIncompleteAsync(string oldValue, string newValue)
     {
         string thread = Mutate(source: THREAD, oldValue: oldValue, newValue: newValue);

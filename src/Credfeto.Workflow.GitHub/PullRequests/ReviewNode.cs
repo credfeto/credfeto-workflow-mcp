@@ -12,5 +12,6 @@ internal sealed record ReviewNode(
     [property: JsonPropertyName("state")] string? State,
     [property: JsonPropertyName("submittedAt")] string? SubmittedAt,
     [property: JsonPropertyName("url")] string? Url,
-    [property: JsonPropertyName("body")] string? Body
+    [property: JsonPropertyName("body")] string? Body,
+    [property: JsonPropertyName("updatedAt")] string? UpdatedAt
 );

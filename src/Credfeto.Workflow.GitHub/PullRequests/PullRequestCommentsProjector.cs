@@ -16,11 +16,13 @@ internal sealed class PullRequestCommentsProjector
 
     private const string COMMENTED_STATE = "COMMENTED";
 
+    private readonly bool _exactBodies;
     private readonly string _reference;
 
-    public PullRequestCommentsProjector(string reference)
+    public PullRequestCommentsProjector(string reference, bool exactBodies)
     {
         this._reference = reference;
+        this._exactBodies = exactBodies;
     }
 
     public PullRequestComment Comment(IssueCommentNode node)
@@ -32,7 +34,8 @@ internal sealed class PullRequestCommentsProjector
             CreatedAt: this.Header(node.CreatedAt),
             Minimized: node.IsMinimized ?? throw this.Incomplete(),
             Url: this.Url(node.Url),
-            Body: this.Body(node.Body)
+            Body: this.Body(node.Body),
+            UpdatedAt: this.Header(node.UpdatedAt)
         );
     }
 
@@ -45,7 +48,8 @@ internal sealed class PullRequestCommentsProjector
             State: this.Header(node.State),
             SubmittedAt: node.SubmittedAt is null ? string.Empty : this.Header(node.SubmittedAt),
             Url: this.Url(node.Url),
-            Body: this.Body(node.Body)
+            Body: this.Body(node.Body),
+            UpdatedAt: this.Header(node.UpdatedAt)
         );
     }
 
@@ -98,7 +102,8 @@ internal sealed class PullRequestCommentsProjector
             CreatedAt: this.Header(node.CreatedAt),
             Minimized: node.IsMinimized ?? throw this.Incomplete(),
             Url: this.Url(node.Url),
-            Body: this.Body(node.Body)
+            Body: this.Body(node.Body),
+            UpdatedAt: this.Header(node.UpdatedAt)
         );
     }
 
@@ -166,9 +171,15 @@ internal sealed class PullRequestCommentsProjector
         return UpstreamText.ReplaceLineBreaking(value);
     }
 
+    // Exact bodies are passed on byte for byte, for callers that hash them; otherwise trailing line breaks are dropped
     private string Body(string? value)
     {
-        return value?.TrimEnd('\r', '\n') ?? throw this.Incomplete();
+        if (value is null)
+        {
+            throw this.Incomplete();
+        }
+
+        return this._exactBodies ? value : value.TrimEnd('\r', '\n');
     }
 
     private static bool IsBlank(string body)

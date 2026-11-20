@@ -20,7 +20,7 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
     private const string NOT_FOUND_ERROR = "Could not resolve to a PullRequest with the number";
 
     private const string COMMENTS_QUERY =
-        "query($o:String!,$r:String!,$n:Int!,$comments:Boolean!,$reviews:Boolean!,$threads:Boolean!,$commentsAfter:String,$reviewsAfter:String,$threadsAfter:String){repository(owner:$o,name:$r){pullRequest(number:$n){reviewDecision comments(first:100,after:$commentsAfter) @include(if:$comments){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation createdAt isMinimized url body}} reviews(first:100,after:$reviewsAfter) @include(if:$reviews){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation state submittedAt url body}} reviewThreads(first:100,after:$threadsAfter) @include(if:$threads){totalCount pageInfo{hasNextPage endCursor} nodes{isResolved isOutdated path line originalLine comments(first:100){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation createdAt isMinimized url body replyTo{fullDatabaseId} pullRequestReview{fullDatabaseId}}}}}}}}";
+        "query($o:String!,$r:String!,$n:Int!,$comments:Boolean!,$reviews:Boolean!,$threads:Boolean!,$commentsAfter:String,$reviewsAfter:String,$threadsAfter:String){repository(owner:$o,name:$r){pullRequest(number:$n){reviewDecision comments(first:100,after:$commentsAfter) @include(if:$comments){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation createdAt isMinimized url body updatedAt}} reviews(first:100,after:$reviewsAfter) @include(if:$reviews){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation state submittedAt url body updatedAt}} reviewThreads(first:100,after:$threadsAfter) @include(if:$threads){totalCount pageInfo{hasNextPage endCursor} nodes{isResolved isOutdated path line originalLine comments(first:100){totalCount pageInfo{hasNextPage endCursor} nodes{fullDatabaseId author{__typename login} authorAssociation createdAt isMinimized url body updatedAt replyTo{fullDatabaseId} pullRequestReview{fullDatabaseId}}}}}}}}";
 
     private readonly IGitHubGraphQlClient _graphQlClient;
 
@@ -29,9 +29,24 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
         this._graphQlClient = graphQlClient;
     }
 
+    public ValueTask<PullRequestComments> ReadAsync(
+        string repository,
+        int pullRequest,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ReadAsync(
+            repository: repository,
+            pullRequest: pullRequest,
+            exactBodies: false,
+            cancellationToken: cancellationToken
+        );
+    }
+
     public async ValueTask<PullRequestComments> ReadAsync(
         string repository,
         int pullRequest,
+        bool exactBodies,
         CancellationToken cancellationToken
     )
     {
@@ -50,6 +65,7 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
                 repository: validRepository,
                 pullRequest: pullRequest,
                 reference: reference,
+                exactBodies: exactBodies,
                 cancellationToken: cancellationToken
             );
         }
@@ -79,6 +95,7 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
         string repository,
         int pullRequest,
         string reference,
+        bool exactBodies,
         CancellationToken cancellationToken
     )
     {
@@ -87,7 +104,7 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
         string owner = repository[..separator];
         string name = repository[(separator + 1)..];
 
-        PullRequestCommentsProjector projector = new(reference);
+        PullRequestCommentsProjector projector = new(reference: reference, exactBodies: exactBodies);
         PagedList<IssueCommentNode, PullRequestComment> comments = new(
             project: projector.Comment,
             reference: reference
@@ -115,8 +132,8 @@ public sealed class PullRequestCommentsReader : IPullRequestCommentsReader
                 cancellationToken: cancellationToken
             );
 
-            PullRequestNode node =
-                data.Repository?.PullRequest ?? throw PullRequestCommentsFailure.Incomplete(reference);
+            PullRequestNode node = data.Repository?.PullRequest
+                ?? throw PullRequestCommentsFailure.Incomplete(reference);
 
             comments.Accept(node.Comments);
             reviews.Accept(node.Reviews);
