@@ -1,7 +1,6 @@
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
@@ -43,40 +42,51 @@ public sealed class WorkflowStatusCheckService : IWorkflowStatusCheckService
     )
     {
         string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
-        WorkItem workItem = ValidWorkItem(pullRequest: pullRequest, issue: issue);
+        BoardWorkItem workItem = BoardWorkItem.Validate(pullRequest: pullRequest, issue: issue);
 
         return this.ReadAsync(repository: validRepository, workItem: workItem, cancellationToken: cancellationToken);
     }
 
-    // The work item is validated before the board is resolved, so an invalid one is reported as such rather than as
-    // a board failure
-    private static WorkItem ValidWorkItem(int? pullRequest, int? issue)
+    public ValueTask<WorkflowBoardItems> ListAsync(string repository, CancellationToken cancellationToken)
     {
-        if (pullRequest.HasValue == issue.HasValue)
-        {
-            throw ParameterValidationException.For(
-                parameterName: "pr",
-                rule: "exactly one of pr or issue must be given"
-            );
-        }
+        string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
 
-        if (pullRequest is { } pullRequestNumber)
-        {
-            return pullRequestNumber > 0
-                ? new(Kind: WorkItemKind.PULL_REQUEST, Number: pullRequestNumber)
-                : throw ParameterValidationException.For(parameterName: nameof(pullRequest), rule: "must be above 0");
-        }
+        return this.ListBoardAsync(repository: validRepository, cancellationToken: cancellationToken);
+    }
 
-        int issueNumber = issue.GetValueOrDefault();
+    private async ValueTask<WorkflowBoardItems> ListBoardAsync(string repository, CancellationToken cancellationToken)
+    {
+        WorkflowProject project = await this._boardResolver.ResolveAsync(
+            repository: repository,
+            cancellationToken: cancellationToken
+        );
 
-        return issueNumber > 0
-            ? new(Kind: WorkItemKind.ISSUE, Number: issueNumber)
-            : throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0");
+        IReadOnlyList<BoardListedItem> listed = await this._boardReader.ListItemsAsync(
+            project: project,
+            field: StateNames,
+            cancellationToken: cancellationToken
+        );
+
+        IReadOnlyList<WorkflowBoardItem> items = [.. listed.Select(ToBoardItem)];
+
+        return new(Repository: repository, Total: items.Count, Items: items);
+    }
+
+    private static WorkflowBoardItem ToBoardItem(BoardListedItem item)
+    {
+        return new(
+            Kind: item.Kind == WorkItemKind.PULL_REQUEST
+                ? WorkflowBoardItemKind.PullRequest
+                : WorkflowBoardItemKind.Issue,
+            Repository: item.Repository,
+            Number: item.Number,
+            State: item.Status.State == BoardItemState.STATE ? item.Status.Name : null
+        );
     }
 
     private async ValueTask<WorkflowStatusCheckResult> ReadAsync(
         string repository,
-        WorkItem workItem,
+        BoardWorkItem workItem,
         CancellationToken cancellationToken
     )
     {
@@ -109,8 +119,4 @@ public sealed class WorkflowStatusCheckService : IWorkflowStatusCheckService
             ),
         };
     }
-
-    [StructLayout(LayoutKind.Auto)]
-    [DebuggerDisplay("{Kind} {Number}")]
-    private readonly record struct WorkItem(WorkItemKind Kind, int Number);
 }

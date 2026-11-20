@@ -67,6 +67,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "run_rerun",
         "run_view",
         "tag_view",
+        "workflow_board_items",
         "workflow_list",
         "workflow_run",
         "workflow_status_check",
@@ -206,6 +207,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_ready_at")]
     [InlineData("pr_auto_merge_at")]
     [InlineData("workflow_status_check")]
+    [InlineData("workflow_board_items")]
     [InlineData("body_check")]
     [InlineData("closing_issue_labels")]
     [InlineData("run_list")]
@@ -824,6 +826,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         JsonElement schema = this.GetTool("workflow_status_check").ProtocolTool.InputSchema;
 
         Assert.Equal(expected: ["issue", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void WorkflowBoardItemsTakesRepo()
+    {
+        JsonElement schema = this.GetTool("workflow_board_items").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 

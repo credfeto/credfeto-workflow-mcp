@@ -82,6 +82,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only branch_compare MCP tool (repo, base, head) that returns how many commits the head branch is ahead of and behind the base branch and the comparison status, read with one GraphQL query, so the orchestrator can tell a pull request branch is behind its base without calling gh (#149)
 - pr_checks now says for each check whether the branch rules require it (required), whether anything has reported it on the commit (reported) and whether it was judged by a check run or a commit status (kind), and counts the checks nothing has reported (notReported) and every check run on the commit still running (runningCheckRuns), so a required check that has not started can be told from one still running (#148)
 - issue_view now returns the issue's milestone title and, with the optional comments flag, every comment with its author, creation and last edit times and whole, unmodified body, so the orchestrator can fingerprint an issue from one call (#150)
+- Added read-only workflow_board_items MCP tool (repo) that lists every issue and pull request on a repository's Workflow board with its status, reading every page before returning, so the orchestrator can read the whole board in one call rather than one call per item (#152)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)

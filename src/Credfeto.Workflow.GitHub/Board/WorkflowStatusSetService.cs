@@ -1,6 +1,4 @@
 using System;
-using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
@@ -38,7 +36,7 @@ public sealed class WorkflowStatusSetService : IWorkflowStatusSetService
         // Every argument is validated before the board is resolved, so invalid input never costs a GitHub call and is
         // reported as such rather than as a board failure
         string validRepository = GitHubNames.Repository(value: repository, parameterName: nameof(repository));
-        WorkItem workItem = ValidWorkItem(pullRequest: pullRequest, issue: issue);
+        BoardWorkItem workItem = BoardWorkItem.Validate(pullRequest: pullRequest, issue: issue);
         string state = ValidState(status);
 
         return this.WriteAsync(
@@ -56,33 +54,9 @@ public sealed class WorkflowStatusSetService : IWorkflowStatusSetService
             : WorkflowStates.Canonicalise(status);
     }
 
-    private static WorkItem ValidWorkItem(int? pullRequest, int? issue)
-    {
-        if (pullRequest.HasValue == issue.HasValue)
-        {
-            throw ParameterValidationException.For(
-                parameterName: "pr",
-                rule: "exactly one of pr or issue must be given"
-            );
-        }
-
-        if (pullRequest is { } pullRequestNumber)
-        {
-            return pullRequestNumber > 0
-                ? new(Kind: WorkItemKind.PULL_REQUEST, Number: pullRequestNumber)
-                : throw ParameterValidationException.For(parameterName: nameof(pullRequest), rule: "must be above 0");
-        }
-
-        int issueNumber = issue.GetValueOrDefault();
-
-        return issueNumber > 0
-            ? new(Kind: WorkItemKind.ISSUE, Number: issueNumber)
-            : throw ParameterValidationException.For(parameterName: nameof(issue), rule: "must be above 0");
-    }
-
     private async ValueTask<WorkflowStatusSetResponse> WriteAsync(
         string repository,
-        WorkItem workItem,
+        BoardWorkItem workItem,
         string state,
         CancellationToken cancellationToken
     )
@@ -119,14 +93,10 @@ public sealed class WorkflowStatusSetService : IWorkflowStatusSetService
         return new(ItemUrl: ItemUrl(repository: repository, workItem: workItem), Status: state);
     }
 
-    private static Uri ItemUrl(string repository, in WorkItem workItem)
+    private static Uri ItemUrl(string repository, in BoardWorkItem workItem)
     {
         string path = workItem.Kind == WorkItemKind.PULL_REQUEST ? "pull" : "issues";
 
         return new(uriString: $"https://github.com/{repository}/{path}/{workItem.Number}", uriKind: UriKind.Absolute);
     }
-
-    [StructLayout(LayoutKind.Auto)]
-    [DebuggerDisplay("{Kind} {Number}")]
-    private readonly record struct WorkItem(WorkItemKind Kind, int Number);
 }
