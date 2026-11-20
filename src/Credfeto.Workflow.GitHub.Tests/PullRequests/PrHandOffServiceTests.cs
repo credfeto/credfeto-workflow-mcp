@@ -192,6 +192,8 @@ public sealed class PrHandOffServiceTests : GitHubClientTestBase
                     Passed: 0,
                     Failed: 0,
                     Pending: 0,
+                    NotReported: 0,
+                    RunningCheckRuns: 0,
                     Checks: []
                 )
             );

@@ -18,6 +18,9 @@ internal static class PrChecksEvaluator
     private const string STATE_SUCCESS = "success";
     private const string STATE_PENDING = "pending";
 
+    // The check run statuses GitHub uses for a run that has not finished
+    private static readonly string[] RunningStatuses = ["queued", "in_progress", "waiting", "pending", "requested"];
+
     public static PrChecksResponse Evaluate(
         string repository,
         string sha,
@@ -44,6 +47,8 @@ internal static class PrChecksEvaluator
             Passed: Count(checks: checks, verdict: PrChecksVerdict.Passed),
             Failed: Count(checks: checks, verdict: PrChecksVerdict.Failed),
             Pending: Count(checks: checks, verdict: PrChecksVerdict.Pending),
+            NotReported: checks.Count(check => !check.Reported),
+            RunningCheckRuns: runs.Count(IsRunning),
             Checks: checks
         );
     }
@@ -69,6 +74,14 @@ internal static class PrChecksEvaluator
     {
         return StringComparer.Ordinal.Equals(x: entry.Name, y: requirement.Name)
             && (entry.IsStatus || requirement.AppId is null || entry.AppId == requirement.AppId);
+    }
+
+    // Every run is counted, not only the newest of each name, as a push-triggered run can be running beside another
+    private static bool IsRunning(CheckRunResponse? run)
+    {
+        return run is { Status: { } status }
+            && string.IsNullOrEmpty(run.Conclusion)
+            && RunningStatuses.Contains(value: status, comparer: StringComparer.Ordinal);
     }
 
     private static PrCheckEntry ToEntry(CheckRunResponse? run)
@@ -166,7 +179,7 @@ internal static class PrChecksEvaluator
         return StringComparer.Ordinal.Equals(x: entry.Conclusion, y: conclusion);
     }
 
-    private static IEnumerable<RequiredCheck> Requirements(
+    private static IEnumerable<Requirement> Requirements(
         IReadOnlyList<RequiredCheck> required,
         IReadOnlyList<PrCheckEntry> latest,
         bool all
@@ -181,32 +194,60 @@ internal static class PrChecksEvaluator
                 comparer: StringComparer.Ordinal
             );
 
-            return required.Concat(seen.Where(name => !requiredNames.Contains(name)).Select(ByName));
+            return required.Select(IsRequired).Concat(seen.Where(name => !requiredNames.Contains(name)).Select(ByName));
         }
 
         // With nothing required every check that reported is judged, so an unprotected branch still gets a verdict
-        return required.Count != 0 ? required : seen.Select(ByName);
+        return required.Count != 0 ? required.Select(IsRequired) : seen.Select(ByName);
     }
 
-    private static RequiredCheck ByName(string name)
+    private static Requirement IsRequired(RequiredCheck check)
     {
-        return new(Name: name, AppId: null);
+        return new(Check: check, Required: true);
     }
 
-    private static PrCheckResult Judge(RequiredCheck requirement, IReadOnlyList<PrCheckEntry> latest)
+    private static Requirement ByName(string name)
     {
-        string baseName = UpstreamText.ReplaceLineBreaking(requirement.Name);
-        string name = requirement.AppId is { } appId ? $"{baseName} (app {appId})" : baseName;
+        return new(Check: new(Name: name, AppId: null), Required: false);
+    }
+
+    private static PrCheckResult Judge(Requirement requirement, IReadOnlyList<PrCheckEntry> latest)
+    {
+        RequiredCheck check = requirement.Check;
+        string baseName = UpstreamText.ReplaceLineBreaking(check.Name);
+        string name = check.AppId is { } appId ? $"{baseName} (app {appId})" : baseName;
 
         PrCheckEntry? worst = latest
-            .Where(entry => Satisfies(entry: entry, requirement: requirement))
+            .Where(entry => Satisfies(entry: entry, requirement: check))
             .OrderByDescending(entry => Severity(entry.Verdict))
             .ThenByDescending(entry => entry.Id)
             .FirstOrDefault();
 
-        return worst is null || worst.Verdict == PrChecksVerdict.Pending
-            ? new(Name: name, Verdict: PrChecksVerdict.Pending, CompletedAt: null, RunId: null)
-            : new(Name: name, Verdict: worst.Verdict, CompletedAt: worst.CompletedAt, RunId: worst.Id);
+        if (worst is null)
+        {
+            return new(
+                Name: name,
+                Verdict: PrChecksVerdict.Pending,
+                CompletedAt: null,
+                RunId: null,
+                Required: requirement.Required,
+                Reported: false,
+                Kind: null
+            );
+        }
+
+        // A check still running has no outcome yet, so it keeps no completion time or run id
+        bool finished = worst.Verdict != PrChecksVerdict.Pending;
+
+        return new(
+            Name: name,
+            Verdict: worst.Verdict,
+            CompletedAt: finished ? worst.CompletedAt : null,
+            RunId: finished ? worst.Id : null,
+            Required: requirement.Required,
+            Reported: true,
+            Kind: worst.IsStatus ? PrCheckKind.Status : PrCheckKind.CheckRun
+        );
     }
 
     // A check pinned to an app is only met by that app's runs, but a failing status of the same name still blocks it
