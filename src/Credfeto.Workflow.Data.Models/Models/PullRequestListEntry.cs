@@ -4,6 +4,7 @@ using System.Diagnostics;
 
 namespace Credfeto.Workflow.Data.Models.Models;
 
+// ClosingIssues is only read when asked for, so it stays null, and out of the serialised result, otherwise
 [DebuggerDisplay("#{Number}: {Title}")]
 public sealed record PullRequestListEntry(
     int Number,
@@ -13,5 +14,7 @@ public sealed record PullRequestListEntry(
     string State,
     IReadOnlyList<string> Flags,
     Uri Url,
-    string Title
+    string Title,
+    IReadOnlyList<string> Labels,
+    IReadOnlyList<ClosingIssueReference>? ClosingIssues
 );

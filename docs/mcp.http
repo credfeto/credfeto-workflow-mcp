@@ -579,6 +579,25 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the pr_list tool asking for closing issues; expects every open pull request with its labels and the issues it closes
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 160,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_list",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "closingIssues": true
+    }
+  }
+}
+
 ### Call the pr_list tool with a label containing a comma; expects a tool error naming the "labels" parameter
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
