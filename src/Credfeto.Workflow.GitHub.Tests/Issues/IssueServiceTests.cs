@@ -58,7 +58,12 @@ public sealed class IssueServiceTests : GitHubClientTestBase
     private async Task<IssueViewResponse> ViewAsync(RecordingHttpMessageHandler upstream)
     {
         return await this.CreateService(upstream)
-            .ViewAsync(repository: REPOSITORY, issue: ISSUE, cancellationToken: this.CancellationToken());
+            .ViewAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                includeComments: false,
+                cancellationToken: this.CancellationToken()
+            );
     }
 
     private async Task<IssueViewResponse> ViewJsonAsync(string json)
@@ -90,7 +95,12 @@ public sealed class IssueServiceTests : GitHubClientTestBase
 
         ParameterValidationException exception = await Assert.ThrowsAsync<ParameterValidationException>(() =>
             this.CreateService(upstream)
-                .ViewAsync(repository: repository, issue: issue, cancellationToken: this.CancellationToken())
+                .ViewAsync(
+                    repository: repository,
+                    issue: issue,
+                    includeComments: false,
+                    cancellationToken: this.CancellationToken()
+                )
                 .AsTask()
         );
 
@@ -130,10 +140,50 @@ public sealed class IssueServiceTests : GitHubClientTestBase
         Assert.Equal(expected: ["feature", "mcp"], actual: response.Labels);
         Assert.Equal(expected: ["credfeto", "alice"], actual: response.Assignees);
         Assert.Equal(expected: "Line one\nLine two", actual: response.Body);
+        Assert.Null(response.Milestone);
+        Assert.Null(response.Comments);
 
         RecordedRequest request = Assert.Single(upstream.Requests);
         Assert.Equal(expected: HttpMethod.Get, actual: request.Method);
         Assert.Equal(expected: IssueUri, actual: request.RequestUri);
+    }
+
+    [Fact]
+    public async Task MilestoneTitleIsReturnedAsync()
+    {
+        IssueViewResponse response = await this.ViewJsonAsync(
+            Mutate(source: FULL_ISSUE, from: "\"title\":", to: "\"milestone\":{\"title\":\"Phase 2\"},\"title\":")
+        );
+
+        Assert.Equal(expected: "Phase 2", actual: response.Milestone);
+    }
+
+    [Fact]
+    public async Task NullMilestoneIsLeftOutAsync()
+    {
+        IssueViewResponse response = await this.ViewJsonAsync(
+            Mutate(source: FULL_ISSUE, from: "\"title\":", to: "\"milestone\":null,\"title\":")
+        );
+
+        Assert.Null(response.Milestone);
+    }
+
+    [Fact]
+    public async Task MilestoneTitleLineBreaksAreReplacedAsync()
+    {
+        IssueViewResponse response = await this.ViewJsonAsync(
+            Mutate(source: FULL_ISSUE, from: "\"title\":", to: "\"milestone\":{\"title\":\"Phase\\n2\"},\"title\":")
+        );
+
+        Assert.Equal(expected: "Phase 2", actual: response.Milestone);
+    }
+
+    [Fact]
+    public Task MilestoneWithoutTitleIsInvalidAsync()
+    {
+        return this.AssertInvalidResponseAsync(
+            Mutate(source: FULL_ISSUE, from: "\"title\":", to: "\"milestone\":{},\"title\":")
+        );
     }
 
     [Fact]
@@ -329,7 +379,12 @@ public sealed class IssueServiceTests : GitHubClientTestBase
 
         _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
             this.CreateService(upstream)
-                .ViewAsync(repository: REPOSITORY, issue: ISSUE, cancellationToken: cancelled.Token)
+                .ViewAsync(
+                    repository: REPOSITORY,
+                    issue: ISSUE,
+                    includeComments: false,
+                    cancellationToken: cancelled.Token
+                )
                 .AsTask()
         );
     }

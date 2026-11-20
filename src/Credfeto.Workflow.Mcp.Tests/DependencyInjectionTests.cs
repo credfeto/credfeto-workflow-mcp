@@ -250,11 +250,11 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
-    public void IssueViewTakesRepoAndIssue()
+    public void IssueViewTakesRepoAndIssueAndOptionalComments()
     {
         JsonElement schema = this.GetTool("issue_view").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["issue", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["comments", "issue", "repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["issue", "repo"], actual: RequiredNames(schema));
     }
 

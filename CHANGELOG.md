@@ -76,6 +76,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - X-Mode request header limiting the tools a client can list and call: no header (or All) keeps every tool, Issues allows only the issue reading, creating, commenting and labelling tools (comment_add refuses pull requests there), and an unknown mode is rejected rather than widened, so a client such as an issue-triage agent can be held to issue work (#139)
 - Added read-only repo_view MCP tool (repo) that reads a repository's default branch, visibility, which merge methods (merge commit, squash, rebase) are allowed and its description through GitHub GraphQL, reporting an unknown merge method setting as unknown rather than disallowed, so workflows can check repository settings through the server (#21)
 - Added auth_status MCP tool that reports the authenticated GitHub login, the MCP host and the GitHub API version, with optional REST and GraphQL rate limits through a rateLimit parameter, and never returns tokens, so workflows can see which account the server is acting as (#23)
+- issue_view now returns the issue's milestone title and, with the optional comments flag, every comment with its author, creation and last edit times and whole, unmodified body, so the orchestrator can fingerprint an issue from one call (#150)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)

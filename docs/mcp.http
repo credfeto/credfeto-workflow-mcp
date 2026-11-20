@@ -536,7 +536,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### Call the issue_view tool; expects the issue's title, state, labels, assignees and body
+### Call the issue_view tool; expects the issue's title, state, labels, assignees, milestone (when set) and body
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -551,6 +551,26 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "issue": 16
+    }
+  }
+}
+
+### Call the issue_view tool with comments; also expects every comment, oldest first, with its author, createdAt, updatedAt and whole, unmodified body
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 156,
+  "method": "tools/call",
+  "params": {
+    "name": "issue_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 16,
+      "comments": true
     }
   }
 }
