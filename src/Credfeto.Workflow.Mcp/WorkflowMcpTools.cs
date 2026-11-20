@@ -463,20 +463,36 @@ public sealed class WorkflowMcpTools
 
     [McpServerTool(Name = "issue_view", Title = "Issue view", ReadOnly = true)]
     [InModes(ToolModes.All | ToolModes.Issues)]
-    [Description("Reads the title, state, labels, assignees and body of an issue")]
+    [Description(
+        "Reads the title, state, labels, assignees, milestone and body of an issue, and on request every comment with its last edit time and whole body"
+    )]
     public static async Task<IssueViewResponse> IssueViewAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The issue number")] int issue,
         IIssueService service,
-        CancellationToken cancellationToken
+        [Description(
+            "Whether to also return every comment, oldest first, with its author, creation and last edit times and whole, unmodified body; false when not given"
+        )]
+            bool comments = false,
+        CancellationToken cancellationToken = default
     )
     {
         try
         {
-            return await service.ViewAsync(repository: repo, issue: issue, cancellationToken: cancellationToken);
+            return await service.ViewAsync(
+                repository: repo,
+                issue: issue,
+                includeComments: comments,
+                cancellationToken: cancellationToken
+            );
         }
         catch (Exception exception)
-            when (exception is IssueNotFoundException or IssueViewFailedException or ParameterValidationException)
+            when (exception
+                    is IssueNotFoundException
+                        or IssueViewFailedException
+                        or IssueCommentsIncompleteException
+                        or ParameterValidationException
+            )
         {
             // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
             // safe to return

@@ -68,6 +68,7 @@ public sealed partial class IssueService : IIssueService
     public async ValueTask<IssueViewResponse> ViewAsync(
         string repository,
         int issue,
+        bool includeComments,
         CancellationToken cancellationToken
     )
     {
@@ -88,7 +89,20 @@ public sealed partial class IssueService : IIssueService
                 cancellationToken: cancellationToken
             );
 
-            return Project(reference: reference, issue: issue, response: response);
+            IssueViewResponse view = Project(reference: reference, issue: issue, response: response);
+
+            return includeComments
+                ? view with
+                {
+                    Comments = await this.ReadWholeCommentsAsync(
+                        validRepository: validRepository,
+                        issue: issue,
+                        reference: reference,
+                        response: response,
+                        cancellationToken: cancellationToken
+                    ),
+                }
+                : view;
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
         {
@@ -272,19 +286,14 @@ public sealed partial class IssueService : IIssueService
             );
 
             Uri url = IssueUrl(response.HtmlUrl);
-            int expected = ExpectedCommentCount(reference: reference, response: response);
 
-            IReadOnlyList<IssueCommentResponse?> comments = await this._restClient.GetAllPagesAsync(
-                relativeUri: $"repos/{validRepository}/issues/{issue}/comments?per_page=100",
-                pageTypeInfo: GitHubJsonContext.Default.IssueCommentResponseArray,
+            IReadOnlyList<IssueCommentResponse?> comments = await this.ReadAllCommentsAsync(
+                validRepository: validRepository,
+                issue: issue,
+                reference: reference,
+                response: response,
                 cancellationToken: cancellationToken
             );
-
-            // A comment added or deleted between the two reads would leave a partial list, which is refused
-            if (comments.Count != expected)
-            {
-                throw IssueCommentsFailure.Incomplete(reference);
-            }
 
             return new IssueCommentsProjector(reference).Project(
                 url: url,
@@ -302,6 +311,45 @@ public sealed partial class IssueService : IIssueService
             // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
             throw new IssueViewFailedException(message: $"could not read issue {reference}", innerException: exception);
         }
+    }
+
+    private async ValueTask<IReadOnlyList<IssueViewComment>> ReadWholeCommentsAsync(
+        string validRepository,
+        int issue,
+        string reference,
+        IssueResponse response,
+        CancellationToken cancellationToken
+    )
+    {
+        IReadOnlyList<IssueCommentResponse?> comments = await this.ReadAllCommentsAsync(
+            validRepository: validRepository,
+            issue: issue,
+            reference: reference,
+            response: response,
+            cancellationToken: cancellationToken
+        );
+
+        return new IssueCommentsProjector(reference).ProjectWhole(comments);
+    }
+
+    private async ValueTask<IReadOnlyList<IssueCommentResponse?>> ReadAllCommentsAsync(
+        string validRepository,
+        int issue,
+        string reference,
+        IssueResponse response,
+        CancellationToken cancellationToken
+    )
+    {
+        int expected = ExpectedCommentCount(reference: reference, response: response);
+
+        IReadOnlyList<IssueCommentResponse?> comments = await this._restClient.GetAllPagesAsync(
+            relativeUri: $"repos/{validRepository}/issues/{issue}/comments?per_page=100",
+            pageTypeInfo: GitHubJsonContext.Default.IssueCommentResponseArray,
+            cancellationToken: cancellationToken
+        );
+
+        // A comment added or deleted between the two reads would leave a partial list, which is refused
+        return comments.Count == expected ? comments : throw IssueCommentsFailure.Incomplete(reference);
     }
 
     private static DateTime? Since(string? since)
@@ -394,8 +442,22 @@ public sealed partial class IssueService : IIssueService
             State: State(response.State),
             Labels: Labels(response.Labels),
             Assignees: Assignees(response.Assignees),
-            Body: response.Body ?? string.Empty
+            Body: response.Body ?? string.Empty,
+            Milestone: MilestoneTitle(response.Milestone)
         );
+    }
+
+    private static string? MilestoneTitle(IssueMilestoneResponse? milestone)
+    {
+        if (milestone is null)
+        {
+            return null;
+        }
+
+        string title = milestone.Title
+            ?? throw new GitHubInvalidResponseException("GitHub returned a milestone without a title");
+
+        return UpstreamText.ReplaceLineBreaking(title);
     }
 
     private static string State(string? state)

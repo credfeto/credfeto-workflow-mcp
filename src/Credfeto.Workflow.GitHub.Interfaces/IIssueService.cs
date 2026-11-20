@@ -6,7 +6,13 @@ namespace Credfeto.Workflow.GitHub.Interfaces;
 
 public interface IIssueService
 {
-    ValueTask<IssueViewResponse> ViewAsync(string repository, int issue, CancellationToken cancellationToken);
+    // Every comment is read, whole, only when includeComments is set
+    ValueTask<IssueViewResponse> ViewAsync(
+        string repository,
+        int issue,
+        bool includeComments,
+        CancellationToken cancellationToken
+    );
 
     ValueTask<IssueComments> CommentsAsync(
         string repository,

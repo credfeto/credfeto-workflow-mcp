@@ -70,6 +70,30 @@ internal sealed class IssueCommentsProjector
         );
     }
 
+    // Every comment, oldest first, with its body exactly as GitHub holds it
+    public IReadOnlyList<IssueViewComment> ProjectWhole(IReadOnlyList<IssueCommentResponse?> responses)
+    {
+        return [.. responses.Select(response => this.WholeComment(response ?? throw this.Incomplete()))];
+    }
+
+    private IssueViewComment WholeComment(IssueCommentResponse response)
+    {
+        return new(
+            Id: this.Id(response.Id),
+            Author: this.Author(response.User),
+            CreatedAt: this.Timestamp(response.CreatedAt),
+            UpdatedAt: this.Timestamp(response.UpdatedAt),
+            Body: response.Body ?? throw this.Incomplete()
+        );
+    }
+
+    private string Timestamp(string? value)
+    {
+        string timestamp = this.Header(value);
+
+        return TryParseTimestamp(value: timestamp, out _) ? timestamp : throw this.Incomplete();
+    }
+
     private static bool Matches((IssueComment Comment, DateTime Created) comment, DateTime? since, string? author)
     {
         return (since is null || comment.Created >= since.Value)

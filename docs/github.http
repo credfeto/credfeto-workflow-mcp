@@ -488,9 +488,11 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
-### REST: an issue's title, state, labels, assignees and body (issue_view)
+### REST: an issue's title, state, labels, assignees, milestone and body (issue_view)
 # GitHub serves pull requests from this endpoint too; a response with a pull_request link is reported as
 # no such issue. A 404 means the issue or the repository is missing, or the caller cannot see it.
+# With comments asked for, every page of the issue's comments is then read with the comments request
+# below and their count checked against the issue's comment count; each comment's updated_at and whole body are kept.
 GET {{apiBaseUrl}}repos/credfeto/credfeto-workflow-mcp/issues/16
 Authorization: Bearer {{token}}
 Accept: application/vnd.github+json
