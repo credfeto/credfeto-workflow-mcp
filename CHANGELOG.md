@@ -14,6 +14,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 ### Added
 - pr_comments returns updatedAt for every comment, review and inline comment, and its new exactBodies option returns every body byte for byte, so the orchestrator can notice edited comments and hash bodies without gh (#154)
 - pr_list returns each pull request's label names, and with the new closingIssues option the issues each closes as repository and number, read in one GraphQL query per 50 listed pull requests, so the orchestrator can find its own and issue-owning pull requests without gh (#151)
+- pr_view opt-in fields review-requests, milestone, cross-repository, closing-issues, checks (the head commit's check runs and status contexts, paged) and commits (each commit's authors with login, email and name, paged), left out of the default set so existing output is unchanged, so the orchestrator can fingerprint a pull request without gh (#153)
 - Credfeto.Workflow.Mcp.Server: a C# (.NET 11) MCP server skeleton replacing cfwf, exposing a /ping endpoint and an MCP ping tool
 - Dockerfile for building and running the MCP server
 - Bearer token requirement on /mcp, forwarded to the configured GitHub ApiBaseUrl through host-restricted REST and GraphQL clients with bounded paging, plus a per-caller-token, per-repo id cache so ids fetched with one caller's token are never served to another

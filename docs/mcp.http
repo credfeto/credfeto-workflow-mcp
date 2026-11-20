@@ -367,6 +367,26 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the pr_view tool for the fingerprint fields; expects review requests, milestone, cross-repository, closing issues, the head commit's checks and every commit's author identities
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 161,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41,
+      "fields": ["review-requests", "milestone", "cross-repository", "closing-issues", "checks", "commits"]
+    }
+  }
+}
+
 ### Call the pr_view tool for files on their own; expects every changed file path, or a tool error if the list is incomplete
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}

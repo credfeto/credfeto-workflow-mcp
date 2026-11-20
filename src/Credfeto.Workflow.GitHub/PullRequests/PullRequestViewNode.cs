@@ -26,5 +26,12 @@ internal sealed record PullRequestViewNode(
     [property: JsonPropertyName("author")] AuthorNode? Author,
     [property: JsonPropertyName("commits")] GraphQlConnection<PullRequestCommitNode>? Commits,
     [property: JsonPropertyName("changedFiles")] int? ChangedFiles,
-    [property: JsonPropertyName("body")] string? Body
+    [property: JsonPropertyName("body")] string? Body,
+    [property: JsonPropertyName("reviewRequests")] GraphQlConnection<ReviewRequestNode>? ReviewRequests,
+    [property: JsonPropertyName("milestone")] MilestoneNode? Milestone,
+    [property: JsonPropertyName("isCrossRepository")] bool? IsCrossRepository,
+    [property: JsonPropertyName("closingIssuesReferences")]
+        GraphQlConnection<ClosingReferenceNode>? ClosingIssuesReferences,
+    [property: JsonPropertyName("headCommit")] GraphQlConnection<HeadCommitNode>? HeadCommit,
+    [property: JsonPropertyName("commitIdentities")] GraphQlConnection<CommitIdentityNode>? CommitIdentities
 );
