@@ -11,5 +11,6 @@ public sealed record PullRequestReview(
     string State,
     string SubmittedAt,
     Uri Url,
-    string Body
+    string Body,
+    string UpdatedAt
 );

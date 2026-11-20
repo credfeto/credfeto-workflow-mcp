@@ -61,18 +61,27 @@ public sealed class WorkflowMcpTools
     [McpServerTool(Name = "pr_comments", Title = "Pull request comments", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
-        "Reads every top-level comment, review and inline review thread on a pull request, or fails rather than return a partial list"
+        "Reads every top-level comment, review and inline review thread on a pull request, each with the time it was last updated, or fails rather than return a partial list"
     )]
     public static async Task<PullRequestComments> PrCommentsAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The pull request number")] int pr,
         IPullRequestCommentsReader reader,
-        CancellationToken cancellationToken
+        [Description(
+            "Whether to return every body byte for byte, trailing line breaks included; false (trailing line breaks dropped) when not given"
+        )]
+            bool exactBodies = false,
+        CancellationToken cancellationToken = default
     )
     {
         try
         {
-            return await reader.ReadAsync(repository: repo, pullRequest: pr, cancellationToken: cancellationToken);
+            return await reader.ReadAsync(
+                repository: repo,
+                pullRequest: pr,
+                exactBodies: exactBodies,
+                cancellationToken: cancellationToken
+            );
         }
         catch (Exception exception)
             when (exception

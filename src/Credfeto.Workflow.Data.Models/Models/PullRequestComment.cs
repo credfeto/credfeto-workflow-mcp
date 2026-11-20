@@ -11,5 +11,6 @@ public sealed record PullRequestComment(
     string CreatedAt,
     bool Minimized,
     Uri Url,
-    string Body
+    string Body,
+    string UpdatedAt
 );

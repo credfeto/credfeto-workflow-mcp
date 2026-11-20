@@ -191,6 +191,26 @@ Accept: application/json, text/event-stream
   }
 }
 
+### Call the pr_comments tool with exact bodies; expects every body byte for byte, trailing line breaks included
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 156,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_comments",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 41,
+      "exactBodies": true
+    }
+  }
+}
+
 ### Call the pr_comments tool with an invalid repository; expects a tool error naming the "repo" parameter
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}

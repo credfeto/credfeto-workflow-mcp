@@ -7,4 +7,11 @@ namespace Credfeto.Workflow.GitHub.Interfaces;
 public interface IPullRequestCommentsReader
 {
     ValueTask<PullRequestComments> ReadAsync(string repository, int pullRequest, CancellationToken cancellationToken);
+
+    ValueTask<PullRequestComments> ReadAsync(
+        string repository,
+        int pullRequest,
+        bool exactBodies,
+        CancellationToken cancellationToken
+    );
 }
