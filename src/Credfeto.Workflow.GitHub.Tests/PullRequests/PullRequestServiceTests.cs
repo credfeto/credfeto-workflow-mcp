@@ -230,13 +230,19 @@ public sealed class PullRequestServiceTests : GitHubClientTestBase
     }
 
     [Fact]
-    public void DefaultFieldsAreEverythingExceptChangedFilesFilesAndBody()
+    public void DefaultFieldsAreEverythingExceptTheOptInFieldsFilesAndBody()
     {
         string[] expected =
         [
             .. PullRequestViewFields.All.Where(static field =>
                 field
                     is not PullRequestViewFields.ChangedFiles
+                        and not PullRequestViewFields.ReviewRequests
+                        and not PullRequestViewFields.Milestone
+                        and not PullRequestViewFields.CrossRepository
+                        and not PullRequestViewFields.ClosingIssues
+                        and not PullRequestViewFields.Checks
+                        and not PullRequestViewFields.Commits
                         and not PullRequestViewFields.Files
                         and not PullRequestViewFields.Body
             ),

@@ -132,6 +132,7 @@ public sealed class PullRequestService : IPullRequestService
             request: request,
             query: PullRequestViewQuery.Build(request.Fields),
             after: null,
+            checksAfter: null,
             cancellationToken: cancellationToken
         );
 
@@ -139,7 +140,32 @@ public sealed class PullRequestService : IPullRequestService
             request.Fields
         );
 
-        // Files is only ever requested on its own, so at most one of these follow-up reads runs
+        view = await this.ReadPagedFieldsAsync(
+            request: request,
+            node: node,
+            view: view,
+            cancellationToken: cancellationToken
+        );
+
+        if (request.Fields.Contains(PullRequestViewFields.Files, StringComparer.Ordinal))
+        {
+            view = view with
+            {
+                Files = await this.ReadFilesAsync(request: request, node: node, cancellationToken: cancellationToken),
+            };
+        }
+
+        return view;
+    }
+
+    // Files is only ever requested on its own, so it never needs reading alongside these
+    private async ValueTask<PullRequestView> ReadPagedFieldsAsync(
+        PullRequestViewRequest request,
+        PullRequestViewNode node,
+        PullRequestView view,
+        CancellationToken cancellationToken
+    )
+    {
         if (request.Fields.Contains(PullRequestViewFields.CommitAuthors, StringComparer.Ordinal))
         {
             view = view with
@@ -152,15 +178,64 @@ public sealed class PullRequestService : IPullRequestService
             };
         }
 
-        if (request.Fields.Contains(PullRequestViewFields.Files, StringComparer.Ordinal))
+        if (request.Fields.Contains(PullRequestViewFields.Commits, StringComparer.Ordinal))
         {
-            view = view with
-            {
-                Files = await this.ReadFilesAsync(request: request, node: node, cancellationToken: cancellationToken),
-            };
+            CommitIdentityCollector commits = new(request.Reference);
+            await this.ReadRemainingPagesAsync(
+                request: request,
+                cursor: commits.Accept(node.CommitIdentities),
+                page: new(Query: PullRequestViewQuery.CommitIdentitiesPage, Checks: false),
+                accept: next => commits.Accept(next.CommitIdentities),
+                cancellationToken: cancellationToken
+            );
+            view = view with { Commits = commits.Result };
+        }
+
+        if (request.Fields.Contains(PullRequestViewFields.Checks, StringComparer.Ordinal))
+        {
+            CheckRollupCollector checks = new(request.Reference);
+            await this.ReadRemainingPagesAsync(
+                request: request,
+                cursor: checks.Accept(node.HeadCommit),
+                page: new(Query: PullRequestViewQuery.ChecksPage, Checks: true),
+                accept: next => checks.Accept(next.HeadCommit),
+                cancellationToken: cancellationToken
+            );
+            view = view with { Checks = checks.Result };
         }
 
         return view;
+    }
+
+    // The first page arrived with the main query, so the page cap counts it too
+    private async ValueTask ReadRemainingPagesAsync(
+        PullRequestViewRequest request,
+        string? cursor,
+        PullRequestViewPage page,
+        Func<PullRequestViewNode, string?> accept,
+        CancellationToken cancellationToken
+    )
+    {
+        int pages = 1;
+
+        while (cursor is not null)
+        {
+            if (pages == MAX_PAGES)
+            {
+                throw PullRequestViewFailure.Incomplete(request.Reference);
+            }
+
+            PullRequestViewNode next = await this.QueryAsync(
+                request: request,
+                query: page.Query,
+                after: page.Checks ? null : cursor,
+                checksAfter: page.Checks ? cursor : null,
+                cancellationToken: cancellationToken
+            );
+
+            cursor = accept(next);
+            pages++;
+        }
     }
 
     private async ValueTask<string> ReadCommitAuthorsAsync(
@@ -186,6 +261,7 @@ public sealed class PullRequestService : IPullRequestService
                 request: request,
                 query: PullRequestViewQuery.CommitsPage,
                 after: cursor,
+                checksAfter: null,
                 cancellationToken: cancellationToken
             );
 
@@ -235,6 +311,7 @@ public sealed class PullRequestService : IPullRequestService
         PullRequestViewRequest request,
         string query,
         string? after,
+        string? checksAfter,
         CancellationToken cancellationToken
     )
     {
@@ -247,7 +324,8 @@ public sealed class PullRequestService : IPullRequestService
                 Owner: request.Repository[..separator],
                 Name: request.Repository[(separator + 1)..],
                 Number: request.PullRequest,
-                After: after
+                After: after,
+                ChecksAfter: checksAfter
             ),
             variablesTypeInfo: GitHubJsonContext.Default.PullRequestViewQueryVariables,
             dataTypeInfo: GitHubJsonContext.Default.PullRequestViewQueryData,

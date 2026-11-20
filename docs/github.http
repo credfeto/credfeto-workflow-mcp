@@ -156,6 +156,25 @@ Content-Type: application/json
   }
 }
 
+### GraphQL: a pull request's opt-in fields (pr_view review-requests, milestone, cross-repository, closing-issues, checks, commits)
+# headCommit and commitIdentities are aliases of commits, because commit-authors may select commits with other arguments.
+# Further pages of checks resend this selection alone with checksAfter; further pages of commits resend it alone with after.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!,$n:Int!,$after:String,$checksAfter:String){repository(owner:$o,name:$r){pullRequest(number:$n){reviewRequests(first:100){totalCount nodes{requestedReviewer{__typename ... on User{login} ... on Bot{login} ... on Mannequin{login} ... on Team{slug}}}} milestone{title} isCrossRepository closingIssuesReferences(first:100){totalCount nodes{number repository{nameWithOwner}}} headCommit:commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100,after:$checksAfter){totalCount pageInfo{hasNextPage endCursor} nodes{__typename ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}} commitIdentities:commits(first:100,after:$after){totalCount pageInfo{hasNextPage endCursor} nodes{commit{oid authors(first:100){totalCount nodes{user{login} email name}}}}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp",
+    "n": 41
+  }
+}
+
 ### GraphQL: a pull request's changed file count, read before listing the files (pr_view files)
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}

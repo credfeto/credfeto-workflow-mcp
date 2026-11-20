@@ -89,14 +89,14 @@ public sealed class WorkflowMcpTools
     [McpServerTool(Name = "pr_view", Title = "Pull request view", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
-        "Reads the requested fields of a pull request, in canonical order; with no fields every field except changed-files, files and body, the last two of which can only be asked for on their own"
+        "Reads the requested fields of a pull request, in canonical order; with no fields every field except changed-files, review-requests, milestone, cross-repository, closing-issues, checks, commits, files and body, the last two of which can only be asked for on their own"
     )]
     public static async Task<PullRequestView> PrViewAsync(
         [Description("The repository, as owner/name")] string repo,
         [Description("The pull request number")] int pr,
         IPullRequestService service,
         [Description(
-            "The fields to return: state, draft, title, url, base, head, head-sha, auto-merge, review-decision, merge-state, mergeable, created-at, merged-at, merge-commit, labels, assignees, author, commit-authors, changed-files, files or body"
+            "The fields to return: state, draft, title, url, base, head, head-sha, auto-merge, review-decision, merge-state, mergeable, created-at, merged-at, merge-commit, labels, assignees, author, commit-authors, review-requests, milestone, cross-repository, closing-issues, checks (the head commit's check runs and statuses), commits (each commit's authors with login, email and name), changed-files, files or body"
         )]
             IReadOnlyList<string>? fields = null,
         CancellationToken cancellationToken = default

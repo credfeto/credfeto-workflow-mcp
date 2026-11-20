@@ -24,6 +24,12 @@ public static class PullRequestViewFields
     public const string Assignees = "assignees";
     public const string Author = "author";
     public const string CommitAuthors = "commit-authors";
+    public const string ReviewRequests = "review-requests";
+    public const string Milestone = "milestone";
+    public const string CrossRepository = "cross-repository";
+    public const string ClosingIssues = "closing-issues";
+    public const string Checks = "checks";
+    public const string Commits = "commits";
     public const string ChangedFiles = "changed-files";
     public const string Files = "files";
     public const string Body = "body";
@@ -49,15 +55,32 @@ public static class PullRequestViewFields
         Assignees,
         Author,
         CommitAuthors,
+        ReviewRequests,
+        Milestone,
+        CrossRepository,
+        ClosingIssues,
+        Checks,
+        Commits,
         ChangedFiles,
         Files,
         Body,
     ];
 
-    // Declared after All, so All is already initialised when this is built. The changed file count is left out so
-    // the default output stays as it was before the field existed
+    // Fields added after the tool shipped are only returned when asked for, so the default output stays as it was
+    private static readonly IReadOnlyList<string> OptIn =
+    [
+        ChangedFiles,
+        ReviewRequests,
+        Milestone,
+        CrossRepository,
+        ClosingIssues,
+        Checks,
+        Commits,
+    ];
+
+    // Declared after All and OptIn, so both are already initialised when this is built
     public static IReadOnlyList<string> Default { get; } =
-    [.. All.Where(field => !IsStandalone(field) && !StringComparer.Ordinal.Equals(x: field, y: ChangedFiles))];
+    [.. All.Where(field => !IsStandalone(field) && !OptIn.Contains(value: field, comparer: StringComparer.Ordinal))];
 
     // Files and body can be large, so they are only returned when asked for on their own
     public static bool IsStandalone(string field)
