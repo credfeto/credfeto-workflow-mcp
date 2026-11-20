@@ -29,12 +29,12 @@ public sealed class RunRerunResultJsonTests : TestBase
         AssertRoundTrips(
             result: new(
                 Outcome: RunRerunOutcome.Refused,
-                Message: "rerun refused: attempt limit",
+                Message: "rerun refused: default branch",
                 Run: 5,
                 Attempt: null,
-                Rule: "attempt limit"
+                Rule: "default branch"
             ),
-            json: "{\"outcome\":\"Refused\",\"message\":\"rerun refused: attempt limit\",\"run\":5,\"rule\":\"attempt limit\"}"
+            json: "{\"outcome\":\"Refused\",\"message\":\"rerun refused: default branch\",\"run\":5,\"rule\":\"default branch\"}"
         );
     }
 

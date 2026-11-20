@@ -83,56 +83,18 @@ public sealed class RunRerunServiceTests : GitHubClientTestBase
     [InlineData("cancelled", 2)]
     [InlineData("timed_out", 1)]
     [InlineData("action_required", 1)]
-    public async Task AFailedRunHasItsFailedJobsRerunAsync(string conclusion, int attempt)
+    public Task AFailedRunHasItsFailedJobsRerunAsync(string conclusion, int attempt)
     {
-        using RecordingHttpMessageHandler upstream = Respond(
-            () => Responses.Json(Run(conclusion: conclusion, attempt: attempt)),
-            static () => Responses.Json(Repository()),
-            static () => Responses.Json(PullRequests(PullRequest(80))),
-            static () => Rerunning()
-        );
-
-        RunRerunResult result = await this.RerunAsync(upstream);
-
-        int next = attempt + 1;
-        Assert.Equal(
-            expected: new RunRerunResult(
-                Outcome: RunRerunOutcome.Success,
-                Message: "Rerunning failed jobs of run 5 (attempt " + Number(next) + ")",
-                Run: 5,
-                Attempt: next,
-                Rule: null
-            ),
-            actual: result
-        );
-        Assert.Equal(
-            expected:
-            [
-                new Uri(API + "/actions/runs/5"),
-                new Uri(API),
-                new Uri(PULLS),
-                new Uri(API + "/actions/runs/5/rerun-failed-jobs"),
-            ],
-            actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
-        );
-        AssertRerunPosted(upstream);
-        await this.AssertRequiredChecksNotReadAsync();
+        return this.AssertFailedJobsRerunAsync(conclusion: conclusion, attempt: attempt);
     }
 
     [Theory]
-    [InlineData(3, "completed")]
-    [InlineData(4, "completed")]
-    [InlineData(3, "in_progress")]
-    public async Task ARunAtTheAttemptLimitIsRefusedAsync(int attempt, string status)
+    [InlineData(3)]
+    [InlineData(4)]
+    [InlineData(10)]
+    public Task ARunOnAttemptThreeOrLaterIsRerunAsync(int attempt)
     {
-        using RecordingHttpMessageHandler upstream = Respond(() =>
-            Responses.Json(Run(status: status, attempt: attempt))
-        );
-
-        RunRerunResult result = await this.RerunAsync(upstream);
-
-        AssertRefused(result: result, rule: "attempt limit");
-        Assert.Single(upstream.Requests);
+        return this.AssertFailedJobsRerunAsync(conclusion: "failure", attempt: attempt);
     }
 
     [Theory]
@@ -719,6 +681,42 @@ public sealed class RunRerunServiceTests : GitHubClientTestBase
     private static void Configure<T>(ValueTask<T> call, ValueTask<T> result)
     {
         _ = call.Returns(result);
+    }
+
+    private async Task AssertFailedJobsRerunAsync(string conclusion, int attempt)
+    {
+        using RecordingHttpMessageHandler upstream = Respond(
+            () => Responses.Json(Run(conclusion: conclusion, attempt: attempt)),
+            static () => Responses.Json(Repository()),
+            static () => Responses.Json(PullRequests(PullRequest(80))),
+            static () => Rerunning()
+        );
+
+        RunRerunResult result = await this.RerunAsync(upstream);
+
+        int next = attempt + 1;
+        Assert.Equal(
+            expected: new RunRerunResult(
+                Outcome: RunRerunOutcome.Success,
+                Message: "Rerunning failed jobs of run 5 (attempt " + Number(next) + ")",
+                Run: 5,
+                Attempt: next,
+                Rule: null
+            ),
+            actual: result
+        );
+        Assert.Equal(
+            expected:
+            [
+                new Uri(API + "/actions/runs/5"),
+                new Uri(API),
+                new Uri(PULLS),
+                new Uri(API + "/actions/runs/5/rerun-failed-jobs"),
+            ],
+            actual: [.. upstream.Requests.Select(static request => request.RequestUri)]
+        );
+        AssertRerunPosted(upstream);
+        await this.AssertRequiredChecksNotReadAsync();
     }
 
     private async Task AssertRequiredChecksNotReadAsync()
