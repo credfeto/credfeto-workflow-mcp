@@ -18,6 +18,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [
         "auth_status",
         "body_check",
+        "branch_compare",
         "branch_required_checks",
         "closing_issue_labels",
         "code_search",
@@ -184,6 +185,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("pr_view")]
     [InlineData("pr_diff")]
     [InlineData("pr_list")]
+    [InlineData("branch_compare")]
     [InlineData("branch_required_checks")]
     [InlineData("issue_view")]
     [InlineData("issue_comments")]
@@ -772,6 +774,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void BranchCompareTakesRepoBaseAndHead()
+    {
+        JsonElement schema = this.GetTool("branch_compare").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["base", "head", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["base", "head", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void PrChecksTakesRepoAndOptionalTargets()
     {
         JsonElement schema = this.GetTool("pr_checks").ProtocolTool.InputSchema;
@@ -928,6 +939,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         return services
             .AddMockedService<IPullRequestCommentsReader>()
             .AddMockedService<IRequiredChecksReader>()
+            .AddMockedService<IBranchCompareService>()
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IPullRequestListService>()
             .AddMockedService<ILabelService>()

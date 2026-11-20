@@ -269,6 +269,42 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "branch_compare", Title = "Branch compare", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Compares two branches of a repository from their merge base: how many commits the head branch is ahead of and behind the base branch, and whether it is identical, ahead, behind or diverged. A missing branch is not found, distinct from a repository that does not exist or cannot be seen"
+    )]
+    public static async Task<BranchCompareResponse> BranchCompareAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The base branch name, such as main")] string @base,
+        [Description("The head branch name, compared against the base")] string head,
+        IBranchCompareService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.CompareAsync(
+                repository: repo,
+                baseBranch: @base,
+                headBranch: head,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is BranchNotFoundException
+                        or RepositoryNotFoundException
+                        or BranchCompareFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "pr_checks", Title = "Pull request checks", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
