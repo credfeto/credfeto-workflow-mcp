@@ -441,6 +441,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._issueService.ViewAsync(
                 repository: REPOSITORY,
                 issue: ISSUE,
+                includeComments: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -448,6 +449,55 @@ public sealed class WorkflowMcpToolsTests : TestBase
         IssueViewResponse actual = await this.IssueViewAsync();
 
         Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task IssueViewAsksForCommentsWhenRequestedAsync()
+    {
+        IssueViewResponse expected = new(
+            Issue: REPOSITORY + "#16",
+            Title: "Add the issue_view tool",
+            State: "OPEN",
+            Labels: [],
+            Assignees: [],
+            Body: "Body text",
+            Milestone: "Phase 2",
+            Comments:
+            [
+                new(
+                    Id: "1",
+                    Author: "alice",
+                    CreatedAt: "2026-01-02T03:04:05Z",
+                    UpdatedAt: "2026-01-03T04:05:06Z",
+                    Body: "Hello"
+                ),
+            ]
+        );
+        this._issueService.ViewAsync(
+                repository: REPOSITORY,
+                issue: ISSUE,
+                includeComments: true,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        IssueViewResponse actual = await WorkflowMcpTools.IssueViewAsync(
+            repo: REPOSITORY,
+            issue: ISSUE,
+            service: this._issueService,
+            comments: true,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public Task IssueViewIncompleteCommentsAreReportedToTheCallerAsync()
+    {
+        return this.AssertIssueViewFailureReportedAsync(
+            new IssueCommentsIncompleteException("could not read all the comments of " + REPOSITORY + "#16")
+        );
     }
 
     [Fact]
@@ -3168,6 +3218,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._issueService.ViewAsync(
                 repository: REPOSITORY,
                 issue: ISSUE,
+                includeComments: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .ThrowsAsync(failure);

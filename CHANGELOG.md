@@ -79,6 +79,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added auth_status MCP tool that reports the authenticated GitHub login, the MCP host and the GitHub API version, with optional REST and GraphQL rate limits through a rateLimit parameter, and never returns tokens, so workflows can see which account the server is acting as (#23)
 - Added read-only branch_compare MCP tool (repo, base, head) that returns how many commits the head branch is ahead of and behind the base branch and the comparison status, read with one GraphQL query, so the orchestrator can tell a pull request branch is behind its base without calling gh (#149)
 - pr_checks now says for each check whether the branch rules require it (required), whether anything has reported it on the commit (reported) and whether it was judged by a check run or a commit status (kind), and counts the checks nothing has reported (notReported) and every check run on the commit still running (runningCheckRuns), so a required check that has not started can be told from one still running (#148)
+- issue_view now returns the issue's milestone title and, with the optional comments flag, every comment with its author, creation and last edit times and whole, unmodified body, so the orchestrator can fingerprint an issue from one call (#150)
 ### Fixed
 ### Changed
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
