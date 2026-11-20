@@ -94,7 +94,8 @@ public sealed class PrStatusServiceTests : TestBase
             CreatedAt: createdAt,
             Minimized: false,
             Url: PullUrl,
-            Body: "body"
+            Body: "body",
+            UpdatedAt: createdAt
         );
     }
 
@@ -107,7 +108,8 @@ public sealed class PrStatusServiceTests : TestBase
             State: state,
             SubmittedAt: submittedAt,
             Url: PullUrl,
-            Body: string.Empty
+            Body: string.Empty,
+            UpdatedAt: submittedAt
         );
     }
 

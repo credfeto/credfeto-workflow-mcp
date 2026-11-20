@@ -14,5 +14,6 @@ internal sealed record ReviewCommentNode(
     [property: JsonPropertyName("url")] string? Url,
     [property: JsonPropertyName("body")] string? Body,
     [property: JsonPropertyName("replyTo")] DatabaseIdNode? ReplyTo,
-    [property: JsonPropertyName("pullRequestReview")] DatabaseIdNode? PullRequestReview
+    [property: JsonPropertyName("pullRequestReview")] DatabaseIdNode? PullRequestReview,
+    [property: JsonPropertyName("updatedAt")] string? UpdatedAt
 );

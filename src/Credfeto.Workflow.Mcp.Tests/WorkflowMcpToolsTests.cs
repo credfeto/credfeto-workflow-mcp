@@ -129,11 +129,42 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._reader.ReadAsync(
                 repository: REPOSITORY,
                 pullRequest: PULL_REQUEST,
+                exactBodies: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
 
         PullRequestComments actual = await this.ReadAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrCommentsPassesExactBodiesToTheReaderAsync()
+    {
+        PullRequestComments expected = new(
+            Pr: REPOSITORY + "#41",
+            ReviewDecision: "",
+            Comments: [],
+            Reviews: [],
+            Threads: [],
+            Summary: new(Comments: 0, Reviews: 0, ReviewsEmpty: 0, Threads: 0, Unresolved: 0, Inline: 0)
+        );
+        this._reader.ReadAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                exactBodies: true,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestComments actual = await WorkflowMcpTools.PrCommentsAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            reader: this._reader,
+            exactBodies: true,
+            cancellationToken: this.CancellationToken()
+        );
 
         Assert.Same(expected: expected, actual: actual);
     }
@@ -3611,6 +3642,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._reader.ReadAsync(
                 repository: REPOSITORY,
                 pullRequest: PULL_REQUEST,
+                exactBodies: Arg.Any<bool>(),
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .ThrowsAsync(failure);

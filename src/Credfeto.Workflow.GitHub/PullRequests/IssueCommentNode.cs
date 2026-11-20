@@ -12,5 +12,6 @@ internal sealed record IssueCommentNode(
     [property: JsonPropertyName("createdAt")] string? CreatedAt,
     [property: JsonPropertyName("isMinimized")] bool? IsMinimized,
     [property: JsonPropertyName("url")] string? Url,
-    [property: JsonPropertyName("body")] string? Body
+    [property: JsonPropertyName("body")] string? Body,
+    [property: JsonPropertyName("updatedAt")] string? UpdatedAt
 );
