@@ -323,6 +323,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 issue: ISSUE,
                 head: BRANCH,
                 labels: labels,
+                closingIssues: true,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -333,6 +334,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
             issue: ISSUE,
             head: BRANCH,
             labels: labels,
+            closingIssues: true,
             cancellationToken: this.CancellationToken()
         );
 
@@ -348,6 +350,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 issue: null,
                 head: null,
                 labels: null,
+                closingIssues: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -3520,6 +3523,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 issue: Arg.Any<int?>(),
                 head: Arg.Any<string?>(),
                 labels: Arg.Any<IReadOnlyList<string>?>(),
+                closingIssues: Arg.Any<bool>(),
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .ThrowsAsync(failure);

@@ -240,7 +240,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     {
         JsonElement schema = this.GetTool("pr_list").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["head", "issue", "labels", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["closingIssues", "head", "issue", "labels", "repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
         Assert.Contains(
             expectedSubstring: "\"array\"",

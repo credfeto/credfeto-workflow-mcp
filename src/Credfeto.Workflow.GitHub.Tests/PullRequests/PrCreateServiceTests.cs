@@ -146,9 +146,8 @@ public sealed class PrCreateServiceTests : PrCreateServiceTestBase
             expected: "the --head was not found in " + REPOSITORY + ": push the branch first",
             actual: exception.Message
         );
-        Assert.All(
-            collection: upstream.Requests,
-            action: request => Assert.Equal(expected: HttpMethod.Get, actual: request.Method)
+        Assert.All(collection: upstream.Requests, action: request =>
+            Assert.Equal(expected: HttpMethod.Get, actual: request.Method)
         );
         await this.DidNotWriteTheBoardAsync();
     }
@@ -163,9 +162,8 @@ public sealed class PrCreateServiceTests : PrCreateServiceTestBase
         );
 
         Assert.Equal(expected: "could not read the --head in " + REPOSITORY, actual: exception.Message);
-        Assert.All(
-            collection: upstream.Requests,
-            action: request => Assert.Equal(expected: HttpMethod.Get, actual: request.Method)
+        Assert.All(collection: upstream.Requests, action: request =>
+            Assert.Equal(expected: HttpMethod.Get, actual: request.Method)
         );
     }
 
@@ -204,6 +202,7 @@ public sealed class PrCreateServiceTests : PrCreateServiceTestBase
                 issue: null,
                 head: HEAD,
                 labels: null,
+                closingIssues: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             );
     }
@@ -371,6 +370,7 @@ public sealed class PrCreateServiceTests : PrCreateServiceTestBase
                 issue: Arg.Any<int?>(),
                 head: Arg.Any<string?>(),
                 labels: Arg.Any<IReadOnlyList<string>?>(),
+                closingIssues: Arg.Any<bool>(),
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(
@@ -394,6 +394,7 @@ public sealed class PrCreateServiceTests : PrCreateServiceTestBase
                 issue: Arg.Any<int?>(),
                 head: Arg.Any<string?>(),
                 labels: Arg.Any<IReadOnlyList<string>?>(),
+                closingIssues: Arg.Any<bool>(),
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(

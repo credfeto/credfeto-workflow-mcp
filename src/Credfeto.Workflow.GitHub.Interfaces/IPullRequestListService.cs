@@ -12,6 +12,7 @@ public interface IPullRequestListService
         int? issue,
         string? head,
         IReadOnlyList<string>? labels,
+        bool closingIssues,
         CancellationToken cancellationToken
     );
 }

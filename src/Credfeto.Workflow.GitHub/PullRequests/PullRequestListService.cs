@@ -17,11 +17,13 @@ public sealed class PullRequestListService : IPullRequestListService
 {
     private const int MAX_PULL_REQUESTS = 1000;
 
+    private readonly IGitHubGraphQlClient _graphQlClient;
     private readonly IGitHubRestClient _restClient;
 
-    public PullRequestListService(IGitHubRestClient restClient)
+    public PullRequestListService(IGitHubRestClient restClient, IGitHubGraphQlClient graphQlClient)
     {
         this._restClient = restClient;
+        this._graphQlClient = graphQlClient;
     }
 
     public ValueTask<PullRequestListResponse> ListAsync(
@@ -29,6 +31,7 @@ public sealed class PullRequestListService : IPullRequestListService
         int? issue,
         string? head,
         IReadOnlyList<string>? labels,
+        bool closingIssues,
         CancellationToken cancellationToken
     )
     {
@@ -47,6 +50,7 @@ public sealed class PullRequestListService : IPullRequestListService
             issue: issue,
             validHead: validHead,
             validLabels: validLabels,
+            closingIssues: closingIssues,
             cancellationToken: cancellationToken
         );
     }
@@ -56,6 +60,7 @@ public sealed class PullRequestListService : IPullRequestListService
         int? issue,
         string? validHead,
         IReadOnlyList<string> validLabels,
+        bool closingIssues,
         CancellationToken cancellationToken
     )
     {
@@ -84,15 +89,21 @@ public sealed class PullRequestListService : IPullRequestListService
                 );
             }
 
+            IReadOnlyList<PullRequestListEntry> entries = Entries(
+                onHead: onHead,
+                issue: issue,
+                validLabels: validLabels
+            );
+
             return new(
                 Repository: validRepository,
-                PullRequests:
-                [
-                    .. onHead
-                        .Where(item => PullRequestListProjector.HasEveryLabel(item: item, labels: validLabels))
-                        .Select(item => PullRequestListProjector.Project(item: item, issue: issue))
-                        .OrderBy(entry => entry.Number),
-                ]
+                PullRequests: closingIssues
+                    ? await this.WithClosingIssuesAsync(
+                        validRepository: validRepository,
+                        entries: entries,
+                        cancellationToken: cancellationToken
+                    )
+                    : entries
             );
         }
         catch (HttpRequestException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
@@ -102,7 +113,8 @@ public sealed class PullRequestListService : IPullRequestListService
                 innerException: exception
             );
         }
-        catch (Exception exception) when (exception is GitHubInvalidResponseException or HttpRequestException)
+        catch (Exception exception)
+            when (exception is GitHubInvalidResponseException or GitHubGraphQlException or HttpRequestException)
         {
             // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
             throw new PullRequestListFailedException(
@@ -110,6 +122,81 @@ public sealed class PullRequestListService : IPullRequestListService
                 innerException: exception
             );
         }
+    }
+
+    // Only the listed pull requests are read, by number, so one closed since the REST listing still resolves
+    private async ValueTask<IReadOnlyList<PullRequestListEntry>> WithClosingIssuesAsync(
+        string validRepository,
+        IReadOnlyList<PullRequestListEntry> entries,
+        CancellationToken cancellationToken
+    )
+    {
+        // GitHubNames.Repository guarantees exactly one separator between a non-empty owner and name
+        int separator = validRepository.IndexOf('/', StringComparison.Ordinal);
+        PullRequestListClosingQueryVariables variables = new(
+            Owner: validRepository[..separator],
+            Name: validRepository[(separator + 1)..]
+        );
+
+        List<PullRequestListEntry> result = [];
+
+        foreach (PullRequestListEntry[] batch in entries.Chunk(PullRequestListClosingQuery.BATCH_SIZE))
+        {
+            PullRequestListClosingQueryData data = await this._graphQlClient.ExecuteAsync(
+                query: PullRequestListClosingQuery.Build(batch.Select(entry => entry.Number)),
+                variables: variables,
+                variablesTypeInfo: GitHubJsonContext.Default.PullRequestListClosingQueryVariables,
+                dataTypeInfo: GitHubJsonContext.Default.PullRequestListClosingQueryData,
+                cancellationToken: cancellationToken
+            );
+
+            IReadOnlyDictionary<string, PullRequestListClosingNode?> pullRequests = data.Repository
+                ?? throw IncompleteClosingIssues();
+
+            result.AddRange(
+                batch.Select(entry =>
+                    entry with
+                    {
+                        ClosingIssues = ClosingIssues(pullRequests: pullRequests, number: entry.Number),
+                    }
+                )
+            );
+        }
+
+        return result;
+    }
+
+    private static IReadOnlyList<PullRequestListEntry> Entries(
+        IReadOnlyList<PullRequestListItemResponse> onHead,
+        int? issue,
+        IReadOnlyList<string> validLabels
+    )
+    {
+        return
+        [
+            .. onHead
+                .Where(item => PullRequestListProjector.HasEveryLabel(item: item, labels: validLabels))
+                .Select(item => PullRequestListProjector.Project(item: item, issue: issue))
+                .OrderBy(entry => entry.Number),
+        ];
+    }
+
+    private static IReadOnlyList<ClosingIssueReference> ClosingIssues(
+        IReadOnlyDictionary<string, PullRequestListClosingNode?> pullRequests,
+        int number
+    )
+    {
+        return pullRequests.TryGetValue(
+            key: PullRequestListClosingQuery.Alias(number),
+            out PullRequestListClosingNode? node
+        )
+            ? ClosingReferenceProjector.TryProject(node?.ClosingIssuesReferences) ?? throw IncompleteClosingIssues()
+            : throw IncompleteClosingIssues();
+    }
+
+    private static GitHubInvalidResponseException IncompleteClosingIssues()
+    {
+        return new("GitHub returned incomplete closing issue references");
     }
 
     private static IReadOnlyList<string> Labels(IReadOnlyList<string>? labels)

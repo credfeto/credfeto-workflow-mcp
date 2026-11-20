@@ -446,6 +446,23 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### GraphQL: the issues each listed pull request closes, only when closingIssues is asked for (pr_list)
+# One p<number> alias per listed pull request, up to 50 a query; a missing alias or a cut-short list fails the list.
+POST {{apiBaseUrl}}graphql
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+Content-Type: application/json
+
+{
+  "query": "query($o:String!,$r:String!){repository(owner:$o,name:$r){p151:pullRequest(number:151){closingIssuesReferences(first:100){totalCount nodes{number repository{nameWithOwner}}}} p152:pullRequest(number:152){closingIssuesReferences(first:100){totalCount nodes{number repository{nameWithOwner}}}}}}",
+  "variables": {
+    "o": "credfeto",
+    "r": "credfeto-workflow-mcp"
+  }
+}
+
 ### REST: an issue's title, state, labels, assignees and body (issue_view)
 # GitHub serves pull requests from this endpoint too; a response with a pull_request link is reported as
 # no such issue. A 404 means the issue or the repository is missing, or the caller cannot see it.

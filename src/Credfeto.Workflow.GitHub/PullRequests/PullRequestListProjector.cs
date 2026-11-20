@@ -43,8 +43,8 @@ internal static class PullRequestListProjector
 
     public static PullRequestListEntry Project(PullRequestListItemResponse item, int? issue)
     {
-        int number =
-            item.Number ?? throw new GitHubInvalidResponseException("GitHub returned a pull request without a number");
+        int number = item.Number
+            ?? throw new GitHubInvalidResponseException("GitHub returned a pull request without a number");
         string author = Author(item.User);
 
         return new(
@@ -55,7 +55,9 @@ internal static class PullRequestListProjector
             State: item.Draft == true ? DRAFT : READY,
             Flags: Flags(item: item, issue: issue, author: author),
             Url: Url(item.HtmlUrl),
-            Title: Field(item.Title)
+            Title: Field(item.Title),
+            Labels: [.. LabelNames(item.Labels).Select(PullRequestViewText.Clean)],
+            ClosingIssues: null
         );
     }
 
