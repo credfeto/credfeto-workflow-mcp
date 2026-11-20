@@ -1680,14 +1680,30 @@ public sealed class WorkflowMcpTools
                 cancellationToken: cancellationToken
             );
         }
-        catch (Exception exception)
-            when (exception
-                    is WorkflowBoardNotFoundException
-                        or WorkflowBoardAmbiguousException
-                        or WorkflowBoardInvalidException
-                        or BoardReadFailedException
-                        or ParameterValidationException
-            )
+        catch (Exception exception) when (IsWorkflowBoardReadError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "workflow_board_items", Title = "Workflow board items", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Lists every issue and pull request on a repository's Workflow board with its status, reading every page before returning"
+    )]
+    public static async Task<WorkflowBoardItems> WorkflowBoardItemsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IWorkflowStatusCheckService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ListAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (IsWorkflowBoardReadError(exception))
         {
             // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
             // safe to return
@@ -2001,6 +2017,16 @@ public sealed class WorkflowMcpTools
             // safe to return
             throw new McpException(message: exception.Message, innerException: exception);
         }
+    }
+
+    private static bool IsWorkflowBoardReadError(Exception exception)
+    {
+        return exception
+            is WorkflowBoardNotFoundException
+                or WorkflowBoardAmbiguousException
+                or WorkflowBoardInvalidException
+                or BoardReadFailedException
+                or ParameterValidationException;
     }
 
     private static bool IsIssueCreateError(Exception exception)

@@ -209,8 +209,9 @@ Content-Type: application/json
   }
 }
 
-### GraphQL: list the Workflow board's items, only after the direct status read failed (board_read_status, workflow_status_check)
-# Repeat with "c" set to pageInfo.endCursor while pageInfo.hasNextPage is true and the work item is not yet found.
+### GraphQL: list the Workflow board's items, only after the direct status read failed (board_read_status, workflow_status_check), and every page of them (workflow_board_items)
+# Repeat with "c" set to pageInfo.endCursor while pageInfo.hasNextPage is true and the work item is not yet found;
+# workflow_board_items reads every page (at most 100) and fails on a missing or repeated cursor.
 POST {{apiBaseUrl}}graphql
 Authorization: Bearer {{token}}
 Accept: application/vnd.github+json

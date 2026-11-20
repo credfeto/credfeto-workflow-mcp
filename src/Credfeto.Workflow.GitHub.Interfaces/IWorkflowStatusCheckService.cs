@@ -13,4 +13,7 @@ public interface IWorkflowStatusCheckService
         int? issue,
         CancellationToken cancellationToken
     );
+
+    // Every issue and pull request on the repository's Workflow board, with its status judged as CheckAsync does
+    ValueTask<WorkflowBoardItems> ListAsync(string repository, CancellationToken cancellationToken);
 }

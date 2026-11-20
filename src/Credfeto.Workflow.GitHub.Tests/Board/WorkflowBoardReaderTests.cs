@@ -29,6 +29,8 @@ public sealed class WorkflowBoardReaderTests : GitHubClientTestBase
     private const string COULD_NOT_READ =
         "could not read the status of " + REPOSITORY + "#42: both the direct query and the listing of project 7 failed";
 
+    private const string COULD_NOT_LIST = "could not list the items of project 7";
+
     private static readonly WorkflowProject Project = new(ProjectNodeId: PROJECT_ID, Number: 7, Owner: OWNER);
 
     private static readonly WorkflowStatusField Field = new(
@@ -545,6 +547,216 @@ public sealed class WorkflowBoardReaderTests : GitHubClientTestBase
         );
     }
 
+    [Fact]
+    public async Task ListingReturnsEveryItemOnEveryPageWithItsStatusAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(TwoListingPages);
+
+        IReadOnlyList<BoardListedItem> items = await this.ListAsync(upstream);
+
+        Assert.Equal(
+            expected:
+            [
+                new BoardListedItem(
+                    Kind: WorkItemKind.ISSUE,
+                    Repository: REPOSITORY,
+                    Number: 1,
+                    Status: new(State: BoardItemState.STATE, Name: "AI Review")
+                ),
+                new BoardListedItem(
+                    Kind: WorkItemKind.PULL_REQUEST,
+                    Repository: "credfeto/other",
+                    Number: 2,
+                    Status: new(State: BoardItemState.STATE, Name: "Development")
+                ),
+                new BoardListedItem(Kind: WorkItemKind.ISSUE, Repository: REPOSITORY, Number: 3, Status: Unset),
+            ],
+            actual: items
+        );
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+
+        using JsonDocument first = JsonDocument.Parse(upstream.Requests[0].Body ?? string.Empty);
+        Assert.Equal(
+            expected: PROJECT_ID,
+            actual: first.RootElement.GetProperty("variables").GetProperty("project").GetString()
+        );
+
+        using JsonDocument second = JsonDocument.Parse(upstream.Requests[1].Body ?? string.Empty);
+        Assert.Equal(
+            expected: "cursor-1",
+            actual: second.RootElement.GetProperty("variables").GetProperty("c").GetString()
+        );
+    }
+
+    [Theory]
+    [InlineData("{\"type\":\"DRAFT_ISSUE\",\"content\":{},\"legacy\":null,\"status\":null}")]
+    [InlineData("{\"type\":\"REDACTED\",\"content\":null,\"legacy\":null,\"status\":null}")]
+    [InlineData("{\"type\":\"ISSUE\",\"content\":null,\"legacy\":null,\"status\":null}")]
+    [InlineData("{\"type\":\"ISSUE\",\"content\":{\"number\":0,\"repository\":{\"nameWithOwner\":\"a/b\"}}}")]
+    [InlineData("{\"type\":\"ISSUE\",\"content\":{\"number\":5}}")]
+    [InlineData("{\"type\":\"ISSUE\",\"content\":{\"number\":5,\"repository\":{\"nameWithOwner\":\"\"}}}")]
+    [InlineData("{\"content\":{\"number\":5,\"repository\":{\"nameWithOwner\":\"a/b\"}}}")]
+    [InlineData("null")]
+    public async Task ListingLeavesOutItemsThatAreNotReadableWorkItemsAsync(string node)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => ListingPage(node));
+
+        IReadOnlyList<BoardListedItem> items = await this.ListAsync(upstream);
+
+        Assert.Empty(items);
+    }
+
+    [Fact]
+    public async Task EmptyBoardHasNoItemsAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => ListingPage(string.Empty));
+
+        IReadOnlyList<BoardListedItem> items = await this.ListAsync(upstream);
+
+        Assert.Empty(items);
+        _ = Assert.Single(upstream.Requests);
+    }
+
+    [Theory]
+    [InlineData("""{"data":{"node":null}}""")]
+    [InlineData("""{"data":{"node":{"items":{"nodes":[]}}}}""")]
+    [InlineData("""{"data":{"node":{"items":{"nodes":[],"pageInfo":{"hasNextPage":true,"endCursor":null}}}}}""")]
+    public async Task IncompleteListingCouldNotBeListedAsync(string json)
+    {
+        using RecordingHttpMessageHandler upstream = new(_ => Responses.Json(json));
+
+        BoardReadFailedException exception = await Assert.ThrowsAsync<BoardReadFailedException>(() =>
+            this.ListAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: COULD_NOT_LIST, actual: exception.Message);
+    }
+
+    [Fact]
+    public async Task RepeatedCursorCouldNotBeListedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            ListingPage(nodes: string.Empty, hasNextPage: true, endCursor: "same-cursor")
+        );
+
+        BoardReadFailedException exception = await Assert.ThrowsAsync<BoardReadFailedException>(() =>
+            this.ListAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: COULD_NOT_LIST, actual: exception.Message);
+        Assert.Equal(expected: 2, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task EndlessListCouldNotBeListedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static index =>
+            ListingPage(
+                nodes: string.Empty,
+                hasNextPage: true,
+                endCursor: "cursor-" + index.ToString(CultureInfo.InvariantCulture)
+            )
+        );
+
+        BoardReadFailedException exception = await Assert.ThrowsAsync<BoardReadFailedException>(() =>
+            this.ListAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: COULD_NOT_LIST, actual: exception.Message);
+        Assert.Equal(expected: 100, actual: upstream.Requests.Count);
+    }
+
+    [Fact]
+    public async Task HttpFailureCouldNotBeListedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Status(HttpStatusCode.BadGateway));
+
+        BoardReadFailedException exception = await Assert.ThrowsAsync<BoardReadFailedException>(() =>
+            this.ListAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: COULD_NOT_LIST, actual: exception.Message);
+        _ = Assert.IsType<HttpRequestException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task GraphQlErrorsCouldNotBeListedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ =>
+            Responses.Json("""{"errors":[{"message":"Could not resolve to a node"}],"data":null}""")
+        );
+
+        BoardReadFailedException exception = await Assert.ThrowsAsync<BoardReadFailedException>(() =>
+            this.ListAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: COULD_NOT_LIST, actual: exception.Message);
+        _ = Assert.IsType<GitHubGraphQlException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task UnreadableListCouldNotBeListedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => Responses.Html("<html></html>"));
+
+        BoardReadFailedException exception = await Assert.ThrowsAsync<BoardReadFailedException>(() =>
+            this.ListAsync(upstream).AsTask()
+        );
+
+        Assert.Equal(expected: COULD_NOT_LIST, actual: exception.Message);
+        _ = Assert.IsType<GitHubInvalidResponseException>(exception.InnerException);
+    }
+
+    [Fact]
+    public async Task ListingCancellationIsNotWrappedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(static _ => ListingPage(string.Empty));
+        using CancellationTokenSource cancelled = new();
+        await cancelled.CancelAsync();
+
+        _ = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            this.CreateReader(upstream)
+                .ListItemsAsync(project: Project, field: Field, cancellationToken: cancelled.Token)
+                .AsTask()
+        );
+    }
+
+    private static HttpResponseMessage TwoListingPages(int index)
+    {
+        return index switch
+        {
+            0 => ListingPage(
+                nodes: ListingNode(
+                    type: "ISSUE",
+                    number: 1,
+                    repository: REPOSITORY,
+                    legacy: "\"AI Review\"",
+                    status: "\"Development\""
+                )
+                    + ","
+                    + ListingNode(
+                        type: "PULL_REQUEST",
+                        number: 2,
+                        repository: "credfeto/other",
+                        legacy: NO_VALUE,
+                        status: "\"Development\""
+                    ),
+                hasNextPage: true,
+                endCursor: "cursor-1"
+            ),
+            1 => ListingPage(
+                nodes: ListingNode(
+                    type: "ISSUE",
+                    number: 3,
+                    repository: REPOSITORY,
+                    legacy: NO_VALUE,
+                    status: "\"Todo\""
+                )
+            ),
+            _ => throw new InvalidOperationException("Unexpected request"),
+        };
+    }
+
     private static HttpResponseMessage DirectResponse(string direct)
     {
         return direct switch
@@ -625,6 +837,12 @@ public sealed class WorkflowBoardReaderTests : GitHubClientTestBase
         );
 
         return new(graphQlClient: client, logger: this.GetTypedLogger<WorkflowBoardReader>());
+    }
+
+    private ValueTask<IReadOnlyList<BoardListedItem>> ListAsync(HttpMessageHandler upstream)
+    {
+        return this.CreateReader(upstream)
+            .ListItemsAsync(project: Project, field: Field, cancellationToken: this.CancellationToken());
     }
 
     private ValueTask<BoardItemStatus> ReadAsync(HttpMessageHandler upstream, WorkItemKind kind)
