@@ -2654,6 +2654,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
             Passed: 1,
             Failed: 0,
             Pending: 0,
+            NotReported: 0,
+            RunningCheckRuns: 0,
             Checks: []
         );
         this._prChecksService.ReadAsync(
@@ -2681,6 +2683,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
             Passed: 0,
             Failed: 0,
             Pending: 1,
+            NotReported: 0,
+            RunningCheckRuns: 0,
             Checks: []
         );
         this._prChecksService.ReadAsync(

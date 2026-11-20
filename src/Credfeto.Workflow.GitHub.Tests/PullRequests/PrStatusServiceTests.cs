@@ -77,12 +77,30 @@ public sealed class PrStatusServiceTests : TestBase
 
     private static PrCheckResult Check(string name, PrChecksVerdict verdict)
     {
-        return new(Name: name, Verdict: verdict, CompletedAt: null, RunId: null);
+        return new(
+            Name: name,
+            Verdict: verdict,
+            CompletedAt: null,
+            RunId: null,
+            Required: true,
+            Reported: true,
+            Kind: PrCheckKind.CheckRun
+        );
     }
 
     private static PrChecksResponse Checks(PrChecksVerdict verdict, string sha, params PrCheckResult[] checks)
     {
-        return new(Repo: REPOSITORY, Sha: sha, Verdict: verdict, Passed: 0, Failed: 0, Pending: 0, Checks: checks);
+        return new(
+            Repo: REPOSITORY,
+            Sha: sha,
+            Verdict: verdict,
+            Passed: 0,
+            Failed: 0,
+            Pending: 0,
+            NotReported: 0,
+            RunningCheckRuns: 0,
+            Checks: checks
+        );
     }
 
     private static PullRequestComment Comment(string author, string createdAt)
