@@ -533,17 +533,17 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
 
         PrCheckResult[] expected =
         [
-            new(Name: "build", Verdict: PrChecksVerdict.Passed, CompletedAt: COMPLETED_AT, RunId: 1),
-            new(Name: "ci/error", Verdict: PrChecksVerdict.Failed, CompletedAt: UPDATED_AT, RunId: 13),
-            new(Name: "ci/failure", Verdict: PrChecksVerdict.Failed, CompletedAt: UPDATED_AT, RunId: 14),
-            new(Name: "ci/passed", Verdict: PrChecksVerdict.Passed, CompletedAt: UPDATED_AT, RunId: 11),
-            new(Name: "ci/pending", Verdict: PrChecksVerdict.Pending, CompletedAt: null, RunId: null),
-            new(Name: "coverage", Verdict: PrChecksVerdict.Pending, CompletedAt: null, RunId: null),
-            new(Name: "deploy", Verdict: PrChecksVerdict.Failed, CompletedAt: COMPLETED_AT, RunId: 6),
-            new(Name: "docs", Verdict: PrChecksVerdict.Passed, CompletedAt: COMPLETED_AT, RunId: 4),
-            new(Name: "format", Verdict: PrChecksVerdict.Passed, CompletedAt: COMPLETED_AT, RunId: 5),
-            new(Name: "lint", Verdict: PrChecksVerdict.Pending, CompletedAt: null, RunId: null),
-            new(Name: "test", Verdict: PrChecksVerdict.Failed, CompletedAt: COMPLETED_AT, RunId: 2),
+            RunResult(name: "build", verdict: PrChecksVerdict.Passed, runId: 1),
+            StatusResult(name: "ci/error", verdict: PrChecksVerdict.Failed, runId: 13),
+            StatusResult(name: "ci/failure", verdict: PrChecksVerdict.Failed, runId: 14),
+            StatusResult(name: "ci/passed", verdict: PrChecksVerdict.Passed, runId: 11),
+            StatusResult(name: "ci/pending", verdict: PrChecksVerdict.Pending, runId: null),
+            RunResult(name: "coverage", verdict: PrChecksVerdict.Pending, runId: null),
+            RunResult(name: "deploy", verdict: PrChecksVerdict.Failed, runId: 6),
+            RunResult(name: "docs", verdict: PrChecksVerdict.Passed, runId: 4),
+            RunResult(name: "format", verdict: PrChecksVerdict.Passed, runId: 5),
+            RunResult(name: "lint", verdict: PrChecksVerdict.Pending, runId: null),
+            RunResult(name: "test", verdict: PrChecksVerdict.Failed, runId: 2),
         ];
 
         Assert.Equal(expected: PrChecksVerdict.Failed, actual: response.Verdict);
@@ -551,6 +551,71 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
         Assert.Equal(expected: 4, actual: response.Passed);
         Assert.Equal(expected: 4, actual: response.Failed);
         Assert.Equal(expected: 3, actual: response.Pending);
+        Assert.Equal(expected: 0, actual: response.NotReported);
+        Assert.Equal(expected: 1, actual: response.RunningCheckRuns);
+    }
+
+    [Fact]
+    public async Task ReadAsyncTellsARequiredCheckThatHasNotReportedFromOneStillRunningAsync()
+    {
+        PrChecksResponse response = await this.ReadCommitAsync(
+            required: [new(Name: "build", AppId: null), new(Name: "deploy", AppId: null)],
+            runs: Runs(Run(id: 1, name: "build", conclusion: null)),
+            statuses: NO_STATUSES,
+            all: false
+        );
+
+        PrCheckResult[] expected =
+        [
+            new(
+                Name: "build",
+                Verdict: PrChecksVerdict.Pending,
+                CompletedAt: null,
+                RunId: null,
+                Required: true,
+                Reported: true,
+                Kind: PrCheckKind.CheckRun
+            ),
+            new(
+                Name: "deploy",
+                Verdict: PrChecksVerdict.Pending,
+                CompletedAt: null,
+                RunId: null,
+                Required: true,
+                Reported: false,
+                Kind: null
+            ),
+        ];
+
+        Assert.Equal(expected: expected, actual: response.Checks);
+        Assert.Equal(expected: 2, actual: response.Pending);
+        Assert.Equal(expected: 1, actual: response.NotReported);
+        Assert.Equal(expected: 1, actual: response.RunningCheckRuns);
+    }
+
+    [Fact]
+    public async Task ReadAsyncCountsEveryCheckRunStillRunningOnTheCommitAsync()
+    {
+        PrChecksResponse response = await this.ReadCommitAsync(
+            required: [new(Name: "build", AppId: null)],
+            runs: Runs(
+                RunWithStatus(id: 1, name: "build", status: "queued"),
+                RunWithStatus(id: 2, name: "build", status: "in_progress"),
+                RunWithStatus(id: 3, name: "push-only", status: "waiting"),
+                RunWithStatus(id: 4, name: "push-only", status: "pending"),
+                RunWithStatus(id: 5, name: "other", status: "requested"),
+                RunWithStatus(id: 6, name: "other", status: "completed"),
+                RunWithStatus(id: 7, name: "other", status: "unknown"),
+                Run(id: 8, name: "lint", conclusion: "success"),
+                """{"id":9,"name":"done","status":"in_progress","conclusion":"failure","app":{"id":15368}}""",
+                """{"id":10,"name":"nostatus","conclusion":null,"app":{"id":15368}}"""
+            ),
+            statuses: Statuses(Status(id: 11, context: "ci/pending", state: "pending")),
+            all: false
+        );
+
+        Assert.Equal(expected: 5, actual: response.RunningCheckRuns);
+        Assert.Equal(expected: 0, actual: response.NotReported);
     }
 
     [Fact]
@@ -583,7 +648,10 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
                 Name: "build",
                 Verdict: PrChecksVerdict.Pending,
                 CompletedAt: null,
-                RunId: null
+                RunId: null,
+                Required: true,
+                Reported: false,
+                Kind: null
             ),
             actual: check
         );
@@ -605,8 +673,24 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
 
         PrCheckResult[] expected =
         [
-            new(Name: "build", Verdict: PrChecksVerdict.Passed, CompletedAt: COMPLETED_AT, RunId: 1),
-            new(Name: "deploy", Verdict: PrChecksVerdict.Pending, CompletedAt: null, RunId: null),
+            new(
+                Name: "build",
+                Verdict: PrChecksVerdict.Passed,
+                CompletedAt: COMPLETED_AT,
+                RunId: 1,
+                Required: true,
+                Reported: true,
+                Kind: PrCheckKind.CheckRun
+            ),
+            new(
+                Name: "deploy",
+                Verdict: PrChecksVerdict.Pending,
+                CompletedAt: null,
+                RunId: null,
+                Required: true,
+                Reported: false,
+                Kind: null
+            ),
         ];
 
         Assert.Equal(expected: PrChecksVerdict.Pending, actual: response.Verdict);
@@ -631,8 +715,24 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
         Assert.Equal(
             expected:
             [
-                new(Name: "build (app 15368)", Verdict: PrChecksVerdict.Passed, CompletedAt: COMPLETED_AT, RunId: 1),
-                new PrCheckResult(Name: "extra", Verdict: PrChecksVerdict.Failed, CompletedAt: COMPLETED_AT, RunId: 3),
+                new(
+                    Name: "build (app 15368)",
+                    Verdict: PrChecksVerdict.Passed,
+                    CompletedAt: COMPLETED_AT,
+                    RunId: 1,
+                    Required: true,
+                    Reported: true,
+                    Kind: PrCheckKind.CheckRun
+                ),
+                new PrCheckResult(
+                    Name: "extra",
+                    Verdict: PrChecksVerdict.Failed,
+                    CompletedAt: COMPLETED_AT,
+                    RunId: 3,
+                    Required: false,
+                    Reported: true,
+                    Kind: PrCheckKind.CheckRun
+                ),
             ],
             actual: response.Checks
         );
@@ -654,7 +754,10 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
                 Name: "build (app 15368)",
                 Verdict: PrChecksVerdict.Pending,
                 CompletedAt: null,
-                RunId: null
+                RunId: null,
+                Required: true,
+                Reported: false,
+                Kind: null
             ),
             actual: check
         );
@@ -676,7 +779,10 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
                 Name: "build (app 15368)",
                 Verdict: PrChecksVerdict.Failed,
                 CompletedAt: UPDATED_AT,
-                RunId: 2
+                RunId: 2,
+                Required: true,
+                Reported: true,
+                Kind: PrCheckKind.Status
             ),
             actual: check
         );
@@ -702,7 +808,10 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
                 Name: "build",
                 Verdict: PrChecksVerdict.Failed,
                 CompletedAt: COMPLETED_AT,
-                RunId: 3
+                RunId: 3,
+                Required: true,
+                Reported: true,
+                Kind: PrCheckKind.CheckRun
             ),
             actual: check
         );
@@ -724,7 +833,10 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
                 Name: "build",
                 Verdict: PrChecksVerdict.Pending,
                 CompletedAt: null,
-                RunId: null
+                RunId: null,
+                Required: true,
+                Reported: true,
+                Kind: PrCheckKind.Status
             ),
             actual: check
         );
@@ -1015,6 +1127,53 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
         return conclusion is null
             ? $$$"""{"id":{{{id}}},"name":"{{{name}}}","status":"in_progress","conclusion":null,"completed_at":null,"app":{"id":{{{appId}}} }}"""
             : $$$"""{"id":{{{id}}},"name":"{{{name}}}","status":"completed","conclusion":"{{{conclusion}}}","completed_at":"{{{COMPLETED_AT}}}","app":{"id":{{{appId}}} }}""";
+    }
+
+    private static PrCheckResult RunResult(string name, PrChecksVerdict verdict, long? runId)
+    {
+        return Unrequired(
+            name: name,
+            verdict: verdict,
+            runId: runId,
+            completedAt: COMPLETED_AT,
+            kind: PrCheckKind.CheckRun
+        );
+    }
+
+    private static PrCheckResult StatusResult(string name, PrChecksVerdict verdict, long? runId)
+    {
+        return Unrequired(
+            name: name,
+            verdict: verdict,
+            runId: runId,
+            completedAt: UPDATED_AT,
+            kind: PrCheckKind.Status
+        );
+    }
+
+    // A check judged only because it reported, so the branch rules do not require it
+    private static PrCheckResult Unrequired(
+        string name,
+        PrChecksVerdict verdict,
+        long? runId,
+        string completedAt,
+        PrCheckKind kind
+    )
+    {
+        return new(
+            Name: name,
+            Verdict: verdict,
+            CompletedAt: runId is null ? null : completedAt,
+            RunId: runId,
+            Required: false,
+            Reported: true,
+            Kind: kind
+        );
+    }
+
+    private static string RunWithStatus(long id, string name, string status)
+    {
+        return $$$"""{"id":{{{id}}},"name":"{{{name}}}","status":"{{{status}}}","conclusion":null,"completed_at":null,"app":{"id":{{{APP_ID}}} }}""";
     }
 
     private static string Status(long id, string context, string state)
