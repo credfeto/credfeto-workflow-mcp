@@ -40,7 +40,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "auth_status", "body_check", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "release_list", "release_view", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_create", "label_list", "ping", "pr_checks", "pr_close", "pr_comments", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_view", "release_list", "release_view", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_view", "tag_view", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -244,6 +244,66 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "branch": "-bad"
+    }
+  }
+}
+
+### Call the branch_compare tool; expects the repository, both branches, status (identical, ahead, behind or diverged), aheadBy and behindBy
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 156,
+  "method": "tools/call",
+  "params": {
+    "name": "branch_compare",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "base": "main",
+      "head": "feat/149-branch-compare"
+    }
+  }
+}
+
+### Call the branch_compare tool with a head branch that does not exist; expects a tool error saying the branch was not found, distinct from a missing repository
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 157,
+  "method": "tools/call",
+  "params": {
+    "name": "branch_compare",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "base": "main",
+      "head": "does-not-exist"
+    }
+  }
+}
+
+### Call the branch_compare tool with an invalid base branch; expects a tool error naming the "base" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 158,
+  "method": "tools/call",
+  "params": {
+    "name": "branch_compare",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "base": "-bad",
+      "head": "main"
     }
   }
 }

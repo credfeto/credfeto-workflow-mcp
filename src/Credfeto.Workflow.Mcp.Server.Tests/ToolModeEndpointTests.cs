@@ -36,7 +36,7 @@ public sealed class ToolModeEndpointTests : TestBase
         {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"label_remove","arguments":{"repo":"credfeto/credfeto-workflow-mcp","labels":["Bug"],"pr":1}}}
         """;
 
-    private const int ALL_TOOL_COUNT = 54;
+    private const int ALL_TOOL_COUNT = 55;
 
     private static readonly string[] IssuesTools =
     [

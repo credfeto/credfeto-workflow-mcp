@@ -42,6 +42,7 @@ public sealed class McpSetupTests : TestBase
         return services
             .AddMockedService<IPullRequestCommentsReader>()
             .AddMockedService<IRequiredChecksReader>()
+            .AddMockedService<IBranchCompareService>()
             .AddMockedService<IPullRequestService>()
             .AddMockedService<IPullRequestListService>()
             .AddMockedService<ILabelService>()

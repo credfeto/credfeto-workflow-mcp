@@ -580,6 +580,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void BranchCompareServiceShouldBeRegistered()
+    {
+        this.RequireService<IBranchCompareService>();
+    }
+
+    [Fact]
+    public void BranchCompareServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IBranchCompareService, BranchCompareService>();
+    }
+
+    [Fact]
     public void RequiredChecksReaderShouldBeRegistered()
     {
         this.RequireService<IRequiredChecksReader>();

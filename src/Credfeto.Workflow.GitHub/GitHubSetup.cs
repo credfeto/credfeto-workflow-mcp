@@ -155,6 +155,7 @@ public static class GitHubSetup
         return services
             .AddSingleton<IRepoSearchService, RepoSearchService>()
             .AddSingleton<IRepoViewService, RepoViewService>()
+            .AddSingleton<IBranchCompareService, BranchCompareService>()
             .AddSingleton<IRepoCollaboratorsService, RepoCollaboratorsService>()
             .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<ITagViewService, TagViewService>()
