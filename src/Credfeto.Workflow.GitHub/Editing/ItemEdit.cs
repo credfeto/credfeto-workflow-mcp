@@ -189,7 +189,7 @@ internal static class ItemEdit
     }
 
     // Logins are not case-sensitive on GitHub
-    private static bool IsAssigned(IReadOnlyList<string> assignees, string login)
+    public static bool IsAssigned(IReadOnlyList<string> assignees, string login)
     {
         return assignees.Contains(value: login, comparer: StringComparer.OrdinalIgnoreCase);
     }

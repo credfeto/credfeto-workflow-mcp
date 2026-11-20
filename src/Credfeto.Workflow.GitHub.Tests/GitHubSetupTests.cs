@@ -256,6 +256,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrSyncLabelsServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrSyncLabelsService>();
+    }
+
+    [Fact]
+    public void PrSyncLabelsServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrSyncLabelsService, PrSyncLabelsService>();
+    }
+
+    [Fact]
     public void IssueEditServiceShouldBeRegistered()
     {
         this.RequireService<IIssueEditService>();
