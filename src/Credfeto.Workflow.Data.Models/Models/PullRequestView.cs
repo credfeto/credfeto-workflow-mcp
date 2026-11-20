@@ -28,5 +28,11 @@ public sealed record PullRequestView(
     string? CommitAuthors,
     int? ChangedFiles,
     IReadOnlyList<string>? Files,
-    string? Body
+    string? Body,
+    string? ReviewRequests = null,
+    string? Milestone = null,
+    string? CrossRepository = null,
+    IReadOnlyList<ClosingIssueReference>? ClosingIssues = null,
+    IReadOnlyList<PullRequestCheck>? Checks = null,
+    IReadOnlyList<PullRequestCommitIdentity>? Commits = null
 );

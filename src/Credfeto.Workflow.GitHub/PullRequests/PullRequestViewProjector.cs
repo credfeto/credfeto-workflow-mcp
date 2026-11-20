@@ -117,8 +117,35 @@ internal sealed class PullRequestViewProjector
             PullRequestViewFields.Author => view with { Author = PullRequestViewText.Clean(this._node.Author?.Login) },
             PullRequestViewFields.ChangedFiles => view with { ChangedFiles = this.ChangedFiles() },
             PullRequestViewFields.Body => view with { Body = this._node.Body ?? string.Empty },
+            _ => this.ApplyReferences(view: view, field: field),
+        };
+    }
 
-            // Commit authors and files need further requests, so the service fills them in afterwards
+    private PullRequestView ApplyReferences(PullRequestView view, string field)
+    {
+        return field switch
+        {
+            PullRequestViewFields.ReviewRequests => view with
+            {
+                ReviewRequests = this.Join(this._node.ReviewRequests, request =>
+                    request.RequestedReviewer?.Login ?? request.RequestedReviewer?.Slug
+                ),
+            },
+            PullRequestViewFields.Milestone => view with
+            {
+                Milestone = PullRequestViewText.Clean(this._node.Milestone?.Title),
+            },
+            PullRequestViewFields.CrossRepository => view with
+            {
+                CrossRepository = this._node.IsCrossRepository is true ? "yes" : "no",
+            },
+            PullRequestViewFields.ClosingIssues => view with
+            {
+                ClosingIssues = ClosingReferenceProjector.TryProject(this._node.ClosingIssuesReferences)
+                    ?? throw PullRequestViewFailure.Incomplete(this._reference),
+            },
+
+            // Commit authors, commits, checks and files may need further requests, so the service fills them in
             _ => view,
         };
     }
