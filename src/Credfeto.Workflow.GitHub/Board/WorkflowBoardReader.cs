@@ -131,8 +131,7 @@ public sealed class WorkflowBoardReader : IWorkflowBoardReader
             cancellationToken: cancellationToken
         );
 
-        StatusProjectItemsConnection connection =
-            data.Repository?.Item?.ProjectItems
+        StatusProjectItemsConnection connection = data.Repository?.Item?.ProjectItems
             ?? throw new GitHubInvalidResponseException("the project items of the work item were missing");
 
         StatusProjectItemNode? match = (connection.Nodes ?? [])
@@ -186,6 +185,68 @@ public sealed class WorkflowBoardReader : IWorkflowBoardReader
         }
     }
 
+    public async ValueTask<IReadOnlyList<BoardListedItem>> ListItemsAsync(
+        WorkflowProject project,
+        WorkflowStatusField field,
+        CancellationToken cancellationToken
+    )
+    {
+        string message = $"could not list the items of project {project.Number}";
+        List<BoardListedItem> items = [];
+
+        try
+        {
+            _ = await this.VisitPagesAsync(
+                project: project,
+                message: message,
+                stopAt: node =>
+                {
+                    if (ToListedItem(node: node, field: field) is { } item)
+                    {
+                        items.Add(item);
+                    }
+
+                    return false;
+                },
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception is GitHubGraphQlException or GitHubInvalidResponseException or HttpRequestException)
+        {
+            // The upstream detail stays in the inner exception for diagnostics; callers only see the fixed message
+            throw new BoardReadFailedException(message: message, innerException: exception);
+        }
+
+        return items;
+    }
+
+    // A draft issue has no number and an item the token cannot read has no content, so neither names a work item
+    private static BoardListedItem? ToListedItem(BoardItemNode node, WorkflowStatusField field)
+    {
+        WorkItemKind? kind = node.Type switch
+        {
+            ISSUE_TYPE => WorkItemKind.ISSUE,
+            PULL_REQUEST_TYPE => WorkItemKind.PULL_REQUEST,
+            _ => null,
+        };
+
+        int? number = node.Content?.Number;
+        string? repository = node.Content?.Repository?.NameWithOwner;
+
+        if (kind is null || number is not > 0 || string.IsNullOrEmpty(repository))
+        {
+            return null;
+        }
+
+        return new(
+            Kind: kind.Value,
+            Repository: UpstreamText.ReplaceLineBreaking(repository),
+            Number: number.Value,
+            Status: ToStatus(legacy: node.Legacy, status: node.Status, field: field)
+        );
+    }
+
     private async ValueTask<BoardItemStatus> ReadAllPagesAsync(
         string repository,
         string message,
@@ -197,6 +258,25 @@ public sealed class WorkflowBoardReader : IWorkflowBoardReader
     )
     {
         string type = kind == WorkItemKind.PULL_REQUEST ? PULL_REQUEST_TYPE : ISSUE_TYPE;
+
+        BoardItemNode? match = await this.VisitPagesAsync(
+            project: project,
+            message: message,
+            stopAt: node => IsWorkItem(node: node, type: type, repository: repository, number: number),
+            cancellationToken: cancellationToken
+        );
+
+        return match is null ? NotOnBoard : ToStatus(legacy: match.Legacy, status: match.Status, field: field);
+    }
+
+    // Reads the board's pages in order until stopAt picks an item, which is returned; null once every page is read
+    private async ValueTask<BoardItemNode?> VisitPagesAsync(
+        WorkflowProject project,
+        string message,
+        Func<BoardItemNode, bool> stopAt,
+        CancellationToken cancellationToken
+    )
+    {
         HashSet<string> seenCursors = [with(StringComparer.Ordinal)];
         string? after = null;
 
@@ -213,18 +293,16 @@ public sealed class WorkflowBoardReader : IWorkflowBoardReader
             BoardItemsConnection connection = data.Node?.Items ?? throw new BoardReadFailedException(message);
             ProjectsPageInfo pageInfo = connection.PageInfo ?? throw new BoardReadFailedException(message);
 
-            BoardItemNode? match = (connection.Nodes ?? [])
-                .OfType<BoardItemNode>()
-                .FirstOrDefault(node => IsWorkItem(node: node, type: type, repository: repository, number: number));
+            BoardItemNode? match = (connection.Nodes ?? []).OfType<BoardItemNode>().FirstOrDefault(stopAt);
 
             if (match is not null)
             {
-                return ToStatus(legacy: match.Legacy, status: match.Status, field: field);
+                return match;
             }
 
             if (!pageInfo.HasNextPage)
             {
-                return NotOnBoard;
+                return null;
             }
 
             // The cursor comes from the upstream, so a missing or repeated one must fail rather than loop forever
