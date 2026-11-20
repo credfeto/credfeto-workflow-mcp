@@ -20,7 +20,6 @@ namespace Credfeto.Workflow.GitHub.Runs;
 
 public sealed class RunRerunService : IRunRerunService
 {
-    private const int ATTEMPT_LIMIT = 3;
     private const int MAX_PULL_REQUESTS = 1000;
 
     private const string STATUS_COMPLETED = "completed";
@@ -30,7 +29,6 @@ public sealed class RunRerunService : IRunRerunService
     private const string CONCLUSION_NEUTRAL = "neutral";
     private const string CONCLUSION_SKIPPED = "skipped";
 
-    private const string RULE_ATTEMPT_LIMIT = "attempt limit";
     private const string RULE_DEFAULT_BRANCH = "default branch";
     private const string RULE_PULL_REQUEST_HEAD = "not an open pull request head";
     private const string RULE_NOTHING_TO_RERUN = "no failed jobs and no required check missing";
@@ -108,11 +106,6 @@ public sealed class RunRerunService : IRunRerunService
             run: run,
             cancellationToken: cancellationToken
         );
-
-        if (response.RunAttempt >= ATTEMPT_LIMIT)
-        {
-            return Refused(run: run, rule: RULE_ATTEMPT_LIMIT);
-        }
 
         string defaultBranch = await this.ReadDefaultBranchAsync(
             repository: repository,

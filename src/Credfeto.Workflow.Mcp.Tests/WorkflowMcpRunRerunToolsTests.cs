@@ -29,7 +29,7 @@ public sealed class WorkflowMcpRunRerunToolsTests : TestBase
     [Theory]
     [InlineData(RunRerunOutcome.Success, "Rerunning failed jobs of run 5 (attempt 2)", 2, null)]
     [InlineData(RunRerunOutcome.Pending, "the run 5 has not completed, and can be rerun once it has", null, null)]
-    [InlineData(RunRerunOutcome.Refused, "rerun refused: attempt limit", null, "attempt limit")]
+    [InlineData(RunRerunOutcome.Refused, "rerun refused: default branch", null, "default branch")]
     [InlineData(RunRerunOutcome.NotFound, "the run 5 was not found in " + REPOSITORY, null, null)]
     public async Task RunRerunReturnsWhatTheServiceDidAsync(
         RunRerunOutcome outcome,
