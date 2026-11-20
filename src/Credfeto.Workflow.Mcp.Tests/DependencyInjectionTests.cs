@@ -52,6 +52,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "pr_review_comment",
         "pr_search",
         "pr_status",
+        "pr_sync_labels",
         "pr_view",
         "release_list",
         "release_view",
@@ -653,6 +654,31 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrSyncLabelsTakesRepoPrAndOptionalAssignSelf()
+    {
+        JsonElement schema = this.GetTool("pr_sync_labels").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["assignSelf", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrSyncLabelsIsAnIdempotentWriteThatRemovesNothing()
+    {
+        McpServerTool tool = this.GetTool("pr_sync_labels");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "pr_sync_labels adds labels");
+        Assert.False(
+            tool.ProtocolTool.Annotations?.DestructiveHint,
+            userMessage: "pr_sync_labels never removes a label"
+        );
+        Assert.True(
+            tool.ProtocolTool.Annotations?.IdempotentHint,
+            userMessage: "pr_sync_labels repeated adds nothing more"
+        );
+    }
+
+    [Fact]
     public void IssueEditTakesRepoIssueAndOptionalTitleBodyPriorityAndAssignSelf()
     {
         JsonElement schema = this.GetTool("issue_edit").ProtocolTool.InputSchema;
@@ -957,6 +983,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssuePlanStatusReader>()
             .AddMockedService<IPrCreateService>()
             .AddMockedService<IPrEditService>()
+            .AddMockedService<IPrSyncLabelsService>()
             .AddMockedService<IPrHandOffService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<IPrReviewCommentService>()

@@ -97,8 +97,8 @@ public sealed partial class ClosingIssueLabelsService : IClosingIssueLabelsServi
                 cancellationToken: cancellationToken
             );
 
-            GraphQlConnection<ClosingIssueNode> connection =
-                data.Repository?.PullRequest?.ClosingIssuesReferences ?? throw Failure(reference);
+            GraphQlConnection<ClosingIssueNode> connection = data.Repository?.PullRequest?.ClosingIssuesReferences
+                ?? throw Failure(reference);
 
             foreach (ClosingIssueNode? node in connection.Nodes ?? [])
             {
@@ -267,7 +267,7 @@ public sealed partial class ClosingIssueLabelsService : IClosingIssueLabelsServi
         return owner is null || name is null || number is null ? UNKNOWN_REFERENCE : $"{owner}/{name}#{number}";
     }
 
-    private static bool IsIncluded(string label)
+    internal static bool IsIncluded(string label)
     {
         // Workflow-control labels belong to the issue alone and must never be copied onto the pull request
         return !StringComparer.OrdinalIgnoreCase.Equals(x: label, y: StandardLabels.BLOCKED)

@@ -178,7 +178,8 @@ public static class GitHubSetup
             .AddSingleton<IPrReviewCommentService, PrReviewCommentService>()
             .AddSingleton<IPrDiffService, PrDiffService>()
             .AddSingleton<IPrHandOffService, PrHandOffService>()
-            .AddSingleton<IPrEditService, PrEditService>();
+            .AddSingleton<IPrEditService, PrEditService>()
+            .AddSingleton<IPrSyncLabelsService, PrSyncLabelsService>();
     }
 
     private static IServiceCollection AddPullRequestStatusServices(this IServiceCollection services)
