@@ -305,6 +305,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void LabelHistoryReaderShouldBeRegistered()
+    {
+        this.RequireService<ILabelHistoryReader>();
+    }
+
+    [Fact]
+    public void LabelHistoryReaderShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ILabelHistoryReader, LabelHistoryReader>();
+    }
+
+    [Fact]
     public void LabelListServiceShouldBeRegistered()
     {
         this.RequireService<ILabelListService>();
