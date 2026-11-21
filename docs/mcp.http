@@ -40,7 +40,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -103,7 +103,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools in Issues mode; expects only the "body_check", "comment_add", "issue_add_sub_issue", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_search", "issue_view", "label_add", "label_list", "label_remove" and "ping" tools
+### List tools in Issues mode; expects only the "body_check", "comment_add", "issue_add_sub_issue", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_search", "issue_view", "label_add", "label_history", "label_list", "label_remove" and "ping" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 X-Mode: Issues
