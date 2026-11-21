@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Credfeto.Workflow.GitHub.Advisories;
 using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
@@ -120,6 +121,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(WorkflowResponse))]
 [JsonSerializable(typeof(WorkflowDispatchRequest))]
 [JsonSerializable(typeof(DependabotAlertResponse[]))]
+[JsonSerializable(typeof(SecurityAdvisoryResponse[]))]
 [JsonSerializable(typeof(GitRefResponse))]
 [JsonSerializable(typeof(GitTagResponse))]
 [JsonSerializable(typeof(GitHubRelease))]

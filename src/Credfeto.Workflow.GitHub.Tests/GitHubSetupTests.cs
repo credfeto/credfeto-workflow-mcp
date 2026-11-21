@@ -1,3 +1,4 @@
+using Credfeto.Workflow.GitHub.Advisories;
 using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
@@ -517,6 +518,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void DependabotAlertsServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IDependabotAlertsService, DependabotAlertsService>();
+    }
+
+    [Fact]
+    public void SecurityAdvisoriesServiceShouldBeRegistered()
+    {
+        this.RequireService<ISecurityAdvisoriesService>();
+    }
+
+    [Fact]
+    public void SecurityAdvisoriesServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ISecurityAdvisoriesService, SecurityAdvisoriesService>();
     }
 
     [Fact]

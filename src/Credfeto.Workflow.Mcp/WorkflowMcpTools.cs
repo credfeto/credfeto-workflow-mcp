@@ -991,6 +991,34 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "repo_advisories", Title = "Repository security advisories", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Lists a repository's own security advisories, newest first, with each advisory's GHSA id, severity ('-' when there is none), state and summary; a missing repository is reported as a distinct error, and more than 1000 advisories is refused rather than listed in part"
+    )]
+    public static async Task<SecurityAdvisoriesResult> RepoAdvisoriesAsync(
+        [Description("The repository, as owner/name")] string repo,
+        ISecurityAdvisoriesService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ListAsync(repository: repo, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception
+                    is SecurityAdvisoriesNotFoundException
+                        or SecurityAdvisoriesFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "run_list", Title = "Run list", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
