@@ -86,6 +86,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added pr_sync_labels MCP tool (repo, pr, optional assignSelf) mirroring cfwf pr sync-labels: adds the labels of a pull request's closing issues to it one at a time, priority labels included and never Blocked or On Hold, in the repository's spelling, skipping and reporting labels the repository lacks, never removing one, refusing assignSelf before any write when another user holds it, and reporting a partial read as Incomplete rather than Synced (#155)
 - Added read-only repo_advisories MCP tool (repo) that lists a repository's published security advisories, so the dependency updater can check for advisories without gh (#48)
 - Added advisory_view MCP tool that looks up a GitHub security advisory by its GHSA id and returns its severity and affected packages (#49)
+- TBD - to be finalized after review
 ### Fixed
 ### Changed
 - The tool tests compare tool names instead of counting tools: the expected set is read from the [McpServerTool] methods, so adding a tool needs no shared number edited and a missing or extra tool fails naming it (#164)
