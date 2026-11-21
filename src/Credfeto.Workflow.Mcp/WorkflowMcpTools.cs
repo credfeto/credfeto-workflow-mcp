@@ -1019,6 +1019,30 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "advisory_view", Title = "Advisory view", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Reads one GitHub security advisory by its GHSA id: its severity (critical, high, medium, low or unknown), summary, when it was published (ISO-8601), when it was withdrawn (ISO-8601, empty when it has not been) and each affected package's ecosystem, name, vulnerable version range and first patched version (empty when GitHub gives none). A malformed id is refused without asking GitHub; not found when no advisory has that id"
+    )]
+    public static async Task<AdvisoryViewResult> AdvisoryViewAsync(
+        [Description("The GHSA id, such as GHSA-xxxx-xxxx-xxxx")] string ghsa,
+        IAdvisoryViewService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.ViewAsync(ghsa: ghsa, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is AdvisoryNotFoundException or AdvisoryViewFailedException or ParameterValidationException)
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "run_list", Title = "Run list", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(

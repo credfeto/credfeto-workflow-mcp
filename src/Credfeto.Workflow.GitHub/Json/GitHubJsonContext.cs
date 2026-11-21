@@ -122,6 +122,7 @@ namespace Credfeto.Workflow.GitHub.Json;
 [JsonSerializable(typeof(WorkflowDispatchRequest))]
 [JsonSerializable(typeof(DependabotAlertResponse[]))]
 [JsonSerializable(typeof(SecurityAdvisoryResponse[]))]
+[JsonSerializable(typeof(GlobalAdvisoryResponse))]
 [JsonSerializable(typeof(GitRefResponse))]
 [JsonSerializable(typeof(GitTagResponse))]
 [JsonSerializable(typeof(GitHubRelease))]

@@ -14,6 +14,10 @@ public static class GitHubNames
     private const int MAX_LABEL_DESCRIPTION_LENGTH = 100;
     private const int MAX_REPOSITORY_PATH_LENGTH = 4096;
     private const string BOT_SUFFIX = "[bot]";
+    private const string GHSA_PREFIX = "GHSA";
+    private const int GHSA_GROUPS = 3;
+    private const int GHSA_GROUP_LENGTH = 5;
+    private const int GHSA_ID_LENGTH = 19;
 
     private static readonly SearchValues<char> RepositoryNameCharacters = SearchValues.Create(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-"
@@ -28,6 +32,8 @@ public static class GitHubNames
     private static readonly SearchValues<char> OwnerCharacters = SearchValues.Create(
         "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-"
     );
+
+    private static readonly SearchValues<char> GhsaCharacters = SearchValues.Create("23456789cfghjmpqrvwx");
 
     public static string Repository(string value, string parameterName)
     {
@@ -284,6 +290,44 @@ public static class GitHubNames
         );
 
         return value;
+    }
+
+    public static string GhsaId(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: !IsGhsaId(value),
+            parameterName: parameterName,
+            rule: "it must be a GHSA id in the form GHSA-xxxx-xxxx-xxxx, each x one of 2-9, c, f, g, h, j, m, p, q, r, v, w or x"
+        );
+
+        return value;
+    }
+
+    // The GHSA id format ^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$, matched over the whole value so a trailing newline is
+    // refused, as a regex '$' would not
+    public static bool IsGhsaId(string value)
+    {
+        if (
+            value.Length != GHSA_ID_LENGTH
+            || !value.StartsWith(value: GHSA_PREFIX, comparisonType: StringComparison.Ordinal)
+        )
+        {
+            return false;
+        }
+
+        ReadOnlySpan<char> groups = value.AsSpan(GHSA_PREFIX.Length);
+
+        for (int group = 0; group < GHSA_GROUPS; ++group)
+        {
+            ReadOnlySpan<char> part = groups.Slice(start: group * GHSA_GROUP_LENGTH, length: GHSA_GROUP_LENGTH);
+
+            if (part[0] != '-' || part[1..].ContainsAnyExcept(GhsaCharacters))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     private static void ThrowIf(bool invalid, string parameterName, string rule)

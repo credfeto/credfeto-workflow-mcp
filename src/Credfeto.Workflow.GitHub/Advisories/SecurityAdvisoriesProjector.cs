@@ -1,16 +1,15 @@
 using System;
 using System.Collections.Frozen;
-using System.Text.RegularExpressions;
 using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
+using Credfeto.Workflow.GitHub.Interfaces.Validation;
 using Credfeto.Workflow.GitHub.Runs;
 
 namespace Credfeto.Workflow.GitHub.Advisories;
 
-internal static partial class SecurityAdvisoriesProjector
+internal static class SecurityAdvisoriesProjector
 {
     private const string NO_SEVERITY = "-";
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     // Only the values GitHub documents are passed on, so an unexpected value is never shown as if it were one
     private static readonly FrozenSet<string> States = FrozenSet.Create(
@@ -33,7 +32,7 @@ internal static partial class SecurityAdvisoriesProjector
     public static SecurityAdvisoryEntry Project(SecurityAdvisoryResponse? advisory)
     {
         // The id is not echoed in the error, since it failed validation and could carry anything
-        if (advisory?.GhsaId is not { } ghsaId || !GhsaIdPattern().IsMatch(ghsaId))
+        if (advisory?.GhsaId is not { } ghsaId || !GitHubNames.IsGhsaId(ghsaId))
         {
             throw new GitHubInvalidResponseException("GitHub returned a security advisory without a valid GHSA id");
         }
@@ -60,11 +59,4 @@ internal static partial class SecurityAdvisoriesProjector
             ? value
             : throw new GitHubInvalidResponseException($"GitHub returned a security advisory with an unknown {field}");
     }
-
-    [GeneratedRegex(
-        pattern: @"^GHSA(-[23456789cfghjmpqrvwx]{4}){3}\z",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex GhsaIdPattern();
 }

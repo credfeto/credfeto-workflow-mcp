@@ -139,6 +139,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("workflow_list")]
     [InlineData("repo_dependabot_alerts")]
     [InlineData("repo_advisories")]
+    [InlineData("advisory_view")]
     [InlineData("repo_file")]
     [InlineData("label_list")]
     [InlineData("repo_collaborators")]
@@ -410,6 +411,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void AdvisoryViewTakesGhsa()
+    {
+        JsonElement schema = this.GetTool("advisory_view").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["ghsa"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["ghsa"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -948,6 +958,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IWorkflowListService>()
             .AddMockedService<IDependabotAlertsService>()
             .AddMockedService<ISecurityAdvisoriesService>()
+            .AddMockedService<IAdvisoryViewService>()
             .AddMockedService<IRunListService>()
             .AddMockedService<IRunViewService>()
             .AddMockedService<IRunLogService>()
