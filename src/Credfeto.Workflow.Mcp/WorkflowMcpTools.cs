@@ -1722,6 +1722,47 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not destructive because labels and an assignee are only ever added, never removed; idempotent because a repeat
+    // call adds what the pull request already carries, which GitHub treats as no change
+    [McpServerTool(
+        Name = "pr_sync_labels",
+        Title = "Pull request sync labels",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = true
+    )]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Adds the labels of the issues a pull request closes to the pull request, as cfwf pr sync-labels does: each closing issue is read from its own repository, Blocked, On Hold and On-Hold are never added, priority labels are, each label is matched against the pull request repository's labels without regard to case and added in its spelling one at a time, a label the repository lacks is skipped and listed, and no label is ever removed. With assignSelf the signed-in account is then added to the assignees, keeping the others, but a pull request already assigned to another user is refused before anything is written. Returns Synced, Incomplete (a closing issue could not be read: the labels that were read are still added), Refused or Failed (part way: added lists what was written), with the URL, the labels added and skipped and the failed references"
+    )]
+    public static async Task<PrSyncLabelsResult> PrSyncLabelsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        IPrSyncLabelsService service,
+        [Description(
+            "Whether to add the signed-in account to the pull request's assignees; refused, writing nothing, when the pull request is already assigned to another user"
+        )]
+            bool assignSelf = false,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.SyncAsync(
+                repository: repo,
+                pullRequest: pr,
+                assignSelf: assignSelf,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsPrSyncLabelsError(exception))
+        {
+            // Every one of these is thrown before anything is written, and its message is fixed text or validated
+            // caller input, never upstream detail, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "workflow_status_check", Title = "Workflow status check", ReadOnly = true)]
     [InModes(ToolModes.All)]
     [Description(
@@ -2161,6 +2202,17 @@ public sealed class WorkflowMcpTools
                 or StatusFieldReadFailedException
                 or StatusOptionMissingException
                 or AmbiguousStatusOptionException;
+    }
+
+    private static bool IsPrSyncLabelsError(Exception exception)
+    {
+        return exception
+            is ParameterValidationException
+                or PullRequestNotFoundException
+                or ClosingIssueLabelsFailedException
+                or RepositoryNotFoundException
+                or LabelListFailedException
+                or PrSyncLabelsFailedException;
     }
 
     private static bool IsLabelChangeError(Exception exception)

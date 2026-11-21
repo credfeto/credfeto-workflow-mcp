@@ -306,7 +306,7 @@ public sealed partial class PrEditService : IPrEditService
         options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
         matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
     )]
-    private static partial Regex PullRequestUrl();
+    internal static partial Regex PullRequestUrl();
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Result}")]
