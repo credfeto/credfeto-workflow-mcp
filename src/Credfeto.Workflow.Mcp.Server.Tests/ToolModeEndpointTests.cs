@@ -88,6 +88,18 @@ public sealed class ToolModeEndpointTests : TestBase
     }
 
     [Theory]
+    [InlineData(null)]
+    [InlineData("All")]
+    [InlineData("Issues")]
+    public async Task ToolsAreListedInNameOrderAsync(string? mode)
+    {
+        IReadOnlyList<string> tools = await this.ListToolsAsync(mode);
+        string[] sorted = [.. tools.Order(StringComparer.OrdinalIgnoreCase)];
+
+        Assert.Equal(expected: sorted, actual: tools);
+    }
+
+    [Theory]
     [InlineData("Issue")]
     [InlineData("Unknown")]
     [InlineData("")]
@@ -173,8 +185,7 @@ public sealed class ToolModeEndpointTests : TestBase
                 .RootElement.GetProperty("result")
                 .GetProperty("tools")
                 .EnumerateArray()
-                .Select(static tool => tool.GetProperty("name").GetString() ?? string.Empty)
-                .Order(StringComparer.Ordinal),
+                .Select(static tool => tool.GetProperty("name").GetString() ?? string.Empty),
         ];
     }
 

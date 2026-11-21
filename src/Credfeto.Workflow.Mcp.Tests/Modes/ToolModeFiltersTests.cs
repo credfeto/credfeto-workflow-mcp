@@ -18,12 +18,17 @@ public sealed class ToolModeFiltersTests : TestBase
 {
     private const string ISSUE_TOOL = "issue_view";
 
+    private const string OTHER_ISSUE_TOOL = "issue_comments";
+
     private const string PULL_REQUEST_TOOL = "pr_view";
 
     [Fact]
     public async Task EveryToolIsListedWithoutAModeAsync()
     {
-        IReadOnlyList<string> listed = await this.ListAsync(ToolModes.All);
+        IReadOnlyList<string> listed = await this.ListAsync(
+            mode: ToolModes.All,
+            names: [PULL_REQUEST_TOOL, ISSUE_TOOL]
+        );
 
         Assert.Equal(expected: [ISSUE_TOOL, PULL_REQUEST_TOOL], actual: listed);
     }
@@ -31,9 +36,34 @@ public sealed class ToolModeFiltersTests : TestBase
     [Fact]
     public async Task OnlyTheModesToolsAreListedAsync()
     {
-        IReadOnlyList<string> listed = await this.ListAsync(ToolModes.Issues);
+        IReadOnlyList<string> listed = await this.ListAsync(
+            mode: ToolModes.Issues,
+            names: [PULL_REQUEST_TOOL, ISSUE_TOOL]
+        );
 
         Assert.Equal(expected: [ISSUE_TOOL], actual: listed);
+    }
+
+    [Fact]
+    public async Task ToolsAreListedInNameOrderIgnoringCaseAsync()
+    {
+        IReadOnlyList<string> listed = await this.ListAsync(
+            mode: ToolModes.All,
+            names: ["run_view", "Pr_list", "auth_status", "pr_diff", "Label_add"]
+        );
+
+        Assert.Equal(expected: ["auth_status", "Label_add", "pr_diff", "Pr_list", "run_view"], actual: listed);
+    }
+
+    [Fact]
+    public async Task ModeToolsAreListedInNameOrderAsync()
+    {
+        IReadOnlyList<string> listed = await this.ListAsync(
+            mode: ToolModes.Issues,
+            names: [PULL_REQUEST_TOOL, OTHER_ISSUE_TOOL, ISSUE_TOOL]
+        );
+
+        Assert.Equal(expected: [OTHER_ISSUE_TOOL, ISSUE_TOOL], actual: listed);
     }
 
     [Theory]
@@ -123,12 +153,15 @@ public sealed class ToolModeFiltersTests : TestBase
         Assert.False(condition: called, userMessage: "a refused tool must not run");
         Assert.Equal(expected: McpErrorCode.InvalidParams, actual: exception.ErrorCode);
         Assert.Equal(
-            expected: "The tool is not available in X-Mode Issues; the Issues tools are: " + ISSUE_TOOL,
+            expected: "The tool is not available in X-Mode Issues; the Issues tools are: "
+                + OTHER_ISSUE_TOOL
+                + ", "
+                + ISSUE_TOOL,
             actual: exception.Message
         );
     }
 
-    private async Task<IReadOnlyList<string>> ListAsync(ToolModes mode)
+    private async Task<IReadOnlyList<string>> ListAsync(ToolModes mode, IReadOnlyList<string> names)
     {
         await using TestServer server = new();
         RequestContext<ListToolsRequestParams> context = new(
@@ -141,12 +174,9 @@ public sealed class ToolModeFiltersTests : TestBase
         };
 
         McpRequestHandler<ListToolsRequestParams, ListToolsResult> handler = ToolModeFilters.ListTools(
-            static (_, _) =>
+            (_, _) =>
                 ValueTask.FromResult(
-                    new ListToolsResult
-                    {
-                        Tools = [new Tool { Name = ISSUE_TOOL }, new Tool { Name = PULL_REQUEST_TOOL }],
-                    }
+                    new ListToolsResult { Tools = [.. names.Select(static name => new Tool { Name = name })] }
                 )
         );
 
@@ -189,6 +219,7 @@ public sealed class ToolModeFiltersTests : TestBase
             .AddSingleton(
                 new ToolModeCatalog([
                     CreateTool(name: ISSUE_TOOL, modes: ToolModes.All | ToolModes.Issues),
+                    CreateTool(name: OTHER_ISSUE_TOOL, modes: ToolModes.All | ToolModes.Issues),
                     CreateTool(name: PULL_REQUEST_TOOL, modes: ToolModes.All),
                 ])
             )

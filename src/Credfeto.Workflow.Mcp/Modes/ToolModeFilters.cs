@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,12 +55,15 @@ public static class ToolModeFilters
 
         (ToolModes mode, ToolModeCatalog catalog) = Resolve(context.Services);
 
-        if (mode == ToolModes.All)
-        {
-            return result;
-        }
+        IEnumerable<Tool> available =
+            mode == ToolModes.All
+                ? result.Tools
+                : result.Tools.Where(tool => catalog.IsAvailable(name: tool.Name, mode: mode));
 
-        result.Tools = [.. result.Tools.Where(tool => catalog.IsAvailable(name: tool.Name, mode: mode))];
+        result.Tools =
+        [
+            .. available.OrderBy(keySelector: static tool => tool.Name, comparer: StringComparer.OrdinalIgnoreCase),
+        ];
 
         return result;
     }
