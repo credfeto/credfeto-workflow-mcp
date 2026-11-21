@@ -9,6 +9,8 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using FunFair.Test.Common;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.Extensions.DependencyInjection;
+using ModelContextProtocol.Server;
 using Xunit;
 
 namespace Credfeto.Workflow.Mcp.Server.Tests;
@@ -36,8 +38,6 @@ public sealed class ToolModeEndpointTests : TestBase
         {"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"label_remove","arguments":{"repo":"credfeto/credfeto-workflow-mcp","labels":["Bug"],"pr":1}}}
         """;
 
-    private const int ALL_TOOL_COUNT = 57;
-
     private static readonly string[] IssuesTools =
     [
         "body_check",
@@ -61,7 +61,7 @@ public sealed class ToolModeEndpointTests : TestBase
     {
         IReadOnlyList<string> tools = await this.ListToolsAsync(null);
 
-        Assert.Equal(expected: ALL_TOOL_COUNT, actual: tools.Count);
+        ToolNameAssert.SameTools(expected: await RegisteredToolNamesAsync(), actual: tools);
         Assert.Contains(expected: "pr_view", collection: tools, comparer: StringComparer.Ordinal);
         Assert.Contains(expected: "issue_close", collection: tools, comparer: StringComparer.Ordinal);
     }
@@ -74,7 +74,7 @@ public sealed class ToolModeEndpointTests : TestBase
     {
         IReadOnlyList<string> tools = await this.ListToolsAsync(mode);
 
-        Assert.Equal(expected: IssuesTools, actual: tools, comparer: StringComparer.Ordinal);
+        ToolNameAssert.SameTools(expected: IssuesTools, actual: tools);
     }
 
     [Theory]
@@ -84,7 +84,7 @@ public sealed class ToolModeEndpointTests : TestBase
     {
         IReadOnlyList<string> tools = await this.ListToolsAsync(mode);
 
-        Assert.Equal(expected: ALL_TOOL_COUNT, actual: tools.Count);
+        ToolNameAssert.SameTools(expected: await RegisteredToolNamesAsync(), actual: tools);
     }
 
     [Theory]
@@ -153,6 +153,14 @@ public sealed class ToolModeEndpointTests : TestBase
             actualString: text,
             comparisonType: StringComparison.Ordinal
         );
+    }
+
+    // Every tool the server registers, so the expected list follows the tool methods and never needs editing
+    private static async Task<IReadOnlyList<string>> RegisteredToolNamesAsync()
+    {
+        await using WebApplication app = TestAppFactory.BuildLoopbackApp();
+
+        return [.. app.Services.GetServices<McpServerTool>().Select(static tool => tool.ProtocolTool.Name)];
     }
 
     private async Task<IReadOnlyList<string>> ListToolsAsync(string? mode)

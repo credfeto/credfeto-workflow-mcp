@@ -86,6 +86,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added pr_sync_labels MCP tool (repo, pr, optional assignSelf) mirroring cfwf pr sync-labels: adds the labels of a pull request's closing issues to it one at a time, priority labels included and never Blocked or On Hold, in the repository's spelling, skipping and reporting labels the repository lacks, never removing one, refusing assignSelf before any write when another user holds it, and reporting a partial read as Incomplete rather than Synced (#155)
 ### Fixed
 ### Changed
+- The tool tests compare tool names instead of counting tools: the expected set is read from the [McpServerTool] methods, so adding a tool needs no shared number edited and a missing or extra tool fails naming it (#164)
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
 - README: GitHub:ApiBaseUrl row now says the URL must have no query or fragment (#38)
 - Enabled runtime-async (Features strict;flow-analysis;runtime-async=on) in all projects and moved the Dockerfile runtime image to .NET 11 rc.3 (#74)
