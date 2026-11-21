@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using Credfeto.Workflow.GitHub.Advisories;
 using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Authorization;
 using Credfeto.Workflow.GitHub.Board;
@@ -157,6 +158,7 @@ public static class GitHubSetup
             .AddSingleton<IRepoViewService, RepoViewService>()
             .AddSingleton<IBranchCompareService, BranchCompareService>()
             .AddSingleton<IRepoCollaboratorsService, RepoCollaboratorsService>()
+            .AddSingleton<ISecurityAdvisoriesService, SecurityAdvisoriesService>()
             .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<ITagViewService, TagViewService>()
             .AddSingleton<IReleaseService, ReleaseService>();

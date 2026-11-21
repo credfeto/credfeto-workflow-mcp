@@ -343,6 +343,29 @@ public sealed class PullRequestServiceOptInFieldsTests : GitHubClientTestBase
         );
     }
 
+    [Fact]
+    public async Task ChecksAreCappedAsync()
+    {
+        string[] fullPage = [.. Enumerable.Repeat(element: CHECK_RUN, count: 100)];
+        using RecordingHttpMessageHandler upstream = new(index =>
+            Graph(
+                ChecksNode(
+                    total: 20000,
+                    contexts: fullPage,
+                    hasNext: true,
+                    cursor: "c" + index.ToString(CultureInfo.InvariantCulture)
+                )
+            )
+        );
+
+        PullRequestViewFailedException exception = await Assert.ThrowsAsync<PullRequestViewFailedException>(() =>
+            this.ViewAsync(graphUpstream: upstream, fields: [PullRequestViewFields.Checks])
+        );
+
+        Assert.Equal(expected: INCOMPLETE, actual: exception.Message);
+        Assert.Equal(expected: 100, actual: upstream.Requests.Count);
+    }
+
     [Theory]
     [InlineData("""{"headCommit":null}""")]
     [InlineData("""{"headCommit":{"nodes":null}}""")]
