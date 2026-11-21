@@ -118,7 +118,7 @@ public static class GitHubSetup
             .AddSingleton<IPullRequestListService, PullRequestListService>()
             .AddSingleton<ICommentAddService, CommentAddService>()
             .AddSingleton<ILabelService, LabelService>()
-            .AddSingleton<ILabelListService, LabelListService>()
+            .AddLabelReadServices()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssuePlanStatusReader, IssuePlanStatusReader>()
             .AddSingleton<IIssueCreateService, IssueCreateService>()
@@ -163,6 +163,13 @@ public static class GitHubSetup
             .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<ITagViewService, TagViewService>()
             .AddSingleton<IReleaseService, ReleaseService>();
+    }
+
+    private static IServiceCollection AddLabelReadServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<ILabelListService, LabelListService>()
+            .AddSingleton<ILabelHistoryReader, LabelHistoryReader>();
     }
 
     private static IServiceCollection AddRunServices(this IServiceCollection services)

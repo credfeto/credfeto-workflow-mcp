@@ -51,6 +51,7 @@ public sealed class ToolModeEndpointTests : TestBase
         "issue_search",
         "issue_view",
         "label_add",
+        "label_history",
         "label_list",
         "label_remove",
         "ping",

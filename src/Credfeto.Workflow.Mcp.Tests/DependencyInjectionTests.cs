@@ -27,6 +27,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "issue_search",
         "issue_view",
         "label_add",
+        "label_history",
         "label_list",
         "label_remove",
         "ping",
@@ -141,6 +142,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("repo_advisories")]
     [InlineData("advisory_view")]
     [InlineData("repo_file")]
+    [InlineData("label_history")]
     [InlineData("label_list")]
     [InlineData("repo_collaborators")]
     [InlineData("issue_plan_status")]
@@ -420,6 +422,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 
         Assert.Equal(expected: ["ghsa"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["ghsa"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void LabelHistoryTakesRepoAndOptionalItemAndLabel()
+    {
+        JsonElement schema = this.GetTool("label_history").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["issue", "label", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
     }
 
     [Fact]
@@ -940,6 +951,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPullRequestListService>()
             .AddMockedService<ILabelService>()
             .AddMockedService<ILabelListService>()
+            .AddMockedService<ILabelHistoryReader>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
             .AddMockedService<IIssueEditService>()

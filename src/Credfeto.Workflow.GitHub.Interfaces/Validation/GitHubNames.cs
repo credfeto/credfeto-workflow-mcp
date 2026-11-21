@@ -214,6 +214,30 @@ public static class GitHubNames
         return label;
     }
 
+    // A history filter only has to be a label name that could be matched, so ',' '"' and '\' are allowed in it
+    public static string LabelFilter(string value, string parameterName)
+    {
+        ThrowIf(
+            invalid: string.IsNullOrWhiteSpace(value),
+            parameterName: parameterName,
+            rule: "it must not be empty or whitespace"
+        );
+
+        ThrowIf(
+            invalid: GitRefFormat.ContainsControlCharacter(value),
+            parameterName: parameterName,
+            rule: "it must not contain control characters"
+        );
+
+        ThrowIf(
+            invalid: HasMoreRunesThan(value: value, maximum: MAX_LABEL_LENGTH),
+            parameterName: parameterName,
+            rule: "it must be at most 50 characters long"
+        );
+
+        return value;
+    }
+
     // The label is returned in its standard spelling, so a write never creates a near-duplicate label
     public static string StandardLabel(string value, string parameterName)
     {

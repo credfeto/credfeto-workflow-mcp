@@ -2124,6 +2124,45 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "label_history", Title = "Label history", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
+    [Description(
+        "Lists the label changes of an issue or pull request, oldest first, each with its action (added or removed), UTC time, actor and label; give exactly one of issue or pr, and optionally a label to keep only that label's changes (letters A-Z match in either case); more than 1000 label changes is refused rather than listed in part"
+    )]
+    public static async Task<LabelHistoryResult> LabelHistoryAsync(
+        [Description("The repository, as owner/name")] string repo,
+        ILabelHistoryReader reader,
+        [Description("The issue number, above 0; give this or pr")] int? issue = null,
+        [Description("The pull request number, above 0; give this or issue")] int? pr = null,
+        [Description("Only report changes to this label, matched without regard to ASCII letter case")]
+            string? label = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await reader.ReadAsync(
+                repository: repo,
+                issue: issue,
+                pr: pr,
+                label: label,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception)
+            when (exception
+                    is IssueNotFoundException
+                        or PullRequestNotFoundException
+                        or LabelHistoryFailedException
+                        or ParameterValidationException
+            )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "label_list", Title = "Label list", ReadOnly = true)]
     [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
