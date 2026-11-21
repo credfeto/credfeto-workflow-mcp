@@ -93,7 +93,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - SDK - Updated DotNet SDK to 11.0.100
 - label_add and label_remove refuse a pull request in X-Mode Issues, as comment_add does: a pr argument, or an issue number that turns out to be a pull request, fails with an error naming the mode before any label changes; with no header or All they still label pull requests and issues (#142)
 - run_rerun no longer refuses a run on attempt 3 or later; the attempt limit is removed (#146)
-- TBD - to be finalized after review
+- tools/list is now returned sorted by tool name (ordinal, case-insensitive) in every mode, so clients see the same stable tool order whichever mode they connect in; the README and docs/mcp.http tool lists are kept in name order too (#165)
 ### Deprecated
 ### Removed
 ### Deployment Changes
