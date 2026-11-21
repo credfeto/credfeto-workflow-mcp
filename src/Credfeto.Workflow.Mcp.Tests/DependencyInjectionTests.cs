@@ -14,67 +14,6 @@ namespace Credfeto.Workflow.Mcp.Tests;
 
 public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
 {
-    private static readonly string[] ExpectedToolNames =
-    [
-        "auth_status",
-        "body_check",
-        "branch_compare",
-        "branch_required_checks",
-        "closing_issue_labels",
-        "code_search",
-        "comment_add",
-        "issue_add_sub_issue",
-        "issue_close",
-        "issue_comments",
-        "issue_create",
-        "issue_edit",
-        "issue_list",
-        "issue_plan_status",
-        "issue_reopen",
-        "issue_search",
-        "issue_view",
-        "label_add",
-        "label_create",
-        "label_list",
-        "label_remove",
-        "ping",
-        "pr_auto_merge_at",
-        "pr_checks",
-        "pr_close",
-        "pr_comments",
-        "pr_create",
-        "pr_diff",
-        "pr_edit",
-        "pr_hand_off",
-        "pr_list",
-        "pr_ready_at",
-        "pr_reopen",
-        "pr_reply",
-        "pr_review_comment",
-        "pr_search",
-        "pr_status",
-        "pr_sync_labels",
-        "pr_view",
-        "release_list",
-        "release_view",
-        "repo_collaborators",
-        "repo_dependabot_alerts",
-        "repo_file",
-        "repo_list",
-        "repo_search",
-        "repo_view",
-        "run_list",
-        "run_log",
-        "run_rerun",
-        "run_view",
-        "tag_view",
-        "workflow_board_items",
-        "workflow_list",
-        "workflow_run",
-        "workflow_status_check",
-        "workflow_status_set",
-    ];
-
     private static readonly string[] ExpectedIssuesToolNames =
     [
         "body_check",
@@ -101,9 +40,17 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     {
         IEnumerable<McpServerTool> tools = this.ServiceProvider.GetServices<McpServerTool>();
 
-        string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name).Order(StringComparer.Ordinal)];
+        string[] names = [.. tools.Select(static tool => tool.ProtocolTool.Name)];
 
-        Assert.Equal(expected: ExpectedToolNames, actual: names);
+        ToolNameAssert.SameTools(expected: DeclaredToolNames.All, actual: names);
+    }
+
+    [Fact]
+    public void TheDeclaredToolsAreReadFromTheToolMethods()
+    {
+        Assert.Contains(expected: "ping", collection: DeclaredToolNames.All, comparer: StringComparer.Ordinal);
+        Assert.Contains(expected: "pr_view", collection: DeclaredToolNames.All, comparer: StringComparer.Ordinal);
+        Assert.Contains(expected: "issue_close", collection: DeclaredToolNames.All, comparer: StringComparer.Ordinal);
     }
 
     [Fact]
@@ -126,11 +73,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     {
         ToolModeCatalog catalog = this.ServiceProvider.GetRequiredService<ToolModeCatalog>();
 
-        Assert.Equal(
-            expected: ExpectedToolNames,
-            actual: catalog.ToolsIn(ToolModes.All),
-            comparer: StringComparer.Ordinal
-        );
+        ToolNameAssert.SameTools(expected: DeclaredToolNames.All, actual: catalog.ToolsIn(ToolModes.All));
     }
 
     [Fact]
@@ -138,11 +81,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     {
         ToolModeCatalog catalog = this.ServiceProvider.GetRequiredService<ToolModeCatalog>();
 
-        Assert.Equal(
-            expected: ExpectedIssuesToolNames,
-            actual: catalog.ToolsIn(ToolModes.Issues),
-            comparer: StringComparer.Ordinal
-        );
+        ToolNameAssert.SameTools(expected: ExpectedIssuesToolNames, actual: catalog.ToolsIn(ToolModes.Issues));
     }
 
     [Theory]
