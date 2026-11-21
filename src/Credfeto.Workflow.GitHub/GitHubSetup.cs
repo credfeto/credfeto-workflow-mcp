@@ -159,6 +159,7 @@ public static class GitHubSetup
             .AddSingleton<IBranchCompareService, BranchCompareService>()
             .AddSingleton<IRepoCollaboratorsService, RepoCollaboratorsService>()
             .AddSingleton<ISecurityAdvisoriesService, SecurityAdvisoriesService>()
+            .AddSingleton<IAdvisoryViewService, AdvisoryViewService>()
             .AddSingleton<IRepoFileService, RepoFileService>()
             .AddSingleton<ITagViewService, TagViewService>()
             .AddSingleton<IReleaseService, ReleaseService>();

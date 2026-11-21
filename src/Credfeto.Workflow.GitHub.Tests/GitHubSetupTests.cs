@@ -533,6 +533,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void AdvisoryViewServiceShouldBeRegistered()
+    {
+        this.RequireService<IAdvisoryViewService>();
+    }
+
+    [Fact]
+    public void AdvisoryViewServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IAdvisoryViewService, AdvisoryViewService>();
+    }
+
+    [Fact]
     public void RunListServiceShouldBeRegistered()
     {
         this.RequireService<IRunListService>();

@@ -456,6 +456,14 @@ Accept: application/vnd.github+json
 X-GitHub-Api-Version: 2026-03-10
 User-Agent: credfeto-workflow-mcp
 
+### REST: one global security advisory by its GHSA id (advisory_view)
+# A 404 means no advisory has that id; a withdrawn advisory is still returned, with withdrawn_at set.
+GET {{apiBaseUrl}}advisories/GHSA-jfh8-c2jp-5v3q
+Authorization: Bearer {{token}}
+Accept: application/vnd.github+json
+X-GitHub-Api-Version: 2026-03-10
+User-Agent: credfeto-workflow-mcp
+
 ### REST: a branch's head and its classic branch protection required checks (branch_required_checks)
 # A '#' in the branch name is sent as %23; '/' is sent as is. A 404 means the branch or the repository
 # is missing, which the repository request below tells apart.

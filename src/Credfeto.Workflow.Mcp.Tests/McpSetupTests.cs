@@ -65,6 +65,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IWorkflowListService>()
             .AddMockedService<IDependabotAlertsService>()
             .AddMockedService<ISecurityAdvisoriesService>()
+            .AddMockedService<IAdvisoryViewService>()
             .AddMockedService<IRunListService>()
             .AddMockedService<IRunViewService>()
             .AddMockedService<IRunLogService>()

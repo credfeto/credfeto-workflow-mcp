@@ -40,7 +40,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -1969,6 +1969,42 @@ Accept: application/json, text/event-stream
     "name": "repo_advisories",
     "arguments": {
       "repo": "credfeto"
+    }
+  }
+}
+
+### Call the advisory_view tool; expects ghsaId, severity, summary, published, withdrawn (empty when not withdrawn) and packages, each with ecosystem, package, vulnerableRange and firstPatched; an unknown id is a tool error saying it was not found
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 168,
+  "method": "tools/call",
+  "params": {
+    "name": "advisory_view",
+    "arguments": {
+      "ghsa": "GHSA-jfh8-c2jp-5v3q"
+    }
+  }
+}
+
+### Call the advisory_view tool with a malformed id; expects a tool error naming the "ghsa" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 169,
+  "method": "tools/call",
+  "params": {
+    "name": "advisory_view",
+    "arguments": {
+      "ghsa": "CVE-2021-44228"
     }
   }
 }
