@@ -84,7 +84,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - issue_view now returns the issue's milestone title and, with the optional comments flag, every comment with its author, creation and last edit times and whole, unmodified body, so the orchestrator can fingerprint an issue from one call (#150)
 - Added read-only workflow_board_items MCP tool (repo) that lists every issue and pull request on a repository's Workflow board with its status, reading every page before returning, so the orchestrator can read the whole board in one call rather than one call per item (#152)
 - Added pr_sync_labels MCP tool (repo, pr, optional assignSelf) mirroring cfwf pr sync-labels: adds the labels of a pull request's closing issues to it one at a time, priority labels included and never Blocked or On Hold, in the repository's spelling, skipping and reporting labels the repository lacks, never removing one, refusing assignSelf before any write when another user holds it, and reporting a partial read as Incomplete rather than Synced (#155)
-- repo_advisories lists a repository's published security advisories, so the dependency updater can check for advisories without gh (#48)
+- Added read-only repo_advisories MCP tool (repo) that lists a repository's published security advisories, so the dependency updater can check for advisories without gh (#48)
 ### Fixed
 ### Changed
 - The tool tests compare tool names instead of counting tools: the expected set is read from the [McpServerTool] methods, so adding a tool needs no shared number edited and a missing or extra tool fails naming it (#164)
