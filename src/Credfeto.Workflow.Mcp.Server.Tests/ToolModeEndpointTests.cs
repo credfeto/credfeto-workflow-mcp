@@ -55,6 +55,7 @@ public sealed class ToolModeEndpointTests : TestBase
         "label_list",
         "label_remove",
         "ping",
+        "workflow_status_history",
     ];
 
     [Fact]

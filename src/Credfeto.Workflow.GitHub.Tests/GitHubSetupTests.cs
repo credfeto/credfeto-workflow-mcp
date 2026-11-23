@@ -317,6 +317,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void WorkflowStatusHistoryReaderShouldBeRegistered()
+    {
+        this.RequireService<IWorkflowStatusHistoryReader>();
+    }
+
+    [Fact]
+    public void WorkflowStatusHistoryReaderShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IWorkflowStatusHistoryReader, WorkflowStatusHistoryReader>();
+    }
+
+    [Fact]
     public void LabelListServiceShouldBeRegistered()
     {
         this.RequireService<ILabelListService>();

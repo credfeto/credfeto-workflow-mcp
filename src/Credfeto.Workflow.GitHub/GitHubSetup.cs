@@ -108,8 +108,7 @@ public static class GitHubSetup
             .AddSingleton<IRepositoryProjectCache, RepositoryProjectCache>()
             .AddSingleton<IGitHubRestClient, GitHubRestClient>()
             .AddSingleton<IGitHubGraphQlClient, GitHubGraphQlClient>()
-            .AddSingleton<IWorkflowBoardResolver, WorkflowBoardResolver>()
-            .AddSingleton<IWorkflowBoardReader, WorkflowBoardReader>()
+            .AddBoardReadServices()
             .AddSingleton<IBoardWriter, BoardWriter>()
             .AddSingleton<IWorkflowStatusResolver, WorkflowStatusResolver>()
             .AddSingleton<IPullRequestCommentsReader, PullRequestCommentsReader>()
@@ -170,6 +169,14 @@ public static class GitHubSetup
         return services
             .AddSingleton<ILabelListService, LabelListService>()
             .AddSingleton<ILabelHistoryReader, LabelHistoryReader>();
+    }
+
+    private static IServiceCollection AddBoardReadServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<IWorkflowBoardResolver, WorkflowBoardResolver>()
+            .AddSingleton<IWorkflowBoardReader, WorkflowBoardReader>()
+            .AddSingleton<IWorkflowStatusHistoryReader, WorkflowStatusHistoryReader>();
     }
 
     private static IServiceCollection AddRunServices(this IServiceCollection services)

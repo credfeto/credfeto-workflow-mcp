@@ -2163,6 +2163,31 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    [McpServerTool(Name = "workflow_status_history", Title = "Workflow status history", ReadOnly = true)]
+    [InModes(ToolModes.All | ToolModes.Issues)]
+    [Description(
+        "Lists the Workflow board status changes of an issue or pull request, oldest first, each with its UTC time, actor, previous status and new status (- when none, as when the item was added to the board); give exactly one of issue or pr; only changes on the repository's Workflow board are listed, and more than 1000 status changes is refused rather than listed in part"
+    )]
+    public static async Task<WorkflowStatusHistoryResult> WorkflowStatusHistoryAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IWorkflowStatusHistoryReader reader,
+        [Description("The issue number, above 0; give this or pr")] int? issue = null,
+        [Description("The pull request number, above 0; give this or issue")] int? pr = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await reader.ReadAsync(repository: repo, issue: issue, pr: pr, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception) when (IsWorkflowStatusHistoryError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     [McpServerTool(Name = "label_list", Title = "Label list", ReadOnly = true)]
     [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
@@ -2222,6 +2247,18 @@ public sealed class WorkflowMcpTools
                 or WorkflowBoardAmbiguousException
                 or WorkflowBoardInvalidException
                 or BoardReadFailedException
+                or ParameterValidationException;
+    }
+
+    private static bool IsWorkflowStatusHistoryError(Exception exception)
+    {
+        return exception
+            is IssueNotFoundException
+                or PullRequestNotFoundException
+                or WorkflowStatusHistoryFailedException
+                or WorkflowBoardNotFoundException
+                or WorkflowBoardAmbiguousException
+                or WorkflowBoardInvalidException
                 or ParameterValidationException;
     }
 

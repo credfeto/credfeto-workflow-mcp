@@ -40,7 +40,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check" and "workflow_status_set" tools
+### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check", "workflow_status_history" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -103,7 +103,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools in Issues mode; expects only the "body_check", "comment_add", "issue_add_sub_issue", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_search", "issue_view", "label_add", "label_history", "label_list", "label_remove" and "ping" tools
+### List tools in Issues mode; expects only the "body_check", "comment_add", "issue_add_sub_issue", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_search", "issue_view", "label_add", "label_history", "label_list", "label_remove", "ping" and "workflow_status_history" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 X-Mode: Issues
@@ -3371,6 +3371,64 @@ Accept: application/json, text/event-stream
     "arguments": {
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 0
+    }
+  }
+}
+
+### Call the workflow_status_history tool for a pull request; expects its Workflow board status changes oldest first, each with time, actor, previousStatus and status
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 170,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_history",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 172
+    }
+  }
+}
+
+### Call the workflow_status_history tool for an issue; expects its Workflow board status changes oldest first, with "-" for the previous status when the issue was added to the board
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 171,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_history",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "issue": 171
+    }
+  }
+}
+
+### Call the workflow_status_history tool with both pr and issue; expects a tool error naming the "pr" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 172,
+  "method": "tools/call",
+  "params": {
+    "name": "workflow_status_history",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 172,
+      "issue": 171
     }
   }
 }
