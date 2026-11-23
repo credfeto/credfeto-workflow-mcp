@@ -48,6 +48,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<ILabelService>()
             .AddMockedService<ILabelListService>()
             .AddMockedService<ILabelHistoryReader>()
+            .AddMockedService<IWorkflowStatusHistoryReader>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
             .AddMockedService<IIssueEditService>()
