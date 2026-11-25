@@ -51,6 +51,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IWorkflowStatusHistoryReader>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
+            .AddMockedService<IIssuePostPlanService>()
             .AddMockedService<IIssueEditService>()
             .AddMockedService<IIssueSearchService>()
             .AddMockedService<IPrSearchService>()

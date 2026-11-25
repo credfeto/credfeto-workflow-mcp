@@ -48,6 +48,7 @@ public sealed class ToolModeEndpointTests : TestBase
         "issue_edit",
         "issue_list",
         "issue_plan_status",
+        "issue_post_plan",
         "issue_search",
         "issue_view",
         "label_add",

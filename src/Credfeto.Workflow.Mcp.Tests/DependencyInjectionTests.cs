@@ -24,6 +24,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "issue_edit",
         "issue_list",
         "issue_plan_status",
+        "issue_post_plan",
         "issue_search",
         "issue_view",
         "label_add",
@@ -595,6 +596,25 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void IssuePostPlanTakesRepoIssueAndBody()
+    {
+        JsonElement schema = this.GetTool("issue_post_plan").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "issue", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void IssuePostPlanIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("issue_post_plan");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "issue_post_plan posts a comment");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "issue_post_plan is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: "issue_post_plan is not idempotent");
+    }
+
+    [Fact]
     public void PrCreateTakesRepoHeadTitleBodyAndOptionalBase()
     {
         JsonElement schema = this.GetTool("pr_create").ProtocolTool.InputSchema;
@@ -966,6 +986,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IWorkflowStatusHistoryReader>()
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
+            .AddMockedService<IIssuePostPlanService>()
             .AddMockedService<IIssueEditService>()
             .AddMockedService<IIssueSearchService>()
             .AddMockedService<IPrSearchService>()
