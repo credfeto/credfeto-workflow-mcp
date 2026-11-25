@@ -98,7 +98,8 @@ internal static class PrChecksEvaluator
             Id: ValidId(id: run.Id, kind: "check run"),
             Conclusion: run.Conclusion,
             Verdict: RunVerdict(run.Conclusion),
-            CompletedAt: run.CompletedAt
+            CompletedAt: run.CompletedAt,
+            IsRunning: IsRunning(run)
         );
     }
 
@@ -116,7 +117,8 @@ internal static class PrChecksEvaluator
             Id: ValidId(id: status.Id, kind: "commit status"),
             Conclusion: null,
             Verdict: StatusVerdict(status.State),
-            CompletedAt: status.UpdatedAt
+            CompletedAt: status.UpdatedAt,
+            IsRunning: false
         );
     }
 
@@ -159,19 +161,29 @@ internal static class PrChecksEvaluator
         [
             .. entries
                 .GroupBy(entry => (entry.Name, entry.AppId, entry.IsStatus))
-                .Select(group => group.OrderBy(entry => entry.Id).Aggregate(Newer)),
+                .Select(group => Replaced(newest: group.OrderBy(entry => entry.Id).Aggregate(Newer), group: group)),
         ];
     }
 
-    // A skipped run must not hide the failure it follows, but may stand in for a run that was skipped or cancelled
+    // A skipped run must not hide the failure or cancellation it follows, as a job skipped in a cancelled run is no pass
     private static PrCheckEntry Newer(PrCheckEntry current, PrCheckEntry next)
     {
         return
             IsConclusion(entry: next, conclusion: CONCLUSION_SKIPPED)
             && !IsConclusion(entry: current, conclusion: CONCLUSION_SKIPPED)
-            && !IsConclusion(entry: current, conclusion: CONCLUSION_CANCELLED)
             ? current
             : next;
+    }
+
+    // A run cancelled by a concurrency group has not failed while the run that replaced it is still going
+    private static PrCheckEntry Replaced(PrCheckEntry newest, IEnumerable<PrCheckEntry> group)
+    {
+        return IsConclusion(entry: newest, conclusion: CONCLUSION_CANCELLED) && group.Any(entry => entry.IsRunning)
+            ? newest with
+            {
+                Verdict = PrChecksVerdict.Pending,
+            }
+            : newest;
     }
 
     private static bool IsConclusion(PrCheckEntry entry, string conclusion)

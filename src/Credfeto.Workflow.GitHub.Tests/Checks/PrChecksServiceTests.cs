@@ -846,7 +846,9 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
     [InlineData("failure", "success", PrChecksVerdict.Passed, 2)]
     [InlineData("failure", "skipped", PrChecksVerdict.Failed, 1)]
     [InlineData("success", "skipped", PrChecksVerdict.Passed, 1)]
-    [InlineData("cancelled", "skipped", PrChecksVerdict.Passed, 2)]
+    [InlineData("cancelled", "skipped", PrChecksVerdict.Failed, 1)]
+    [InlineData("cancelled", "success", PrChecksVerdict.Passed, 2)]
+    [InlineData("skipped", "cancelled", PrChecksVerdict.Failed, 2)]
     [InlineData("skipped", "skipped", PrChecksVerdict.Passed, 2)]
     [InlineData("success", "failure", PrChecksVerdict.Failed, 2)]
     public async Task ReadAsyncJudgesARepeatedRunByItsNewestReportAsync(
@@ -867,6 +869,95 @@ public sealed class PrChecksServiceTests : GitHubClientTestBase
         PrCheckResult check = Assert.Single(response.Checks);
         Assert.Equal(expected: expectedVerdict, actual: check.Verdict);
         Assert.Equal(expected: expectedRunId, actual: check.RunId);
+    }
+
+    [Theory]
+    [InlineData(1, 2)]
+    [InlineData(2, 1)]
+    public async Task ReadAsyncJudgesACancelledRunAsPendingWhileARunOfTheSameCheckIsGoingAsync(
+        long cancelledId,
+        long runningId
+    )
+    {
+        PrChecksResponse response = await this.ReadCommitAsync(
+            required: [new(Name: "lint", AppId: APP_ID)],
+            runs: Runs(
+                Run(id: cancelledId, name: "lint", conclusion: "cancelled"),
+                RunWithStatus(id: runningId, name: "lint", status: "queued")
+            ),
+            statuses: NO_STATUSES,
+            all: false
+        );
+
+        Assert.Equal(
+            expected: new(
+                Name: "lint (app 15368)",
+                Verdict: PrChecksVerdict.Pending,
+                CompletedAt: null,
+                RunId: null,
+                Required: true,
+                Reported: true,
+                Kind: PrCheckKind.CheckRun
+            ),
+            actual: Assert.Single(response.Checks)
+        );
+        Assert.Equal(expected: PrChecksVerdict.Pending, actual: response.Verdict);
+    }
+
+    [Fact]
+    public async Task ReadAsyncJudgesACancelledRunThenASkippedRunAsPendingWhileARunOfTheSameCheckIsGoingAsync()
+    {
+        PrChecksResponse response = await this.ReadCommitAsync(
+            required: NothingRequired,
+            runs: Runs(
+                RunWithStatus(id: 1, name: "lint", status: "in_progress"),
+                Run(id: 2, name: "lint", conclusion: "cancelled"),
+                Run(id: 3, name: "lint", conclusion: "skipped")
+            ),
+            statuses: NO_STATUSES,
+            all: false
+        );
+
+        Assert.Equal(expected: PrChecksVerdict.Pending, actual: Assert.Single(response.Checks).Verdict);
+    }
+
+    [Fact]
+    public async Task ReadAsyncFailsACancelledRunWhenNothingElseOfTheSameCheckIsGoingAsync()
+    {
+        PrChecksResponse response = await this.ReadCommitAsync(
+            required: [new(Name: "lint", AppId: null)],
+            runs: Runs(Run(id: 1, name: "lint", conclusion: "cancelled")),
+            statuses: NO_STATUSES,
+            all: false
+        );
+
+        PrCheckResult check = Assert.Single(response.Checks);
+        Assert.Equal(expected: PrChecksVerdict.Failed, actual: check.Verdict);
+        Assert.Equal(expected: 1, actual: check.RunId);
+        Assert.Equal(expected: PrChecksVerdict.Failed, actual: response.Verdict);
+    }
+
+    [Theory]
+    [InlineData("lint", OTHER_APP_ID)]
+    [InlineData("build", APP_ID)]
+    public async Task ReadAsyncFailsACancelledRunWhileOnlyARunOfAnotherCheckIsGoingAsync(string name, long appId)
+    {
+        PrChecksResponse response = await this.ReadCommitAsync(
+            required: NothingRequired,
+            runs: Runs(
+                Run(id: 1, name: "lint", conclusion: "cancelled"),
+                Run(id: 2, name: name, conclusion: null, appId: appId)
+            ),
+            statuses: NO_STATUSES,
+            all: true
+        );
+
+        PrCheckResult lint = Assert.Single(collection: response.Checks, predicate: entry =>
+            StringComparer.Ordinal.Equals(x: entry.Name, y: "lint")
+        );
+        Assert.Equal(expected: PrChecksVerdict.Failed, actual: lint.Verdict);
+        Assert.Equal(expected: 1, actual: lint.RunId);
+        Assert.Equal(expected: PrChecksVerdict.Failed, actual: response.Verdict);
     }
 
     [Fact]
