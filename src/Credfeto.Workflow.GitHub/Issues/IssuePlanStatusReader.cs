@@ -18,8 +18,6 @@ namespace Credfeto.Workflow.GitHub.Issues;
 
 public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
 {
-    private const string PLAN_HEADING = "## Implementation Plan";
-
     private readonly IGitHubRestClient _restClient;
 
     public IssuePlanStatusReader(IGitHubRestClient restClient)
@@ -125,7 +123,7 @@ public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
             ?? throw new GitHubInvalidResponseException("GitHub returned a comment without a body");
 
         return new(
-            IsPlan: IsPlan(body),
+            IsPlan: PlanHeading.IsPresent(body),
             FollowUp: new(
                 CreatedAt: createdAt,
                 Login: UpstreamText.ReplaceLineBreaking(Login(comment.User)),
@@ -160,11 +158,6 @@ public sealed class IssuePlanStatusReader : IIssuePlanStatusReader
         }
 
         return uri;
-    }
-
-    private static bool IsPlan(string body)
-    {
-        return body.Split('\n').Any(line => StringComparer.Ordinal.Equals(x: line.TrimEnd('\r'), y: PLAN_HEADING));
     }
 
     private static bool IsBlocked(IssueLabelResponse?[]? labels)

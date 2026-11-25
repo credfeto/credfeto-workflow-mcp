@@ -377,6 +377,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void IssuePostPlanServiceShouldBeRegistered()
+    {
+        this.RequireService<IIssuePostPlanService>();
+    }
+
+    [Fact]
+    public void IssuePostPlanServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IIssuePostPlanService, IssuePostPlanService>();
+    }
+
+    [Fact]
     public void IssueSearchServiceShouldBeRegistered()
     {
         this.RequireService<IIssueSearchService>();

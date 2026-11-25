@@ -1392,6 +1392,43 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: every successful call posts a new plan comment, as an existing plan is never edited
+    [McpServerTool(
+        Name = "issue_post_plan",
+        Title = "Issue post plan",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [InModes(ToolModes.All | ToolModes.Issues)]
+    [Description(
+        "Posts an issue's implementation plan for a human to approve: posts the plan as a new comment, adds Blocked, then moves the issue to Planning on the Workflow board, always in that order. Everything is checked before anything is written: the body leak check, no approval keyword outside a Markdown quote, an exact '## Implementation Plan' line, and the issue must be open, not On Hold and not a pull request. Returns the comment URL, the issue's labels and the board status set, or \"no board\" when the repository has none; a failure after the comment names the steps done"
+    )]
+    public static async Task<IssuePostPlanResponse> IssuePostPlanAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        [Description("The plan, in Markdown, with a line that is exactly '## Implementation Plan'")] string body,
+        IIssuePostPlanService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.PostAsync(
+                repository: repo,
+                issue: issue,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsIssuePostPlanError(exception))
+        {
+            // Every one of these messages is fixed text, validated caller input, the comment step's own outcome message
+            // as comment_add returns it or, once the comment exists, its URL, never the body, so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     // Destructive because the title, body and priority given replace the ones the issue had; idempotent because a
     // repeat call finds the issue already as asked and writes nothing
     [McpServerTool(Name = "issue_edit", Title = "Issue edit", ReadOnly = false, Destructive = true, Idempotent = true)]
@@ -2266,6 +2303,19 @@ public sealed class WorkflowMcpTools
     {
         return IsBoardOrRepositoryError(exception)
             || exception is IssueCreateRefusedException or IssueCreateFailedException or IssueCreateBoardWriteException;
+    }
+
+    private static bool IsIssuePostPlanError(Exception exception)
+    {
+        return exception
+            is ParameterValidationException
+                or RepositoryNotFoundException
+                or RepositoryVisibilityLookupFailedException
+                or LeakCheckFailedException
+                or IssueNotFoundException
+                or IssueViewFailedException
+                or IssuePostPlanRefusedException
+                or IssuePostPlanFailedException;
     }
 
     private static bool IsPrCreateError(Exception exception)
