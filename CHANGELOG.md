@@ -89,6 +89,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added label_history MCP tool (repo, one of issue/pr, optional label) that lists when each label was added or removed on an issue or pull request, oldest first, with the actor and UTC time, read from its timeline, so workflows can see label history through the server without calling GitHub directly (#53)
 - Added read-only workflow_status_history MCP tool that lists an issue's or pull request's Workflow board status changes, oldest first, with the UTC time, actor and previous and new status, so workflows can see how an item moved across the board without calling GitHub directly (#171)
 ### Fixed
+- pr_checks reports a cancelled check as pending while a newer run of it is in progress (placeholder)
 ### Changed
 - The tool tests compare tool names instead of counting tools: the expected set is read from the [McpServerTool] methods, so adding a tool needs no shared number edited and a missing or extra tool fails naming it (#164)
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
