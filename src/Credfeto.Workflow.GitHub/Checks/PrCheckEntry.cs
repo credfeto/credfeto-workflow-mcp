@@ -12,5 +12,6 @@ internal sealed record PrCheckEntry(
     long Id,
     string? Conclusion,
     PrChecksVerdict Verdict,
-    string? CompletedAt
+    string? CompletedAt,
+    bool IsRunning
 );
