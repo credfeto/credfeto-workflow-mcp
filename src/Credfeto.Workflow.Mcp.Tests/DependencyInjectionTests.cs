@@ -762,6 +762,28 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrTakeBackTakesRepoPrAndBody()
+    {
+        JsonElement schema = this.GetTool("pr_take_back").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrTakeBackIsANonIdempotentNonDestructiveWrite()
+    {
+        McpServerTool tool = this.GetTool("pr_take_back");
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: "pr_take_back writes a pull request");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: "pr_take_back is not destructive");
+        Assert.False(
+            tool.ProtocolTool.Annotations?.IdempotentHint,
+            userMessage: "pr_take_back posts a comment each time"
+        );
+    }
+
+    [Fact]
     public void PrDiffTakesRepoAndPrAndOptionalMode()
     {
         JsonElement schema = this.GetTool("pr_diff").ProtocolTool.InputSchema;
@@ -1046,6 +1068,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IPrEditService>()
             .AddMockedService<IPrSyncLabelsService>()
             .AddMockedService<IPrHandOffService>()
+            .AddMockedService<IPrTakeBackService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<IPrReviewCommentService>()
             .AddMockedService<IPrDiffService>()

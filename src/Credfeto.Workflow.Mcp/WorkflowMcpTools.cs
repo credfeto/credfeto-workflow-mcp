@@ -1823,6 +1823,43 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: every successful call posts a new comment
+    [McpServerTool(
+        Name = "pr_take_back",
+        Title = "Pull request take back",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Takes a pull request back from human review, the reverse of pr_hand_off: turns auto-merge off, converts it to a draft, moves it to Development on the Workflow board and posts the body as a comment saying why, always in that order; refuses before writing anything unless the body passes the leak and approval-keyword checks and the pull request is open. Auto-merge already off and an existing draft are not changed again but are reported as done. Returns TakenBack with the comment URL, Refused with the rule, NotFound, NotTakenBack or MayHaveBeenTakenBack with the steps already made"
+    )]
+    public static async Task<PrTakeBackResult> PrTakeBackAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        [Description("The comment saying why the pull request was taken back, in Markdown")] string body,
+        IPrTakeBackService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.TakeBackAsync(
+                repository: repo,
+                pullRequest: pr,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsPrTakeBackError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never the body or upstream detail,
+            // so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     // Destructive because the title, body and priority given replace the ones the pull request had; idempotent because
     // a repeat call finds the pull request already as asked and writes nothing
     [McpServerTool(
@@ -2415,6 +2452,11 @@ public sealed class WorkflowMcpTools
                     or BranchNotFoundException
                     or RequiredChecksUnreadableException
                     or PrChecksUnreadableException;
+    }
+
+    private static bool IsPrTakeBackError(Exception exception)
+    {
+        return IsBoardOrRepositoryError(exception) || exception is LeakCheckFailedException;
     }
 
     private static bool IsPrStatusError(Exception exception)

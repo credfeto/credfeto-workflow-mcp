@@ -80,6 +80,7 @@ public sealed class McpSetupTests : TestBase
             .AddMockedService<IPrEditService>()
             .AddMockedService<IPrSyncLabelsService>()
             .AddMockedService<IPrHandOffService>()
+            .AddMockedService<IPrTakeBackService>()
             .AddMockedService<IPrReplyService>()
             .AddMockedService<IPrReviewCommentService>()
             .AddMockedService<IPrDiffService>()
