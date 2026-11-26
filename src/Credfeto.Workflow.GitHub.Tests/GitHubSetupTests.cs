@@ -1,6 +1,7 @@
 using Credfeto.Workflow.GitHub.Advisories;
 using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Authorization;
+using Credfeto.Workflow.GitHub.Blocks;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
@@ -386,6 +387,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     public void IssuePostPlanServiceShouldBeOfCorrectType()
     {
         this.RequireServiceInCollectionFor<IIssuePostPlanService, IssuePostPlanService>();
+    }
+
+    [Fact]
+    public void BlockServiceShouldBeRegistered()
+    {
+        this.RequireService<IBlockService>();
+    }
+
+    [Fact]
+    public void BlockServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IBlockService, BlockService>();
     }
 
     [Fact]

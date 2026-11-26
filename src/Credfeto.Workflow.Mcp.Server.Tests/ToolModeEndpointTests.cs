@@ -43,6 +43,7 @@ public sealed class ToolModeEndpointTests : TestBase
         "body_check",
         "comment_add",
         "issue_add_sub_issue",
+        "issue_block",
         "issue_comments",
         "issue_create",
         "issue_edit",
