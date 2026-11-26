@@ -150,6 +150,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     [InlineData("repo_collaborators")]
     [InlineData("issue_plan_status")]
     [InlineData("pr_checks")]
+    [InlineData("pr_checks_wait")]
     [InlineData("pr_status")]
     [InlineData("pr_ready_at")]
     [InlineData("pr_auto_merge_at")]
@@ -874,6 +875,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrChecksWaitTakesRepoOptionalTargetsAndTimeout()
+    {
+        JsonElement schema = this.GetTool("pr_checks_wait").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["all", "branch", "pr", "repo", "sha", "timeoutMinutes"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void ClosingIssueLabelsTakesRepoAndPr()
     {
         JsonElement schema = this.GetTool("closing_issue_labels").ProtocolTool.InputSchema;
@@ -1075,6 +1085,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
+            .AddMockedService<IPrChecksWaitService>()
             .AddMockedService<IClosingIssueLabelsService>()
             .AddMockedService<IWorkflowStatusCheckService>()
             .AddMockedService<IWorkflowStatusSetService>()

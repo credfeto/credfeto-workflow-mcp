@@ -214,6 +214,7 @@ public static class GitHubSetup
     {
         return services
             .AddSingleton<IPrChecksService, PrChecksService>()
+            .AddSingleton<IPrChecksWaitService, PrChecksWaitService>()
             .AddSingleton<IPrReadyAtService, PrReadyAtService>()
             .AddSingleton<IPrAutoMergeAtService, PrAutoMergeAtService>()
             .AddSingleton<IPrStatusService, PrStatusService>();
