@@ -246,6 +246,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void PrTakeBackServiceShouldBeRegistered()
+    {
+        this.RequireService<IPrTakeBackService>();
+    }
+
+    [Fact]
+    public void PrTakeBackServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<IPrTakeBackService, PrTakeBackService>();
+    }
+
+    [Fact]
     public void PrEditServiceShouldBeRegistered()
     {
         this.RequireService<IPrEditService>();
