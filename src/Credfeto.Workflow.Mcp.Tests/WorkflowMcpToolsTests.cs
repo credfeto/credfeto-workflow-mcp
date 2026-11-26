@@ -68,6 +68,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
     private readonly IPrEditService _prEditService;
     private readonly IPrHandOffService _prHandOffService;
     private readonly IPrReplyService _prReplyService;
+    private readonly IPrTakeBackService _prTakeBackService;
     private readonly IPrReviewCommentService _prReviewCommentService;
     private readonly IPullRequestCommentsReader _reader;
     private readonly IRunListService _runListService;
@@ -98,6 +99,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
         this._prEditService = GetSubstitute<IPrEditService>();
         this._prHandOffService = GetSubstitute<IPrHandOffService>();
         this._prReplyService = GetSubstitute<IPrReplyService>();
+        this._prTakeBackService = GetSubstitute<IPrTakeBackService>();
         this._prReviewCommentService = GetSubstitute<IPrReviewCommentService>();
         this._bodyCheckService = GetSubstitute<IBodyCheckService>();
         this._commentAddService = GetSubstitute<ICommentAddService>();
@@ -2345,6 +2347,94 @@ public sealed class WorkflowMcpToolsTests : TestBase
             description: "Closes #55",
             service: this._prHandOffService,
             record: "clean",
+            cancellationToken: this.CancellationToken()
+        );
+    }
+
+    [Fact]
+    public async Task PrTakeBackReturnsWhatTheServiceAnsweredAsync()
+    {
+        PrTakeBackResult expected = new(
+            Outcome: PrTakeBackOutcome.TakenBack,
+            Message: REPOSITORY + "#41 was taken back: auto-merge off, draft, Development",
+            CommentUrl: new("https://github.com/" + REPOSITORY + "/pull/41#issuecomment-456"),
+            AutoMergeWasOn: true,
+            AlreadyDraft: false,
+            StepsDone: ["auto-merge off", "draft", "Workflow board set to Development", "comment posted"],
+            Rule: null,
+            LineNumber: null
+        );
+        this.PrTakeBackServiceCallAsync().Returns(expected);
+
+        PrTakeBackResult actual = await this.PrTakeBackAsync();
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrTakeBackFailuresAreReportedToTheCallerAsync()
+    {
+        foreach (Exception failure in PrTakeBackFailures())
+        {
+            this.PrTakeBackServiceCallAsync().ThrowsAsync(failure);
+
+            McpException exception = await Assert.ThrowsAsync<McpException>(this.PrTakeBackAsync);
+
+            Assert.Equal(expected: failure.Message, actual: exception.Message);
+            Assert.Same(expected: failure, actual: exception.InnerException);
+        }
+    }
+
+    [Fact]
+    public async Task PrTakeBackOtherFailuresAreNotReportedToTheCallerAsync()
+    {
+        GitHubInvalidResponseException failure = new("upstream detail");
+        this.PrTakeBackServiceCallAsync().ThrowsAsync(failure);
+
+        GitHubInvalidResponseException exception = await Assert.ThrowsAsync<GitHubInvalidResponseException>(
+            this.PrTakeBackAsync
+        );
+
+        Assert.Same(expected: failure, actual: exception);
+    }
+
+    private static IReadOnlyList<Exception> PrTakeBackFailures()
+    {
+        return
+        [
+            ParameterValidationException.For(parameterName: "body", rule: "the body is empty"),
+            new LeakCheckFailedException("the text could not be checked for leaks in time"),
+            new RepositoryNotFoundException("the repository being written to was not found"),
+            new RepositoryVisibilityLookupFailedException(
+                "the visibility of a referenced repository could not be read"
+            ),
+            new WorkflowBoardNotFoundException("no Workflow board"),
+            new WorkflowBoardAmbiguousException("more than one Workflow board"),
+            new WorkflowBoardInvalidException("unexpected project id/number"),
+            new WorkflowStatusFieldNotFoundException("no Status field"),
+            new StatusFieldReadFailedException("could not read the status fields of project 7"),
+            new StatusOptionMissingException("no Development option"),
+            new AmbiguousStatusOptionException("more than one Development option"),
+        ];
+    }
+
+    private ValueTask<PrTakeBackResult> PrTakeBackServiceCallAsync()
+    {
+        return this._prTakeBackService.TakeBackAsync(
+            repository: REPOSITORY,
+            pullRequest: PULL_REQUEST,
+            body: "Taking this back to fix the review findings.",
+            cancellationToken: Arg.Any<CancellationToken>()
+        );
+    }
+
+    private Task<PrTakeBackResult> PrTakeBackAsync()
+    {
+        return WorkflowMcpTools.PrTakeBackAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            body: "Taking this back to fix the review findings.",
+            service: this._prTakeBackService,
             cancellationToken: this.CancellationToken()
         );
     }

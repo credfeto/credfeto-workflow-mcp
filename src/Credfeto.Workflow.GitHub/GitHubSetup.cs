@@ -205,6 +205,7 @@ public static class GitHubSetup
             .AddSingleton<IPrReviewCommentService, PrReviewCommentService>()
             .AddSingleton<IPrDiffService, PrDiffService>()
             .AddSingleton<IPrHandOffService, PrHandOffService>()
+            .AddSingleton<IPrTakeBackService, PrTakeBackService>()
             .AddSingleton<IPrEditService, PrEditService>()
             .AddSingleton<IPrSyncLabelsService, PrSyncLabelsService>();
     }

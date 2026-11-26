@@ -40,7 +40,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check", "workflow_status_history" and "workflow_status_set" tools
+### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_take_back", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check", "workflow_status_history" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -2609,6 +2609,66 @@ Accept: application/json, text/event-stream
       "pr": 87,
       "title": "feat(tools): add the pr_hand_off tool",
       "description": " "
+    }
+  }
+}
+
+### Call the pr_take_back tool on an open pull request; expects outcome "TakenBack" with the comment URL, whether auto-merge was on and whether it was already a draft, having turned auto-merge off, made it a draft and set the Workflow board to Development
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 173,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_take_back",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "body": "Taking this back to fix the review findings."
+    }
+  }
+}
+
+### Call the pr_take_back tool with an approval keyword in the body; expects outcome "Refused" with the rule and line number and nothing written
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 174,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_take_back",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "body": "Taking this back.\n\nLGTM"
+    }
+  }
+}
+
+### Call the pr_take_back tool with an empty body; expects a tool error naming the "body" parameter and makes no GitHub call
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 175,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_take_back",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 87,
+      "body": " "
     }
   }
 }

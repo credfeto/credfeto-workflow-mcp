@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Runtime.InteropServices;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
@@ -17,14 +16,13 @@ using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 using Credfeto.Workflow.GitHub.Interfaces.Models;
 using Credfeto.Workflow.GitHub.Interfaces.Validation;
-using Credfeto.Workflow.GitHub.Issues;
 using Credfeto.Workflow.GitHub.Json;
 using Credfeto.Workflow.GitHub.Leaks;
 using Credfeto.Workflow.GitHub.Validation;
 
 namespace Credfeto.Workflow.GitHub.PullRequests;
 
-public sealed partial class PrHandOffService : IPrHandOffService
+public sealed class PrHandOffService : IPrHandOffService
 {
     private const string APPROVAL_KEYWORD_RULE = "approval keyword";
 
@@ -59,8 +57,6 @@ public sealed partial class PrHandOffService : IPrHandOffService
     private const string RECORD_SUBJECT = "record";
 
     private const string PULL_REQUEST_SUBJECT = "pull request";
-
-    private const int REGEX_TIMEOUT_MILLISECONDS = 1000;
 
     private static readonly IReadOnlyList<string> HoldLabels = [StandardLabels.BLOCKED, StandardLabels.ON_HOLD];
 
@@ -158,16 +154,10 @@ public sealed partial class PrHandOffService : IPrHandOffService
             return refused;
         }
 
-        // The board is resolved before anything is written, so a repository with no Workflow board fails here and
-        // leaves the pull request untouched
-        WorkflowProject project = await this._boardResolver.ResolveAsync(
+        PullRequestBoardTarget board = await PullRequestBoardTarget.ResolveAsync(
+            boardResolver: this._boardResolver,
+            statusResolver: this._statusResolver,
             repository: request.Repository,
-            cancellationToken: cancellationToken
-        );
-
-        ResolvedStatusOption option = await this._statusResolver.ResolveAsync(
-            repository: request.Repository,
-            project: project,
             state: WorkflowStates.HUMAN_REVIEW,
             cancellationToken: cancellationToken
         );
@@ -181,8 +171,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
 
         PullRequestState state = read.State;
 
-        PrHandOffResult? notReady =
-            Unready(state)
+        PrHandOffResult? notReady = Unready(state)
             ?? await this.CheckRequiredChecksAsync(
                 request: request,
                 state: state,
@@ -201,7 +190,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
         );
 
         return await this.WriteAsync(
-            target: new(Request: request, State: state, Board: new(Project: project, Option: option), Plan: plan),
+            target: new(Request: request, State: state, Board: board, Plan: plan),
             cancellationToken: cancellationToken
         );
     }
@@ -217,8 +206,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
         }
 
         // A title gets the same rules as a body except its length, which the usage checks already limit
-        LeakRefusal? titleLeak =
-            this._leakChecker.CheckValue(subject: LeakSubject.TITLE, value: request.Title)
+        LeakRefusal? titleLeak = this._leakChecker.CheckValue(subject: LeakSubject.TITLE, value: request.Title)
             ?? await this._leakChecker.CheckRepositoryReferencesAsync(
                 repository: request.Repository,
                 subject: LeakSubject.TITLE,
@@ -258,8 +246,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
         CancellationToken cancellationToken
     )
     {
-        LeakRefusal? leak =
-            this._leakChecker.CheckBody(body)
+        LeakRefusal? leak = this._leakChecker.CheckBody(body)
             ?? await this._leakChecker.CheckRepositoryReferencesAsync(
                 repository: repository,
                 subject: LeakSubject.BODY,
@@ -496,7 +483,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
     {
         List<string> steps = [];
 
-        WriteFailure? failure = await TryWriteAsync(
+        PullRequestWriteFailure? failure = await PullRequestWriteSteps.TryWriteAsync(
             write: () =>
                 PullRequestWriter.UpdateTitleAndBodyAsync(
                     restClient: this._restClient,
@@ -510,7 +497,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
             steps: steps
         );
 
-        failure ??= await TryWriteAsync(
+        failure ??= await PullRequestWriteSteps.TryWriteAsync(
             write: () => this.SetBoardAsync(target: target, cancellationToken: cancellationToken),
             step: STEP_BOARD,
             steps: steps
@@ -518,7 +505,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
 
         if (failure is null && target.State.Draft)
         {
-            failure = await TryWriteAsync(
+            failure = await PullRequestWriteSteps.TryWriteAsync(
                 write: () =>
                     PullRequestWriter.MarkReadyAsync(
                         graphQlClient: this._graphQlClient,
@@ -547,7 +534,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
         {
             recordUrl = await this.PostRecordAsync(target: target, cancellationToken: cancellationToken);
         }
-        catch (Exception exception) when (IsWriteFailure(exception))
+        catch (Exception exception) when (PullRequestWriteSteps.IsWriteFailure(exception))
         {
             return Failed(
                 request: target.Request,
@@ -589,7 +576,7 @@ public sealed partial class PrHandOffService : IPrHandOffService
             );
         }
 
-        WriteFailure? failure = await TryWriteAsync(
+        PullRequestWriteFailure? failure = await PullRequestWriteSteps.TryWriteAsync(
             write: () =>
                 PullRequestWriter.EnableAutoMergeAsync(
                     graphQlClient: this._graphQlClient,
@@ -631,101 +618,39 @@ public sealed partial class PrHandOffService : IPrHandOffService
 
     private ValueTask SetBoardAsync(HandOffTarget target, CancellationToken cancellationToken)
     {
-        return this._boardWriter.SetItemStatusAsync(
+        return target.Board.SetAsync(
+            boardWriter: this._boardWriter,
             owner: target.Request.Owner,
-            repo: target.Request.Name,
-            kind: WorkItemKind.PULL_REQUEST,
+            name: target.Request.Name,
             number: target.Request.Number,
-            project: target.Board.Project,
-            fieldId: target.Board.Option.FieldId,
-            fieldName: target.Board.Option.FieldName,
-            optionId: target.Board.Option.OptionId,
             cancellationToken: cancellationToken
         );
     }
 
-    private async ValueTask<Uri> PostRecordAsync(HandOffTarget target, CancellationToken cancellationToken)
+    private ValueTask<Uri> PostRecordAsync(HandOffTarget target, CancellationToken cancellationToken)
     {
         // The heading names the head that was checked, so the record says what was reviewed whatever is pushed later
         string heading = REVIEW_RECORD_HEADING + target.State.HeadSha;
         string body = target.Request.Record is null ? heading : $"{heading}\n\n{target.Request.Record}";
 
-        IssueCommentResponse posted = await this._restClient.PostAsync(
-            relativeUri: $"repos/{target.Request.Repository}/issues/{target.Request.NumberText}/comments",
-            body: new IssueCommentCreateRequest(Body: body),
-            requestTypeInfo: GitHubJsonContext.Default.IssueCommentCreateRequest,
-            responseTypeInfo: GitHubJsonContext.Default.IssueCommentResponse,
+        return PullRequestWriter.PostCommentAsync(
+            restClient: this._restClient,
+            repository: target.Request.Repository,
+            number: target.Request.Number,
+            body: body,
             cancellationToken: cancellationToken
         );
-
-        return
-            CreatedItemUrl.TryParse(
-                pattern: CommentUrl(),
-                url: posted.HtmlUrl ?? string.Empty,
-                out Uri? url,
-                out int number
-            )
-            && number == target.Request.Number
-            ? url
-            : throw new GitHubInvalidResponseException("GitHub returned an unexpected URL for the review record");
     }
 
-    private static async ValueTask<WriteFailure?> TryWriteAsync(Func<ValueTask> write, string step, List<string> steps)
+    private static PrHandOffResult Failed(
+        HandOffRequest request,
+        PullRequestWriteFailure failure,
+        IReadOnlyList<string> steps
+    )
     {
-        try
-        {
-            await write();
-        }
-        catch (Exception exception) when (IsWriteFailure(exception))
-        {
-            return new(Step: step, Exception: exception);
-        }
+        string reason = PullRequestWriteSteps.Describe(failure.Exception);
 
-        steps.Add(step);
-
-        return null;
-    }
-
-    private static bool IsWriteFailure(Exception exception)
-    {
-        return exception
-            is BoardWriteException
-                or GitHubGraphQlException
-                or GitHubInvalidResponseException
-                or HttpRequestException;
-    }
-
-    // A refused request stored nothing; any other failure came after the request was sent, and writes are never
-    // retried, so GitHub may have made the change without the answer arriving
-    private static bool MayHaveBeenWritten(Exception exception)
-    {
-        return exception switch
-        {
-            BoardWriteException { InnerException: { } inner } => MayHaveBeenWritten(inner),
-            BoardWriteException => true,
-            GitHubGraphQlException => false,
-            HttpRequestException { StatusCode: { } statusCode } => !GitHubHttpFailure.IsRejected(statusCode),
-            _ => true,
-        };
-    }
-
-    // Only the status is described, never the exception's message, so no upstream text reaches the caller
-    private static string Describe(Exception exception)
-    {
-        return exception switch
-        {
-            BoardWriteException { InnerException: { } inner } => Describe(inner),
-            BoardWriteException => "the Workflow board did not confirm the change",
-            GitHubGraphQlException => "GitHub refused the change",
-            _ => GitHubHttpFailure.Describe(exception),
-        };
-    }
-
-    private static PrHandOffResult Failed(HandOffRequest request, WriteFailure failure, IReadOnlyList<string> steps)
-    {
-        string reason = Describe(failure.Exception);
-
-        return MayHaveBeenWritten(failure.Exception)
+        return PullRequestWriteSteps.MayHaveBeenWritten(failure.Exception)
             ? Result(
                 outcome: PrHandOffOutcome.MayHaveBeenHandedOff,
                 message: $"could not hand off {request.Reference}, whose last step may have been made ({reason}); read the pull request before trying again"
@@ -797,14 +722,6 @@ public sealed partial class PrHandOffService : IPrHandOffService
         );
     }
 
-    // GitHub answers a comment on a pull request made through its issue number with the pull request URL
-    [GeneratedRegex(
-        pattern: @"^https://[A-Za-z0-9.-]+(:[0-9]+)?/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/(pull|issues)/(?<number>[0-9]+)#issuecomment-[0-9]+\z",
-        options: RegexOptions.CultureInvariant | RegexOptions.ExplicitCapture,
-        matchTimeoutMilliseconds: REGEX_TIMEOUT_MILLISECONDS
-    )]
-    private static partial Regex CommentUrl();
-
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Repository}#{Number}: {Title}")]
     private readonly record struct HandOffRequest(
@@ -842,19 +759,11 @@ public sealed partial class PrHandOffService : IPrHandOffService
     private readonly record struct AutoMergePlan(PrHandOffAutoMerge Kind, string? Reason);
 
     [StructLayout(LayoutKind.Auto)]
-    [DebuggerDisplay("{Option.OptionId}")]
-    private readonly record struct BoardTarget(WorkflowProject Project, ResolvedStatusOption Option);
-
-    [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Request.Reference}")]
     private readonly record struct HandOffTarget(
         HandOffRequest Request,
         PullRequestState State,
-        BoardTarget Board,
+        PullRequestBoardTarget Board,
         AutoMergePlan Plan
     );
-
-    [StructLayout(LayoutKind.Auto)]
-    [DebuggerDisplay("{Step}")]
-    private readonly record struct WriteFailure(string Step, Exception Exception);
 }
