@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
+using Credfeto.Workflow.GitHub.Checks;
 using Credfeto.Workflow.GitHub.Dependabot;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -354,6 +355,46 @@ public sealed class WorkflowMcpTools
                         or PrChecksUnreadableException
                         or ParameterValidationException
             )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "pr_checks_wait", Title = "Wait for pull request checks", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Waits up to timeoutMinutes for the checks of a pull request, commit or branch head, judged as pr_checks does: a failure is reported at once, a pass only once the next read of the same head passes too, and checks still pending or not yet reported at the limit are returned as pending or no-checks so the caller can call again"
+    )]
+    public static async Task<PrChecksWaitResponse> PrChecksWaitAsync(
+        [Description("The repository, as owner/name")] string repo,
+        IPrChecksWaitService service,
+        IProgress<ProgressNotificationValue> progress,
+        [Description("The pull request number; give exactly one of pr, sha or branch")] int? pr = null,
+        [Description("The full 40 character commit id; give exactly one of pr, sha or branch")] string? sha = null,
+        [Description("The branch name, whose head is judged; give exactly one of pr, sha or branch")]
+            string? branch = null,
+        [Description("Judge every check that reported, not only the required ones")] bool all = false,
+        [Description("How long to wait, in whole minutes from 1 to 5")]
+            int timeoutMinutes = PrChecksWaitService.DEFAULT_TIMEOUT_MINUTES,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.WaitAsync(
+                repository: repo,
+                pullRequest: pr,
+                sha: sha,
+                branch: branch,
+                all: all,
+                timeoutMinutes: timeoutMinutes,
+                progress: new PrChecksWaitProgress(progress),
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (exception is PrChecksWaitFailedException or ParameterValidationException)
         {
             // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
             // safe to return
