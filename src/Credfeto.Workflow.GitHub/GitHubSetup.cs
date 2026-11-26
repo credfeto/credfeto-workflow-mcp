@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Credfeto.Workflow.GitHub.Advisories;
 using Credfeto.Workflow.GitHub.Auth;
 using Credfeto.Workflow.GitHub.Authorization;
+using Credfeto.Workflow.GitHub.Blocks;
 using Credfeto.Workflow.GitHub.Board;
 using Credfeto.Workflow.GitHub.Branches;
 using Credfeto.Workflow.GitHub.Cache;
@@ -115,8 +116,7 @@ public static class GitHubSetup
             .AddSingleton<IClosingIssueLabelsService, ClosingIssueLabelsService>()
             .AddSingleton<IPullRequestService, PullRequestService>()
             .AddSingleton<IPullRequestListService, PullRequestListService>()
-            .AddSingleton<ICommentAddService, CommentAddService>()
-            .AddSingleton<ILabelService, LabelService>()
+            .AddCommentAndLabelWriteServices()
             .AddLabelReadServices()
             .AddSingleton<IIssueService, IssueService>()
             .AddSingleton<IIssuePlanStatusReader, IssuePlanStatusReader>()
@@ -149,6 +149,14 @@ public static class GitHubSetup
             .AddHttpMessageHandler<CallerTokenForwardingHandler>()
             .AddResilienceHandler(pipelineName: RESILIENCE_PIPELINE_NAME, configure: ConfigureResilience)
             .Services;
+    }
+
+    private static IServiceCollection AddCommentAndLabelWriteServices(this IServiceCollection services)
+    {
+        return services
+            .AddSingleton<ICommentAddService, CommentAddService>()
+            .AddSingleton<ILabelService, LabelService>()
+            .AddSingleton<IBlockService, BlockService>();
     }
 
     private static IServiceCollection AddRepositoryContentServices(this IServiceCollection services)

@@ -5,6 +5,7 @@ namespace Credfeto.Workflow.Data.Models.Json;
 
 [JsonSerializable(typeof(AdvisoryViewResult))]
 [JsonSerializable(typeof(AuthStatusResponse))]
+[JsonSerializable(typeof(BlockResult))]
 [JsonSerializable(typeof(BodyCheckResult))]
 [JsonSerializable(typeof(BranchCompareResponse))]
 [JsonSerializable(typeof(BranchRequiredChecksResponse))]

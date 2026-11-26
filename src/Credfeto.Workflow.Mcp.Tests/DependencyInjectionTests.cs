@@ -19,6 +19,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
         "body_check",
         "comment_add",
         "issue_add_sub_issue",
+        "issue_block",
         "issue_comments",
         "issue_create",
         "issue_edit",
@@ -615,6 +616,36 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void IssueBlockTakesRepoIssueAndBody()
+    {
+        JsonElement schema = this.GetTool("issue_block").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "issue", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "issue", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
+    public void PrBlockTakesRepoPrAndBody()
+    {
+        JsonElement schema = this.GetTool("pr_block").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["body", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["body", "pr", "repo"], actual: RequiredNames(schema));
+    }
+
+    [Theory]
+    [InlineData("issue_block")]
+    [InlineData("pr_block")]
+    public void BlockToolsAreNonIdempotentNonDestructiveWrites(string name)
+    {
+        McpServerTool tool = this.GetTool(name);
+
+        Assert.False(tool.ProtocolTool.Annotations?.ReadOnlyHint, userMessage: name + " posts a comment");
+        Assert.False(tool.ProtocolTool.Annotations?.DestructiveHint, userMessage: name + " is not destructive");
+        Assert.False(tool.ProtocolTool.Annotations?.IdempotentHint, userMessage: name + " is not idempotent");
+    }
+
+    [Fact]
     public void PrCreateTakesRepoHeadTitleBodyAndOptionalBase()
     {
         JsonElement schema = this.GetTool("pr_create").ProtocolTool.InputSchema;
@@ -987,6 +1018,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<IIssueService>()
             .AddMockedService<IIssueCreateService>()
             .AddMockedService<IIssuePostPlanService>()
+            .AddMockedService<IBlockService>()
             .AddMockedService<IIssueEditService>()
             .AddMockedService<IIssueSearchService>()
             .AddMockedService<IPrSearchService>()

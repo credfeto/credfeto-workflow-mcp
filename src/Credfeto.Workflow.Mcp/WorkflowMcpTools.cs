@@ -1429,6 +1429,74 @@ public sealed class WorkflowMcpTools
         }
     }
 
+    // Not idempotent: every successful call posts a new comment, even when the issue is already Blocked
+    [McpServerTool(
+        Name = "issue_block",
+        Title = "Issue block",
+        ReadOnly = false,
+        Destructive = false,
+        Idempotent = false
+    )]
+    [InModes(ToolModes.All | ToolModes.Issues)]
+    [Description(
+        "Blocks an issue on a question for a human: posts the body as a new comment, then adds the Blocked label, always in that order, leaving the board status, assignees and other labels alone. The body is checked before anything is written: the leak check, no approval keyword outside a Markdown quote and no env-block marker. Returns Blocked with the comment URL and whether the issue was already Blocked, Refused with the rule and line, NotFound (a pull request number is not found), NotPosted, MayHaveBeenPosted, or LabelNotAdded with the comment URL when the comment was posted but Blocked could not be added"
+    )]
+    public static async Task<BlockResult> IssueBlockAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The issue number")] int issue,
+        [Description("The question for a human, in Markdown")] string body,
+        IBlockService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.BlockIssueAsync(
+                repository: repo,
+                issue: issue,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsBlockError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never the body or upstream detail,
+            // so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    // Not idempotent: every successful call posts a new comment, even when the pull request is already Blocked
+    [McpServerTool(Name = "pr_block", Title = "PR block", ReadOnly = false, Destructive = false, Idempotent = false)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Blocks a pull request on a question for a human: posts the body as a new comment, then adds the Blocked label, always in that order, leaving the board status, assignees and other labels alone. The body is checked before anything is written: the leak check, no approval keyword outside a Markdown quote, and any env-block marker must be exactly '<!-- orchestrator:env-block image-sha=<40 lower-case hex digits> -->'. Returns Blocked with the comment URL and whether the pull request was already Blocked, Refused with the rule and line, NotFound (an issue number is not found), NotPosted, MayHaveBeenPosted, or LabelNotAdded with the comment URL when the comment was posted but Blocked could not be added"
+    )]
+    public static async Task<BlockResult> PrBlockAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The pull request number")] int pr,
+        [Description("The question for a human, in Markdown")] string body,
+        IBlockService service,
+        CancellationToken cancellationToken = default
+    )
+    {
+        try
+        {
+            return await service.BlockPullRequestAsync(
+                repository: repo,
+                pullRequest: pr,
+                body: body,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (Exception exception) when (IsBlockError(exception))
+        {
+            // Every one of these messages is fixed text or validated caller input, never the body or upstream detail,
+            // so it is safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
     // Destructive because the title, body and priority given replace the ones the issue had; idempotent because a
     // repeat call finds the issue already as asked and writes nothing
     [McpServerTool(Name = "issue_edit", Title = "Issue edit", ReadOnly = false, Destructive = true, Idempotent = true)]
@@ -2316,6 +2384,15 @@ public sealed class WorkflowMcpTools
                 or IssueViewFailedException
                 or IssuePostPlanRefusedException
                 or IssuePostPlanFailedException;
+    }
+
+    private static bool IsBlockError(Exception exception)
+    {
+        return exception
+            is ParameterValidationException
+                or RepositoryNotFoundException
+                or RepositoryVisibilityLookupFailedException
+                or LeakCheckFailedException;
     }
 
     private static bool IsPrCreateError(Exception exception)
