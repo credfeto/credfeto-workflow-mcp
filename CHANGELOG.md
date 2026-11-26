@@ -90,7 +90,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added read-only workflow_status_history MCP tool that lists an issue's or pull request's Workflow board status changes, oldest first, with the UTC time, actor and previous and new status, so workflows can see how an item moved across the board without calling GitHub directly (#171)
 - Added issue_post_plan MCP tool that posts an issue's implementation plan, adds the Blocked label and sets the Workflow board to Planning, so plans are recorded through the server without calling GitHub directly (#173)
 - Added issue_block and pr_block MCP tools to post a blocking question and add the Blocked label in one call
-- TBD - to be finalized after review
+- Added pr_take_back MCP tool that takes a pull request back from automation by turning auto-merge off, converting it to a draft, moving its Workflow board card to Development and posting a comment explaining why, so a human or workflow can pull a PR back for more work without calling GitHub directly (#175)
 ### Fixed
 - pr_checks reports a cancelled check as pending, not failed, while a newer run of the same check for the same commit is still queued or running, and a skipped run no longer replaces a cancelled one, so a superseded cancellation no longer shows as a failure (#133)
 ### Changed
