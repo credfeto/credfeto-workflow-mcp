@@ -94,6 +94,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added pr_checks_wait MCP tool that waits up to a bounded time for a pull request's checks to reach a final verdict, judged exactly as pr_checks judges them, so the orchestrator can wait on CI without calling cfwf (#176)
 ### Fixed
 - pr_checks reports a cancelled check as pending, not failed, while a newer run of the same check for the same commit is still queued or running, and a skipped run no longer replaces a cancelled one, so a superseded cancellation no longer shows as a failure (#133)
+- Issue assignment now really assigns the signed-in account and issue_create accepts assignees; leak check allows placeholder values and header-format documentation (#185)
 ### Changed
 - The tool tests compare tool names instead of counting tools: the expected set is read from the [McpServerTool] methods, so adding a tool needs no shared number edited and a missing or extra tool fails naming it (#164)
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
