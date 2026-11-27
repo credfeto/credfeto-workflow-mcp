@@ -186,10 +186,12 @@ public sealed partial class PrEditService : IPrEditService
         EditWrite written = await ItemEdit.WriteAsync(
             restClient: this._restClient,
             request: request,
+            login: login,
             assignees: login is null ? null : ItemEdit.WithAssignee(assignees: state.Assignees, login: login),
             labels: priority.Labels,
             responseTypeInfo: GitHubJsonContext.Default.PullRequestEditResponse,
             responseNumber: static response => response.Number,
+            responseAssignees: static response => response.Assignees?.Select(static assignee => assignee?.Login),
             cancellationToken: cancellationToken
         );
 
@@ -205,6 +207,15 @@ public sealed partial class PrEditService : IPrEditService
                 NewPriority = priority.NewPriority,
             },
             EditWriteOutcome.Rejected => NotEdited(request: request, reason: written.Reason),
+            EditWriteOutcome.NotAssigned => Result(
+                outcome: PrEditOutcome.NotAssigned,
+                message: $"{request.Reference} was edited but {written.Reason}"
+            ) with
+            {
+                Url = state.Url,
+                OldPriority = priority.OldPriority,
+                NewPriority = priority.NewPriority,
+            },
             _ => MayHaveBeenEdited(request: request, reason: written.Reason),
         };
     }

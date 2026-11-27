@@ -15,6 +15,8 @@ public interface IIssueCreateService
         string title,
         string body,
         IReadOnlyList<string>? labels,
+        IReadOnlyList<string>? assignees,
+        bool assignSelf,
         CancellationToken cancellationToken
     );
 }

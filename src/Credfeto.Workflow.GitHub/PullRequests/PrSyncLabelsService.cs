@@ -303,10 +303,12 @@ public sealed class PrSyncLabelsService : IPrSyncLabelsService
         EditWrite written = await ItemEdit.WriteAsync(
             restClient: this._restClient,
             request: request,
+            login: login,
             assignees: ItemEdit.WithAssignee(assignees: state.Assignees, login: login),
             labels: null,
             responseTypeInfo: GitHubJsonContext.Default.PullRequestEditResponse,
             responseNumber: static response => response.Number,
+            responseAssignees: static response => response.Assignees?.Select(static assignee => assignee?.Login),
             cancellationToken: cancellationToken
         );
 

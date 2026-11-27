@@ -31,7 +31,7 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
     private const string USER = """{"login":"steward-warden"}""";
 
     private const string EDITED =
-        """{"number":47,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/47"}""";
+        """{"number":47,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/issues/47","assignees":[{"login":"steward-warden"}]}""";
 
     private const string ALREADY_EXISTS = """
         {"message":"Validation Failed","errors":[{"resource":"Label","code":"already_exists","field":"name"}]}
@@ -329,6 +329,64 @@ public sealed class IssueEditServiceTests : GitHubClientTestBase
             index: 2,
             body: """{"title":"tool(cfwf): new title","body":"New body","assignees":["steward-warden"]}"""
         );
+    }
+
+    [Theory]
+    [InlineData("""{"number":47,"assignees":[]}""")]
+    [InlineData("""{"number":47,"assignees":[{"login":"credfeto"}]}""")]
+    [InlineData("""{"number":47,"assignees":[null,{"login":null}]}""")]
+    [InlineData("""{"number":47}""")]
+    public async Task AssignSelfThatGitHubLeftOutFailsWithTheUrlAsync(string answer)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Responses.Json(USER),
+            static () => Issue(),
+            () => Responses.Json(answer)
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, assignSelf: true);
+
+        Assert.Equal(expected: IssueEditOutcome.Failed, actual: result.Outcome);
+        Assert.Equal(
+            expected: "credfeto/credfeto-workflow-mcp#47 was edited but steward-warden was not assigned; GitHub leaves "
+                + "out an assignee who cannot be assigned in the repository",
+            actual: result.Message
+        );
+        Assert.Equal(expected: new Uri(ISSUE_URL), actual: result.Url);
+        Assert.Null(result.Rule);
+        Assert.Null(result.LineNumber);
+        AssertWrite(
+            upstream: upstream,
+            index: 2,
+            body: """{"title":"tool(cfwf): new title","assignees":["steward-warden"]}"""
+        );
+    }
+
+    [Fact]
+    public async Task AssignSelfAnsweredInAnotherCaseIsEditedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Responses.Json(USER),
+            static () => Issue(),
+            static () => Responses.Json("""{"number":47,"assignees":[{"login":"Steward-Warden"}]}""")
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, assignSelf: true);
+
+        AssertEdited(result);
+    }
+
+    [Fact]
+    public async Task EditWithoutAssignSelfDoesNotCheckTheAnsweredAssigneesAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Issue(),
+            static () => Responses.Json("""{"number":47}""")
+        );
+
+        IssueEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE);
+
+        AssertEdited(result);
     }
 
     [Fact]

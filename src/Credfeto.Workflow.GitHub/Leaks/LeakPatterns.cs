@@ -7,8 +7,9 @@ using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
 
 namespace Credfeto.Workflow.GitHub.Leaks;
 
-// The patterns are transcribed from cfwf's POSIX ERE leak patterns. .NET has no [[:space:]] bracket class, so the
-// C locale's space characters are spelled out instead of \s, which would also match Unicode spaces.
+// The patterns started as a transcription of cfwf's POSIX ERE leak patterns, and the placeholder lookaheads go beyond
+// what ERE can express. .NET has no [[:space:]] bracket class, so the C locale's space characters are spelled out
+// instead of \s, which would also match Unicode spaces.
 public static partial class LeakPatterns
 {
     public const int MAXIMUM_BODY_LENGTH = 65536;
@@ -33,17 +34,35 @@ public static partial class LeakPatterns
 
     private const string URL_CREDENTIAL = URL_USER + CREDENTIAL_PASSWORD;
 
+    // A placeholder is the whole value, so a real secret that merely starts with a marker is still refused
+    private const string PLACEHOLDER =
+        @"(<[^<>]+>|(?i:your_[A-Za-z0-9_-]*|changeme|example|x{3,}|redacted))(\\?[""'`,;]|" + SPACE + "|$)";
+
+    private const string AUTHORIZATION_SCHEME =
+        "((Bearer|bearer|BEARER|Basic|basic|BASIC|Token|token|TOKEN)" + SPACE + "+)?";
+
+    // A header written out with a placeholder for its value documents the format rather than holding a credential
     private const string AUTHORIZATION_HEADER =
-        @"([Aa]uthorization|AUTHORIZATION)(\\?[""'])?" + SPACE + "*[:=]" + SPACE + "*" + NOT_SPACE;
+        @"([Aa]uthorization|AUTHORIZATION)(\\?[""'])?"
+        + SPACE
+        + "*[:=]"
+        + SPACE
+        + @"*(?!(\\?[""'])?"
+        + AUTHORIZATION_SCHEME
+        + PLACEHOLDER
+        + ")"
+        + NOT_SPACE;
 
     // A bearer credential is a run of at least 20 token characters holding a digit, so prose such as
     // "a Bearer token" or a long word after Bearer is not mistaken for one
     private const string BEARER_TOKEN =
         "(^|[^A-Za-z0-9])(Bearer|bearer|BEARER)" + SPACE + "+(?=[A-Za-z._~+/=-]*[0-9])[A-Za-z0-9._~+/=-]{20}";
 
-    // An empty value or a $-reference to a variable is not a secret
+    // An empty value, a $-reference to a variable or a placeholder is not a secret
     private const string SECRET_ASSIGNMENT =
-        @"(^|[^A-Za-z0-9_])([A-Z0-9_]*_)?(TOKEN|SECRET|KEY|PASSWORD)=[""']?[^ \t\n\v\f\r$""']";
+        @"(^|[^A-Za-z0-9_])([A-Z0-9_]*_)?(TOKEN|SECRET|KEY|PASSWORD)=(?![""']?"
+        + PLACEHOLDER
+        + @")[""']?[^ \t\n\v\f\r$""']";
 
     private const string TOKEN =
         PREFIXED_TOKEN

@@ -8,5 +8,7 @@ namespace Credfeto.Workflow.GitHub.Issues;
 internal sealed record IssueCreateRequest(
     [property: JsonPropertyName("title")] string Title,
     [property: JsonPropertyName("body")] string Body,
-    [property: JsonPropertyName("labels")] IReadOnlyList<string> Labels
+    [property: JsonPropertyName("labels")] IReadOnlyList<string> Labels,
+    [property: JsonPropertyName("assignees"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        IReadOnlyList<string>? Assignees
 );

@@ -5,4 +5,5 @@ internal enum EditWriteOutcome
     Edited,
     Rejected,
     MayHaveBeenEdited,
+    NotAssigned,
 }

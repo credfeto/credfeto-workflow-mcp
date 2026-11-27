@@ -257,6 +257,31 @@ public sealed class PrSyncLabelsServiceTests : GitHubClientTestBase
     }
 
     [Fact]
+    public async Task SyncWithAssignSelfReportsAnAssignGitHubLeftOutAfterTheLabelsAsync()
+    {
+        this.ClosingLabels("bug");
+        using RecordingHttpMessageHandler upstream = Flow(PullRequest, User, LabelsAdded, () =>
+            Responses.Json("{\"number\":87,\"assignees\":[]}")
+        );
+
+        PrSyncLabelsResult result = await this.SyncAsync(upstream: upstream, assignSelf: true);
+
+        Assert.Equal(expected: PrSyncLabelsOutcome.Failed, actual: result.Outcome);
+        Assert.Equal(
+            expected: "could not assign "
+                + AGENT
+                + " to "
+                + REFERENCE
+                + ": "
+                + AGENT
+                + " was not assigned; GitHub leaves out an assignee who cannot be assigned in the repository",
+            actual: result.Message
+        );
+        Assert.Equal(expected: ["bug"], actual: result.Added);
+        Assert.False(condition: result.Assigned, userMessage: "GitHub left the agent out");
+    }
+
+    [Fact]
     public async Task SyncWithAssignSelfFailsBeforeWritingWhenTheLoginCannotBeReadAsync()
     {
         this.ClosingLabels("bug");
@@ -434,7 +459,9 @@ public sealed class PrSyncLabelsServiceTests : GitHubClientTestBase
 
     private static HttpResponseMessage Edited()
     {
-        return Responses.Json("{\"number\":87,\"html_url\":\"" + PULL_REQUEST_URL + "\"}");
+        return Responses.Json(
+            "{\"number\":87,\"html_url\":\"" + PULL_REQUEST_URL + "\",\"assignees\":[{\"login\":\"" + AGENT + "\"}]}"
+        );
     }
 
     private static HttpResponseMessage Rejected()

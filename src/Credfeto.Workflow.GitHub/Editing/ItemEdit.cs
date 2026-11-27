@@ -199,10 +199,12 @@ internal static class ItemEdit
     public static async ValueTask<EditWrite> WriteAsync<TResponse>(
         IGitHubRestClient restClient,
         EditRequest request,
+        string? login,
         IReadOnlyList<string>? assignees,
         IReadOnlyList<string>? labels,
         JsonTypeInfo<TResponse> responseTypeInfo,
         Func<TResponse, int?> responseNumber,
+        Func<TResponse, IEnumerable<string?>?> responseAssignees,
         CancellationToken cancellationToken
     )
     {
@@ -233,9 +235,29 @@ internal static class ItemEdit
             return new(Outcome: EditWriteOutcome.MayHaveBeenEdited, Reason: GitHubHttpFailure.Describe(exception));
         }
 
-        return responseNumber(response) == request.Number
+        if (responseNumber(response) != request.Number)
+        {
+            return new(Outcome: EditWriteOutcome.MayHaveBeenEdited, Reason: UNEXPECTED_ANSWER);
+        }
+
+        return login is null || AnswerAssigns(assignees: responseAssignees(response), login: login)
             ? new(Outcome: EditWriteOutcome.Edited, Reason: string.Empty)
-            : new(Outcome: EditWriteOutcome.MayHaveBeenEdited, Reason: UNEXPECTED_ANSWER);
+            : new(Outcome: EditWriteOutcome.NotAssigned, Reason: NotAssignedReason([login]));
+    }
+
+    // GitHub answers a write that names an assignee it cannot assign, such as an account without push access, as a
+    // success and silently leaves that assignee out, so only the assignees in the answer show whether it took
+    public static bool AnswerAssigns(IEnumerable<string?>? assignees, string login)
+    {
+        return assignees is not null && IsAssigned(assignees: [.. assignees.OfType<string>()], login: login);
+    }
+
+    public static string NotAssignedReason(IReadOnlyList<string> logins)
+    {
+        string verb = logins.Count == 1 ? "was" : "were";
+
+        return $"{string.Join(separator: ", ", values: logins)} {verb} not assigned; GitHub leaves out an assignee "
+            + "who cannot be assigned in the repository";
     }
 
     public static bool IsGitHubFailure(Exception exception)
