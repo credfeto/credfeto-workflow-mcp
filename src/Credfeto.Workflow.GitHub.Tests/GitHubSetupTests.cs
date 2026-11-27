@@ -714,6 +714,18 @@ public sealed class GitHubSetupTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void CommitCheckRunsServiceShouldBeRegistered()
+    {
+        this.RequireService<ICommitCheckRunsService>();
+    }
+
+    [Fact]
+    public void CommitCheckRunsServiceShouldBeOfCorrectType()
+    {
+        this.RequireServiceInCollectionFor<ICommitCheckRunsService, CommitCheckRunsService>();
+    }
+
+    [Fact]
     public void PrChecksWaitServiceShouldBeRegistered()
     {
         this.RequireService<IPrChecksWaitService>();

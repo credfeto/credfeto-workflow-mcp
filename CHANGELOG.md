@@ -93,6 +93,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added pr_take_back MCP tool returning a pull request to Development for more work (#175)
 - Added pr_checks_wait MCP tool waiting a bounded time for checks to reach a verdict (#176)
 - issue_create accepts assignees and assignSelf so issues are assigned on creation (#185)
+- pr_view checks say if GitHub requires each, exactCheckNames option, commit_check_runs tool (#187)
 ### Fixed
 - pr_checks reports a cancelled check as pending while a newer run is queued or running (#133)
 - issue_edit, pr_edit, pr_sync_labels and issue_create report failed assignments (#185)

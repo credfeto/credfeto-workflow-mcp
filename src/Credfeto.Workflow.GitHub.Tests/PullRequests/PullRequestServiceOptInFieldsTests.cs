@@ -23,8 +23,9 @@ public sealed class PullRequestServiceOptInFieldsTests : GitHubClientTestBase
     private const string INCOMPLETE = "the pull request credfeto/credfeto-workflow-mcp#41 could not be read completely";
 
     private const string CHECK_RUN =
-        """{"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS"}""";
-    private const string STATUS = """{"__typename":"StatusContext","context":"ci/legacy","state":"PENDING"}""";
+        """{"__typename":"CheckRun","name":"build","status":"COMPLETED","conclusion":"SUCCESS","isRequired":true}""";
+    private const string STATUS =
+        """{"__typename":"StatusContext","context":"ci/legacy","state":"PENDING","isRequired":false}""";
 
     private static HttpResponseMessage Graph(string node)
     {
@@ -124,6 +125,20 @@ public sealed class PullRequestServiceOptInFieldsTests : GitHubClientTestBase
                 repository: REPOSITORY,
                 pullRequest: PULL_REQUEST,
                 fields: fields,
+                cancellationToken: this.CancellationToken()
+            );
+    }
+
+    private async Task<PullRequestView> ViewExactChecksAsync(RecordingHttpMessageHandler graphUpstream)
+    {
+        using RecordingHttpMessageHandler noRest = new(Unexpected);
+
+        return await this.CreateService(graphUpstream: graphUpstream, restUpstream: noRest)
+            .ViewAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                fields: [PullRequestViewFields.Checks],
+                exactCheckNames: true,
                 cancellationToken: this.CancellationToken()
             );
     }
@@ -266,15 +281,24 @@ public sealed class PullRequestServiceOptInFieldsTests : GitHubClientTestBase
                     Name: "build",
                     Status: "COMPLETED",
                     Conclusion: "SUCCESS",
-                    State: ""
+                    State: "",
+                    Required: true
                 ),
-                new PullRequestCheck(Kind: "status", Name: "ci/legacy", Status: "", Conclusion: "", State: "PENDING"),
+                new PullRequestCheck(
+                    Kind: "status",
+                    Name: "ci/legacy",
+                    Status: "",
+                    Conclusion: "",
+                    State: "PENDING",
+                    Required: false
+                ),
                 new PullRequestCheck(
                     Kind: "check-run",
                     Name: "lint ",
                     Status: "IN_PROGRESS",
                     Conclusion: "",
-                    State: ""
+                    State: "",
+                    Required: false
                 ),
             ],
             actual: view.Checks ?? []
@@ -295,6 +319,43 @@ public sealed class PullRequestServiceOptInFieldsTests : GitHubClientTestBase
             condition: variables.TryGetProperty(propertyName: "checksAfter", value: out _),
             userMessage: "The first page should not send a cursor"
         );
+    }
+
+    [Fact]
+    public async Task ChecksAskGitHubWhetherThisPullRequestRequiresEachAsync()
+    {
+        using RecordingHttpMessageHandler upstream = new(_ =>
+            Graph(ChecksNode(total: 2, contexts: [CHECK_RUN, STATUS]))
+        );
+
+        PullRequestView view = await this.ViewAsync(graphUpstream: upstream, fields: [PullRequestViewFields.Checks]);
+
+        Assert.Equal(expected: [true, false], actual: [.. (view.Checks ?? []).Select(check => check.Required)]);
+        _ = Variables(request: Assert.Single(upstream.Requests), query: out string query);
+        Assert.Contains(
+            expectedSubstring: "... on CheckRun{name status conclusion isRequired(pullRequestNumber:$n)} ... on StatusContext{context state isRequired(pullRequestNumber:$n)}",
+            actualString: query,
+            comparisonType: StringComparison.Ordinal
+        );
+    }
+
+    [Fact]
+    public async Task ExactCheckNamesKeepLineBreakingCharactersAsync()
+    {
+        const string run =
+            """{"__typename":"CheckRun","name":"lint\n\u2028x","status":"IN_PROGRESS","conclusion":null,"isRequired":true}""";
+        const string status =
+            """{"__typename":"StatusContext","context":"ci/\tlegacy","state":"PENDING","isRequired":true}""";
+        using RecordingHttpMessageHandler upstream = new(_ => Graph(ChecksNode(total: 2, contexts: [run, status])));
+
+        PullRequestView view = await this.ViewExactChecksAsync(upstream);
+
+        Assert.Equal(
+            expected: ["lint\n\u2028x", "ci/\tlegacy"],
+            actual: [.. (view.Checks ?? []).Select(check => check.Name)],
+            comparer: StringComparer.Ordinal
+        );
+        Assert.Equal(expected: "IN_PROGRESS", actual: view.Checks?[0].Status);
     }
 
     [Theory]

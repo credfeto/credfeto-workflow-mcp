@@ -280,6 +280,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 repository: REPOSITORY,
                 pullRequest: PULL_REQUEST,
                 fields: fields,
+                exactCheckNames: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -297,6 +298,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 repository: REPOSITORY,
                 pullRequest: PULL_REQUEST,
                 fields: null,
+                exactCheckNames: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -305,6 +307,32 @@ public sealed class WorkflowMcpToolsTests : TestBase
             repo: REPOSITORY,
             pr: PULL_REQUEST,
             service: this._viewService,
+            cancellationToken: this.CancellationToken()
+        );
+
+        Assert.Same(expected: expected, actual: actual);
+    }
+
+    [Fact]
+    public async Task PrViewPassesExactCheckNamesToTheServiceAsync()
+    {
+        IReadOnlyList<string> fields = [PullRequestViewFields.Checks];
+        PullRequestView expected = CreateView(title: "Add the pr_view tool", state: "OPEN");
+        this._viewService.ViewAsync(
+                repository: REPOSITORY,
+                pullRequest: PULL_REQUEST,
+                fields: fields,
+                exactCheckNames: true,
+                cancellationToken: Arg.Any<CancellationToken>()
+            )
+            .Returns(expected);
+
+        PullRequestView actual = await WorkflowMcpTools.PrViewAsync(
+            repo: REPOSITORY,
+            pr: PULL_REQUEST,
+            service: this._viewService,
+            fields: fields,
+            exactCheckNames: true,
             cancellationToken: this.CancellationToken()
         );
 
@@ -3742,6 +3770,7 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 repository: REPOSITORY,
                 pullRequest: PULL_REQUEST,
                 fields: Arg.Any<IReadOnlyList<string>?>(),
+                exactCheckNames: Arg.Any<bool>(),
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .ThrowsAsync(failure);
