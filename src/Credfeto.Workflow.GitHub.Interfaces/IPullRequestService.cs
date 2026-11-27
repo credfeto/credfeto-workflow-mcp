@@ -14,6 +14,15 @@ public interface IPullRequestService
         CancellationToken cancellationToken
     );
 
+    // exactCheckNames returns the checks field's names and contexts exactly as GitHub reports them, line breaks included
+    ValueTask<PullRequestView> ViewAsync(
+        string repository,
+        int pullRequest,
+        IReadOnlyList<string>? fields,
+        bool exactCheckNames,
+        CancellationToken cancellationToken
+    );
+
     ValueTask<PullRequestStateChangeResponse> CloseAsync(
         string repository,
         int pullRequest,

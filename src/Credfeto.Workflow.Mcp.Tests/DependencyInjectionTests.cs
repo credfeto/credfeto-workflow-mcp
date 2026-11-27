@@ -179,7 +179,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     {
         JsonElement schema = this.GetTool("pr_view").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["fields", "pr", "repo"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["exactCheckNames", "fields", "pr", "repo"], actual: PropertyNames(schema));
         Assert.Equal(expected: ["pr", "repo"], actual: RequiredNames(schema));
         Assert.Contains(
             expectedSubstring: "\"array\"",
@@ -883,6 +883,15 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
+    public void CommitCheckRunsTakesRepoAndSha()
+    {
+        JsonElement schema = this.GetTool("commit_check_runs").ProtocolTool.InputSchema;
+
+        Assert.Equal(expected: ["repo", "sha"], actual: PropertyNames(schema));
+        Assert.Equal(expected: ["repo", "sha"], actual: RequiredNames(schema));
+    }
+
+    [Fact]
     public void PrChecksWaitTakesRepoOptionalTargetsAndTimeout()
     {
         JsonElement schema = this.GetTool("pr_checks_wait").ProtocolTool.InputSchema;
@@ -1093,6 +1102,7 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
             .AddMockedService<ICommentAddService>()
             .AddMockedService<IBodyCheckService>()
             .AddMockedService<IPrChecksService>()
+            .AddMockedService<ICommitCheckRunsService>()
             .AddMockedService<IPrChecksWaitService>()
             .AddMockedService<IClosingIssueLabelsService>()
             .AddMockedService<IWorkflowStatusCheckService>()

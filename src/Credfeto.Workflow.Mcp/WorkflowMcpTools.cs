@@ -106,9 +106,13 @@ public sealed class WorkflowMcpTools
         [Description("The pull request number")] int pr,
         IPullRequestService service,
         [Description(
-            "The fields to return: state, draft, title, url, base, head, head-sha, auto-merge, review-decision, merge-state, mergeable, created-at, merged-at, merge-commit, labels, assignees, author, commit-authors, review-requests, milestone, cross-repository, closing-issues, checks (the head commit's check runs and statuses), commits (each commit's authors with login, email and name), changed-files, files or body"
+            "The fields to return: state, draft, title, url, base, head, head-sha, auto-merge, review-decision, merge-state, mergeable, created-at, merged-at, merge-commit, labels, assignees, author, commit-authors, review-requests, milestone, cross-repository, closing-issues, checks (the head commit's check runs and statuses, each with whether GitHub requires it for this pull request), commits (each commit's authors with login, email and name), changed-files, files or body"
         )]
             IReadOnlyList<string>? fields = null,
+        [Description(
+            "Whether to return the checks field's names and contexts exactly as GitHub reports them, control and line-breaking characters included; false (each such character replaced by a space) when not given"
+        )]
+            bool exactCheckNames = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -118,6 +122,7 @@ public sealed class WorkflowMcpTools
                 repository: repo,
                 pullRequest: pr,
                 fields: fields,
+                exactCheckNames: exactCheckNames,
                 cancellationToken: cancellationToken
             );
         }
@@ -355,6 +360,31 @@ public sealed class WorkflowMcpTools
                         or PrChecksUnreadableException
                         or ParameterValidationException
             )
+        {
+            // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
+            // safe to return
+            throw new McpException(message: exception.Message, innerException: exception);
+        }
+    }
+
+    [McpServerTool(Name = "commit_check_runs", Title = "Commit check runs", ReadOnly = true)]
+    [InModes(ToolModes.All)]
+    [Description(
+        "Lists every check run on a commit, all pages, as GitHub's default latest filter lists them, with each run's status, conclusion and app, and counts the runs still going: no conclusion and a status of queued, in_progress, waiting, pending or requested. Reads no branch rules and no commit statuses"
+    )]
+    public static async Task<CommitCheckRunsResponse> CommitCheckRunsAsync(
+        [Description("The repository, as owner/name")] string repo,
+        [Description("The full 40 character commit id")] string sha,
+        ICommitCheckRunsService service,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await service.ReadAsync(repository: repo, sha: sha, cancellationToken: cancellationToken);
+        }
+        catch (Exception exception)
+            when (exception is CommitNotFoundException or PrChecksUnreadableException or ParameterValidationException)
         {
             // Every one of these messages is fixed text or validated caller input, never upstream detail, so it is
             // safe to return

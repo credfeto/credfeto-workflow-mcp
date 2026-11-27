@@ -76,10 +76,27 @@ public sealed class PullRequestService : IPullRequestService
         );
     }
 
+    public ValueTask<PullRequestView> ViewAsync(
+        string repository,
+        int pullRequest,
+        IReadOnlyList<string>? fields,
+        CancellationToken cancellationToken
+    )
+    {
+        return this.ViewAsync(
+            repository: repository,
+            pullRequest: pullRequest,
+            fields: fields,
+            exactCheckNames: false,
+            cancellationToken: cancellationToken
+        );
+    }
+
     public async ValueTask<PullRequestView> ViewAsync(
         string repository,
         int pullRequest,
         IReadOnlyList<string>? fields,
+        bool exactCheckNames,
         CancellationToken cancellationToken
     )
     {
@@ -95,7 +112,12 @@ public sealed class PullRequestService : IPullRequestService
             parameterName: nameof(fields)
         );
 
-        PullRequestViewRequest request = new(Repository: validRepository, PullRequest: pullRequest, Fields: requested);
+        PullRequestViewRequest request = new(
+            Repository: validRepository,
+            PullRequest: pullRequest,
+            Fields: requested,
+            ExactCheckNames: exactCheckNames
+        );
 
         try
         {
@@ -193,7 +215,7 @@ public sealed class PullRequestService : IPullRequestService
 
         if (request.Fields.Contains(PullRequestViewFields.Checks, StringComparer.Ordinal))
         {
-            CheckRollupCollector checks = new(request.Reference);
+            CheckRollupCollector checks = new(reference: request.Reference, exactNames: request.ExactCheckNames);
             await this.ReadRemainingPagesAsync(
                 request: request,
                 cursor: checks.Accept(node.HeadCommit),

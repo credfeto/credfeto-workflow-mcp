@@ -47,7 +47,7 @@ internal static class PullRequestViewQuery
 
         // Aliased, because commits is already selected with other arguments when commit authors are asked for too
         [PullRequestViewFields.Checks] =
-            "headCommit:commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100,after:$checksAfter){totalCount pageInfo{hasNextPage endCursor} nodes{__typename ... on CheckRun{name status conclusion} ... on StatusContext{context state}}}}}}}",
+            "headCommit:commits(last:1){nodes{commit{statusCheckRollup{contexts(first:100,after:$checksAfter){totalCount pageInfo{hasNextPage endCursor} nodes{__typename ... on CheckRun{name status conclusion isRequired(pullRequestNumber:$n)} ... on StatusContext{context state isRequired(pullRequestNumber:$n)}}}}}}}",
         [PullRequestViewFields.Commits] =
             "commitIdentities:commits(first:100,after:$after){totalCount pageInfo{hasNextPage endCursor} nodes{commit{oid authors(first:100){totalCount nodes{user{login} email name}}}}}",
         [PullRequestViewFields.ChangedFiles] = "changedFiles",
