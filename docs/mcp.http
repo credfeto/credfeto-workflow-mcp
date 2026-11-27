@@ -40,7 +40,7 @@ Accept: application/json, text/event-stream
   }
 }
 
-### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_checks_wait", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_take_back", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check", "workflow_status_history" and "workflow_status_set" tools
+### List tools; expects the "advisory_view", "auth_status", "body_check", "branch_compare", "branch_required_checks", "closing_issue_labels", "code_search", "comment_add", "commit_check_runs", "issue_add_sub_issue", "issue_close", "issue_comments", "issue_create", "issue_edit", "issue_list", "issue_plan_status", "issue_reopen", "issue_search", "issue_view", "label_add", "label_create", "label_history", "label_list", "label_remove", "ping", "pr_auto_merge_at", "pr_checks", "pr_checks_wait", "pr_close", "pr_comments", "pr_create", "pr_diff", "pr_edit", "pr_hand_off", "pr_list", "pr_ready_at", "pr_reopen", "pr_reply", "pr_review_comment", "pr_search", "pr_status", "pr_sync_labels", "pr_take_back", "pr_view", "release_list", "release_view", "repo_advisories", "repo_collaborators", "repo_dependabot_alerts", "repo_file", "repo_list", "repo_search", "repo_view", "run_list", "run_log", "run_rerun", "run_view", "tag_view", "workflow_board_items", "workflow_list", "workflow_run", "workflow_status_check", "workflow_status_history" and "workflow_status_set" tools
 POST {{baseUrl}}/mcp
 Authorization: Bearer {{token}}
 Content-Type: application/json
@@ -596,6 +596,46 @@ Accept: application/json, text/event-stream
       "repo": "credfeto/credfeto-workflow-mcp",
       "pr": 184,
       "timeoutMinutes": 6
+    }
+  }
+}
+
+### Call the commit_check_runs tool; expects every latest check run on the commit with its status, conclusion and app id, and how many are still running
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 178,
+  "method": "tools/call",
+  "params": {
+    "name": "commit_check_runs",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "sha": "b4cdf6ebb206db6e9ea8252af7799ad60118610c"
+    }
+  }
+}
+
+### Call the pr_view tool for the checks with exact names; expects each check with whether GitHub requires it for this pull request, names exactly as GitHub reports them
+POST {{baseUrl}}/mcp
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json, text/event-stream
+
+{
+  "jsonrpc": "2.0",
+  "id": 179,
+  "method": "tools/call",
+  "params": {
+    "name": "pr_view",
+    "arguments": {
+      "repo": "credfeto/credfeto-workflow-mcp",
+      "pr": 184,
+      "fields": ["checks"],
+      "exactCheckNames": true
     }
   }
 }

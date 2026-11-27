@@ -92,6 +92,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - issue_block and pr_block tools posting a blocking question and adding the Blocked label
 - pr_take_back tool taking a pull request back from automation (#175)
 - pr_checks_wait tool waiting a bounded time for a pull request's checks to settle (#176)
+- pr_view checks say if GitHub requires each, exactCheckNames option, commit_check_runs tool (#187)
 ### Fixed
 - pr_checks shows a cancelled check as pending while a newer run of it is still going (#133)
 ### Changed
