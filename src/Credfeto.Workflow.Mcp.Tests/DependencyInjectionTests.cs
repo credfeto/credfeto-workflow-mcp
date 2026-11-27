@@ -574,15 +574,23 @@ public sealed class DependencyInjectionTests : DependencyInjectionTestsBase
     }
 
     [Fact]
-    public void IssueCreateTakesRepoPriorityTitleBodyAndOptionalLabels()
+    public void IssueCreateTakesRepoPriorityTitleBodyAndOptionalLabelsAndAssignees()
     {
         JsonElement schema = this.GetTool("issue_create").ProtocolTool.InputSchema;
 
-        Assert.Equal(expected: ["body", "labels", "priority", "repo", "title"], actual: PropertyNames(schema));
+        Assert.Equal(
+            expected: ["assignSelf", "assignees", "body", "labels", "priority", "repo", "title"],
+            actual: PropertyNames(schema)
+        );
         Assert.Equal(expected: ["body", "priority", "repo", "title"], actual: RequiredNames(schema));
         Assert.Contains(
             expectedSubstring: "\"array\"",
             actualString: schema.GetProperty("properties").GetProperty("labels").GetProperty("type").GetRawText(),
+            comparisonType: StringComparison.Ordinal
+        );
+        Assert.Contains(
+            expectedSubstring: "\"array\"",
+            actualString: schema.GetProperty("properties").GetProperty("assignees").GetProperty("type").GetRawText(),
             comparisonType: StringComparison.Ordinal
         );
     }

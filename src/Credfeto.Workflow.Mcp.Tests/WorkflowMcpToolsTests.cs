@@ -1207,12 +1207,15 @@ public sealed class WorkflowMcpToolsTests : TestBase
     {
         IssueCreateResponse expected = new(Url: new Uri("https://github.com/" + REPOSITORY + "/issues/90"), Note: null);
         IReadOnlyList<string> labels = ["Bug"];
+        IReadOnlyList<string> assignees = ["octocat"];
         this._issueCreateService.CreateAsync(
                 repository: REPOSITORY,
                 priority: "High",
                 title: ISSUE_TITLE,
                 body: ISSUE_BODY,
                 labels: labels,
+                assignees: assignees,
+                assignSelf: true,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -1224,6 +1227,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
             body: ISSUE_BODY,
             service: this._issueCreateService,
             labels: labels,
+            assignees: assignees,
+            assignSelf: true,
             cancellationToken: this.CancellationToken()
         );
 
@@ -1240,6 +1245,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 title: ISSUE_TITLE,
                 body: ISSUE_BODY,
                 labels: null,
+                assignees: null,
+                assignSelf: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .Returns(expected);
@@ -1288,6 +1295,9 @@ public sealed class WorkflowMcpToolsTests : TestBase
                     + REPOSITORY
                     + "/issues/90"
             ),
+            new IssueCreateNotAssignedException(
+                "octocat was not assigned; the issue was created: https://github.com/" + REPOSITORY + "/issues/90"
+            ),
             new RepositoryNotFoundException("the repository being written to was not found"),
             new RepositoryVisibilityLookupFailedException(
                 "the visibility of a referenced repository could not be read"
@@ -1310,6 +1320,8 @@ public sealed class WorkflowMcpToolsTests : TestBase
                 title: ISSUE_TITLE,
                 body: ISSUE_BODY,
                 labels: null,
+                assignees: null,
+                assignSelf: false,
                 cancellationToken: Arg.Any<CancellationToken>()
             )
             .ThrowsAsync(failure);

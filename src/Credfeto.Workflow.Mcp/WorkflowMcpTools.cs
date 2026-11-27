@@ -1396,7 +1396,7 @@ public sealed class WorkflowMcpTools
     )]
     [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
-        "Creates an issue with a priority label and optional labels, creating any missing label, and puts it on the repository's Workflow board as Not Started; everything is checked before anything is created. When the caller's token cannot reach the board and the server has a board token, the server adds the issue as Not Started with that token and the result carries a note saying so"
+        "Creates an issue with a priority label and optional labels, creating any missing label, and puts it on the repository's Workflow board as Not Started; everything is checked before anything is created. When the caller's token cannot reach the board and the server has a board token, the server adds the issue as Not Started with that token and the result carries a note saying so. Assignees, and with assignSelf the signed-in account, are sent with the issue, and the call fails, naming the issue URL, when GitHub leaves one of them out"
     )]
     public static async Task<IssueCreateResponse> IssueCreateAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -1411,6 +1411,8 @@ public sealed class WorkflowMcpTools
             "Labels to add besides the priority; a standard label is written in its standard spelling, and a priority is refused"
         )]
             IReadOnlyList<string>? labels = null,
+        [Description("Logins to assign the issue to")] IReadOnlyList<string>? assignees = null,
+        [Description("Also assign the issue to the signed-in account")] bool assignSelf = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -1422,6 +1424,8 @@ public sealed class WorkflowMcpTools
                 title: title,
                 body: body,
                 labels: labels,
+                assignees: assignees,
+                assignSelf: assignSelf,
                 cancellationToken: cancellationToken
             );
         }
@@ -1543,7 +1547,7 @@ public sealed class WorkflowMcpTools
     [McpServerTool(Name = "issue_edit", Title = "Issue edit", ReadOnly = false, Destructive = true, Idempotent = true)]
     [InModes(ToolModes.All | ToolModes.Issues)]
     [Description(
-        "Edits an issue in one write: replaces its title and body, replaces its priority label so it has exactly one, and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account, or when it carries the Security priority and another priority is asked for; the title and body are leak checked before anything is written. Returns Edited or Unchanged with the issue URL (Edited with the old and new priority when the priority changed), Refused with the rule and line, NotFound (a pull request number is not found) or Failed"
+        "Edits an issue in one write: replaces its title and body, replaces its priority label so it has exactly one, and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account, or when it carries the Security priority and another priority is asked for; the title and body are leak checked before anything is written. Returns Edited or Unchanged with the issue URL (Edited with the old and new priority when the priority changed), Refused with the rule and line, NotFound (a pull request number is not found) or Failed, which includes an edit GitHub made without the signed-in account because it cannot be assigned in the repository"
     )]
     public static async Task<IssueEditResult> IssueEditAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -1912,7 +1916,7 @@ public sealed class WorkflowMcpTools
     )]
     [InModes(ToolModes.All)]
     [Description(
-        "Edits a pull request in one write: replaces its title and description, replaces its priority label so it has exactly one, and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account, or when it carries the Security priority and another priority is asked for; the title and description are leak checked before anything is written. Returns Edited or Unchanged with the pull request URL (Edited with the old and new priority when the priority changed), Refused with the rule and line, NotFound, NotEdited or MayHaveBeenEdited"
+        "Edits a pull request in one write: replaces its title and description, replaces its priority label so it has exactly one, and adds the signed-in account to its assignees, keeping the others, but refuses (writing nothing) when the item is already assigned to another user and not to the signed-in account, or when it carries the Security priority and another priority is asked for; the title and description are leak checked before anything is written. Returns Edited or Unchanged with the pull request URL (Edited with the old and new priority when the priority changed), Refused with the rule and line, NotFound, NotEdited, MayHaveBeenEdited or NotAssigned (edited, but GitHub left out the signed-in account because it cannot be assigned in the repository)"
     )]
     public static async Task<PrEditResult> PrEditAsync(
         [Description("The repository, as owner/name")] string repo,
@@ -2448,7 +2452,11 @@ public sealed class WorkflowMcpTools
     private static bool IsIssueCreateError(Exception exception)
     {
         return IsBoardOrRepositoryError(exception)
-            || exception is IssueCreateRefusedException or IssueCreateFailedException or IssueCreateBoardWriteException;
+            || exception
+                is IssueCreateRefusedException
+                    or IssueCreateFailedException
+                    or IssueCreateBoardWriteException
+                    or IssueCreateNotAssignedException;
     }
 
     private static bool IsIssuePostPlanError(Exception exception)

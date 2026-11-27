@@ -99,7 +99,9 @@ public abstract class IssueCreateServiceTestBase : GitHubClientTestBase
         string priority = "Medium",
         string title = TITLE,
         string body = BODY,
-        IReadOnlyList<string>? labels = null
+        IReadOnlyList<string>? labels = null,
+        IReadOnlyList<string>? assignees = null,
+        bool assignSelf = false
     )
     {
         GitHubRestClient rest = new(
@@ -124,6 +126,8 @@ public abstract class IssueCreateServiceTestBase : GitHubClientTestBase
                 title: title,
                 body: body,
                 labels: labels,
+                assignees: assignees,
+                assignSelf: assignSelf,
                 cancellationToken: this.CancellationToken()
             )
             .AsTask();

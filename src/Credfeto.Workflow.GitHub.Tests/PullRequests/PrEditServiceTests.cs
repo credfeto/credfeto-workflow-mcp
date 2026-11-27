@@ -31,7 +31,7 @@ public sealed class PrEditServiceTests : GitHubClientTestBase
     private const string USER = """{"login":"steward-warden"}""";
 
     private const string EDITED =
-        """{"number":87,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/pull/87"}""";
+        """{"number":87,"html_url":"https://github.com/credfeto/credfeto-workflow-mcp/pull/87","assignees":[{"login":"steward-warden"}]}""";
 
     private const string ALREADY_EXISTS = """
         {"message":"Validation Failed","errors":[{"resource":"Label","code":"already_exists","field":"name"}]}
@@ -312,6 +312,64 @@ public sealed class PrEditServiceTests : GitHubClientTestBase
             index: 2,
             body: """{"title":"feat: new title","body":"New body","assignees":["steward-warden"]}"""
         );
+    }
+
+    [Theory]
+    [InlineData("""{"number":87,"assignees":[]}""")]
+    [InlineData("""{"number":87,"assignees":[{"login":"credfeto"}]}""")]
+    [InlineData("""{"number":87,"assignees":[null,{"login":null}]}""")]
+    [InlineData("""{"number":87}""")]
+    public async Task AssignSelfThatGitHubLeftOutIsNotAssignedWithTheUrlAsync(string answer)
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Responses.Json(USER),
+            static () => PullRequest(),
+            () => Responses.Json(answer)
+        );
+
+        PrEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, assignSelf: true);
+
+        Assert.Equal(expected: PrEditOutcome.NotAssigned, actual: result.Outcome);
+        Assert.Equal(
+            expected: "credfeto/credfeto-workflow-mcp#87 was edited but steward-warden was not assigned; GitHub leaves "
+                + "out an assignee who cannot be assigned in the repository",
+            actual: result.Message
+        );
+        Assert.Equal(expected: new Uri(PULL_REQUEST_URL), actual: result.Url);
+        Assert.Null(result.Rule);
+        Assert.Null(result.LineNumber);
+        AssertWrite(
+            upstream: upstream,
+            index: 2,
+            body: """{"title":"feat: new title","assignees":["steward-warden"]}"""
+        );
+    }
+
+    [Fact]
+    public async Task AssignSelfAnsweredInAnotherCaseIsEditedAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => Responses.Json(USER),
+            static () => PullRequest(),
+            static () => Responses.Json("""{"number":87,"assignees":[{"login":"STEWARD-WARDEN"}]}""")
+        );
+
+        PrEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE, assignSelf: true);
+
+        AssertEdited(result);
+    }
+
+    [Fact]
+    public async Task EditWithoutAssignSelfDoesNotCheckTheAnsweredAssigneesAsync()
+    {
+        using RecordingHttpMessageHandler upstream = Flow(
+            static () => PullRequest(),
+            static () => Responses.Json("""{"number":87}""")
+        );
+
+        PrEditResult result = await this.EditAsync(upstream: upstream, title: NEW_TITLE);
+
+        AssertEdited(result);
     }
 
     [Fact]

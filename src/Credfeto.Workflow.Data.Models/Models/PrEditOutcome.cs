@@ -11,4 +11,5 @@ public enum PrEditOutcome
     NotFound,
     NotEdited,
     MayHaveBeenEdited,
+    NotAssigned,
 }

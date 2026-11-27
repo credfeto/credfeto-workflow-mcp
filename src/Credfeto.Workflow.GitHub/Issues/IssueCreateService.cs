@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Credfeto.Workflow.Data.Models.Models;
 using Credfeto.Workflow.GitHub.Board;
+using Credfeto.Workflow.GitHub.Editing;
 using Credfeto.Workflow.GitHub.Http;
 using Credfeto.Workflow.GitHub.Interfaces;
 using Credfeto.Workflow.GitHub.Interfaces.Exceptions;
@@ -60,6 +61,8 @@ public sealed class IssueCreateService : IIssueCreateService
         string title,
         string body,
         IReadOnlyList<string>? labels,
+        IReadOnlyList<string>? assignees,
+        bool assignSelf,
         CancellationToken cancellationToken
     )
     {
@@ -78,10 +81,23 @@ public sealed class IssueCreateService : IIssueCreateService
             Name: validRepository[(separator + 1)..],
             Title: ValidTitle(owner: owner, title: title),
             Body: ValidBody(body),
-            Labels: IssueLabels(priority: validPriority, labels: labels ?? [])
+            Labels: IssueLabels(priority: validPriority, labels: labels ?? []),
+            Assignees: IssueAssignees(assignees ?? []),
+            AssignSelf: assignSelf
         );
 
         return this.CreateValidAsync(issue: issue, cancellationToken: cancellationToken);
+    }
+
+    // Logins are not case-sensitive on GitHub, so a repeat in any case is dropped
+    private static IReadOnlyList<string> IssueAssignees(IReadOnlyList<string> assignees)
+    {
+        return
+        [
+            .. assignees
+                .Select(static assignee => GitHubNames.Login(value: assignee, parameterName: nameof(assignees)))
+                .Distinct(StringComparer.OrdinalIgnoreCase),
+        ];
     }
 
     private static string ValidPriority(string priority)
@@ -172,22 +188,91 @@ public sealed class IssueCreateService : IIssueCreateService
     {
         await this.CheckLeaksAsync(issue: issue, cancellationToken: cancellationToken);
 
+        IReadOnlyList<string> assignees = await this.AssigneesAsync(issue: issue, cancellationToken: cancellationToken);
+
         // The board is resolved before anything is written, so a repository with no Workflow board fails here and
         // leaves no issue behind
         CallerBoard? board = await this.ResolveBoardAsync(issue: issue, cancellationToken: cancellationToken);
 
         await this.EnsureLabelsExistAsync(issue: issue, cancellationToken: cancellationToken);
 
-        CreatedIssue created = await this.CreateIssueAsync(issue: issue, cancellationToken: cancellationToken);
-
-        string? note = await this.PutOnBoardAsync(
+        CreatedIssue created = await this.CreateIssueAsync(
             issue: issue,
-            created: created,
-            board: board,
+            assignees: assignees,
             cancellationToken: cancellationToken
         );
 
+        string? notAssigned = NotAssigned(requested: assignees, assigned: created.Assignees);
+
+        string? note = await this.PutOnBoardWithAssigneesAsync(
+            issue: issue,
+            created: created,
+            board: board,
+            notAssigned: notAssigned,
+            cancellationToken: cancellationToken
+        );
+
+        if (notAssigned is not null)
+        {
+            throw new IssueCreateNotAssignedException($"{notAssigned}; the issue was created: {created.Url}")
+            {
+                Url = created.Url,
+            };
+        }
+
         return new(Url: created.Url, Note: note);
+    }
+
+    private async ValueTask<IReadOnlyList<string>> AssigneesAsync(NewIssue issue, CancellationToken cancellationToken)
+    {
+        if (!issue.AssignSelf)
+        {
+            return issue.Assignees;
+        }
+
+        string login = await ItemEdit.ReadLoginAsync(restClient: this._restClient, cancellationToken: cancellationToken)
+            ?? throw new IssueCreateFailedException("could not read the signed-in account");
+
+        return ItemEdit.WithAssignee(assignees: issue.Assignees, login: login);
+    }
+
+    // GitHub creates the issue without any assignee it cannot assign, such as an account without push access, and
+    // answers as a success, so only the assignees in the answer show which were taken
+    private static string? NotAssigned(IReadOnlyList<string> requested, IReadOnlyList<string> assigned)
+    {
+        string[] missing = [.. requested.Where(login => !ItemEdit.IsAssigned(assignees: assigned, login: login))];
+
+        return missing.Length == 0 ? null : ItemEdit.NotAssignedReason(missing);
+    }
+
+    // The issue is put on the board whatever happened to its assignees, and a board failure still reports them
+    private async ValueTask<string?> PutOnBoardWithAssigneesAsync(
+        NewIssue issue,
+        CreatedIssue created,
+        CallerBoard? board,
+        string? notAssigned,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await this.PutOnBoardAsync(
+                issue: issue,
+                created: created,
+                board: board,
+                cancellationToken: cancellationToken
+            );
+        }
+        catch (IssueCreateBoardWriteException exception) when (notAssigned is not null)
+        {
+            throw new IssueCreateBoardWriteException(
+                message: $"{exception.Message}; {notAssigned}",
+                innerException: exception
+            )
+            {
+                Url = exception.Url,
+            };
+        }
     }
 
     // Null means the caller's token was refused the board but the board token can see it and its Not Started option
@@ -387,7 +472,11 @@ public sealed class IssueCreateService : IIssueCreateService
         }
     }
 
-    private async ValueTask<CreatedIssue> CreateIssueAsync(NewIssue issue, CancellationToken cancellationToken)
+    private async ValueTask<CreatedIssue> CreateIssueAsync(
+        NewIssue issue,
+        IReadOnlyList<string> assignees,
+        CancellationToken cancellationToken
+    )
     {
         IssueResponse response;
 
@@ -395,7 +484,12 @@ public sealed class IssueCreateService : IIssueCreateService
         {
             response = await this._restClient.PostAsync(
                 relativeUri: $"repos/{issue.Repository}/issues",
-                body: new IssueCreateRequest(Title: issue.Title, Body: issue.Body, Labels: issue.Labels),
+                body: new IssueCreateRequest(
+                    Title: issue.Title,
+                    Body: issue.Body,
+                    Labels: issue.Labels,
+                    Assignees: assignees.Count == 0 ? null : assignees
+                ),
                 requestTypeInfo: GitHubJsonContext.Default.IssueCreateRequest,
                 responseTypeInfo: GitHubJsonContext.Default.IssueResponse,
                 cancellationToken: cancellationToken
@@ -410,14 +504,18 @@ public sealed class IssueCreateService : IIssueCreateService
             );
         }
 
-        return Created(url: response.HtmlUrl ?? string.Empty, nodeId: response.NodeId);
+        return Created(
+            url: response.HtmlUrl ?? string.Empty,
+            nodeId: response.NodeId,
+            assignees: [.. response.Assignees?.Select(static assignee => assignee?.Login).OfType<string>() ?? []]
+        );
     }
 
-    private static CreatedIssue Created(string url, string? nodeId)
+    private static CreatedIssue Created(string url, string? nodeId, IReadOnlyList<string> assignees)
     {
         if (CreatedItemUrl.TryParse(pattern: CreatedItemUrl.IssueUrl(), url: url, out Uri? uri, out int number))
         {
-            return new(Url: uri, Number: number, NodeId: nodeId);
+            return new(Url: uri, Number: number, NodeId: nodeId, Assignees: assignees);
         }
 
         // The issue may exist, so what GitHub returned is named, on one line, rather than lost
@@ -527,12 +625,14 @@ public sealed class IssueCreateService : IIssueCreateService
         string Name,
         string Title,
         string Body,
-        IReadOnlyList<string> Labels
+        IReadOnlyList<string> Labels,
+        IReadOnlyList<string> Assignees,
+        bool AssignSelf
     );
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Url}")]
-    private readonly record struct CreatedIssue(Uri Url, int Number, string? NodeId);
+    private readonly record struct CreatedIssue(Uri Url, int Number, string? NodeId, IReadOnlyList<string> Assignees);
 
     [StructLayout(LayoutKind.Auto)]
     [DebuggerDisplay("{Project.Number}: {Option.OptionId}")]

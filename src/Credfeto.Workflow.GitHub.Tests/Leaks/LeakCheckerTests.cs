@@ -32,6 +32,29 @@ public sealed class LeakCheckerTests : TestBase
     }
 
     [Fact]
+    public void PastedDiffOfPlaceholdersPasses()
+    {
+        Assert.Null(
+            this._leakChecker.CheckBody(
+                "```diff\n-API_KEY=your_api_key\n+API_KEY=<api key>\n curl -H \"Authorization: Bearer <token>\"\n```"
+            )
+        );
+    }
+
+    [Fact]
+    public void PastedDiffWithARealValueIsReportedWithItsLineNumber()
+    {
+        LeakRefusal? refusal = this._leakChecker.CheckBody(
+            "```diff\n-API_KEY=your_api_key\n+API_KEY=" + "s3cr3t" + "\n```"
+        );
+
+        Assert.Equal(
+            expected: new LeakRefusal(Subject: LeakSubject.BODY, Rule: LeakRule.TOKEN, LineNumber: 3),
+            actual: refusal
+        );
+    }
+
+    [Fact]
     public void TokenIsReportedWithItsLineNumber()
     {
         LeakRefusal? refusal = this._leakChecker.CheckBody("line one\ntoken " + SECRET + "\nline three");
