@@ -92,9 +92,10 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - Added issue_block and pr_block MCP tools to post a blocking question and add the Blocked label in one call
 - Added pr_take_back MCP tool that takes a pull request back from automation by turning auto-merge off, converting it to a draft, moving its Workflow board card to Development and posting a comment explaining why, so a human or workflow can pull a PR back for more work without calling GitHub directly (#175)
 - Added pr_checks_wait MCP tool that waits up to a bounded time for a pull request's checks to reach a final verdict, judged exactly as pr_checks judges them, so the orchestrator can wait on CI without calling cfwf (#176)
+- issue_create accepts assignees and assignSelf, so an issue can be assigned to named accounts or to the signed-in account when it is created, instead of being assigned afterwards (#185)
 ### Fixed
 - pr_checks reports a cancelled check as pending, not failed, while a newer run of the same check for the same commit is still queued or running, and a skipped run no longer replaces a cancelled one, so a superseded cancellation no longer shows as a failure (#133)
-- Issue assignment now really assigns the signed-in account and issue_create accepts assignees; leak check allows placeholder values and header-format documentation (#185)
+- issue_edit, pr_edit, pr_sync_labels and issue_create now verify that GitHub really assigned the account and report a failure when it did not, so a claimed item is no longer reported as assigned when the assignment never happened (#185)
 ### Changed
 - The tool tests compare tool names instead of counting tools: the expected set is read from the [McpServerTool] methods, so adding a tool needs no shared number edited and a missing or extra tool fails naming it (#164)
 - issue_edit and pr_edit refuse assignSelf, writing nothing, when the item is already assigned to another user and not to the signed-in account, so two workers cannot both claim it (#129)
@@ -104,6 +105,7 @@ Please ADD ALL Changes to the UNRELEASED SECTION and not a specific release
 - label_add and label_remove refuse a pull request in X-Mode Issues, as comment_add does: a pr argument, or an issue number that turns out to be a pull request, fails with an error naming the mode before any label changes; with no header or All they still label pull requests and issues (#142)
 - run_rerun no longer refuses a run on attempt 3 or later; the attempt limit is removed (#146)
 - tools/list is now returned sorted by tool name (ordinal, case-insensitive) in every mode, so clients see the same stable tool order whichever mode they connect in; the README and docs/mcp.http tool lists are kept in name order too (#165)
+- The leak check allows placeholder values such as your_..., <...>, changeme, example, xxx and REDACTED, and header-format documentation, so templates and documentation no longer get refused as leaks (#185)
 ### Deprecated
 ### Removed
 ### Deployment Changes
